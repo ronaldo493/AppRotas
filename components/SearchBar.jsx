@@ -1,7 +1,7 @@
 import debounce from 'lodash.debounce';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Button, Keyboard, Text, TextInput, View } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../src/context/ThemeContext';
 import useFiliais from '../hooks/useFiliais';
 import SearchBarStyles from './styles/SearchBarStyles';
 import { getThemeStyles } from './styles/ThemeStyles';

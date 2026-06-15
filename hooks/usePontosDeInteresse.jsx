@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useStrapiContext } from "../context/StrapiContext";
+import { useStrapiContext } from "../src/context/StrapiContext";
 import strapiClient from "../services/StrapiClient";
 import usePagination from "./usePagination";
 import Toast from 'react-native-toast-message';

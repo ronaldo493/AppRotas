@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Alert, FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../src/context/ThemeContext';
 import HistoricoStyles from './styles/HistoricoStyles';
 
 export default function Historico() {

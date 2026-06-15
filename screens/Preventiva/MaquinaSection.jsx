@@ -2,7 +2,7 @@ import React from "react";
 import { Button, Text, TouchableOpacity, View } from "react-native";
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getThemeStyles } from "../../components/styles/ThemeStyles";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../src/context/ThemeContext";
 import PatrimonioAssinaturaStyles from "../styles/PatrimonioAssinaturaStyles";
 import MaquinaItem from "./MaquinaItem";
 

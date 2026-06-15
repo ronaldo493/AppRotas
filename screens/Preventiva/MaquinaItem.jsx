@@ -2,7 +2,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import React, { useRef, useState } from "react";
 import { Alert, Button, Modal, Text, TextInput, View, TouchableOpacity, Platform } from "react-native";
 import { getThemeStyles } from "../../components/styles/ThemeStyles";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../src/context/ThemeContext";
 import RNPickerSelect from 'react-native-picker-select';
 import PatrimonioAssinaturaStyles from "../styles/PatrimonioAssinaturaStyles";
 

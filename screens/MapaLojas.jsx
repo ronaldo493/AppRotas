@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../src/context/ThemeContext';
 import useFiliais from '../hooks/useFiliais';
 import useLocation from '../hooks/useLocation';
 import MapaLojasStyles from './styles/MapaLojasStyles';

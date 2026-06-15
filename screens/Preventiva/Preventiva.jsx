@@ -2,7 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Alert, Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getThemeStyles } from '../../components/styles/ThemeStyles';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import PreventivaStyles from '../styles/PreventivaStyles';
 import Checklist from './Checklist';
 

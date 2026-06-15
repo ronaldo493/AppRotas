@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Text, TouchableOpacity, View, FlatList } from 'react-native';
 import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../src/context/ThemeContext';
 import  useChamados  from '../hooks/useChamados'
 import ChamadosStyles from './styles/ChamadosStyles';
 import useFiliais from '../hooks/useFiliais';

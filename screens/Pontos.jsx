@@ -3,13 +3,13 @@ import { ActivityIndicator, Alert, Text, TextInput, TouchableOpacity, View } fro
 import MapView, { Marker } from 'react-native-maps';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../src/context/ThemeContext';
 import useLocation from '../hooks/useLocation';
 import usePontos from '../hooks/usePontosDeInteresse';
 import AddPointStyles from './styles/AddPointStyles';
 import Toast from 'react-native-toast-message';
 
-export default function AddPoint() {
+export default function Pontos() {
   //Modo escuro
   const { isDarkMode } = useTheme();
   const themeStyles = getThemeStyles(isDarkMode);

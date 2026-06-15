@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useAuthContext } from "../context/AuthContext";
+import { useAuthContext } from "../src/context/AuthContext";
 import strapiClient from "../services/StrapiClient";
 import jwtDecode from "jwt-decode";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import useAuthMenus from "./useAuthMenus";
 
 const useAuth = () => {
   const conexao = strapiClient();
@@ -10,6 +11,9 @@ const useAuth = () => {
 
   //Logoff
   const { clearToken } = useAuthContext();
+
+  //Menus
+  const { loadUserWithMenus } = useAuthMenus();
 
   //Mensagem
   const [message, setMessage] = useState(null);
@@ -35,7 +39,11 @@ const useAuth = () => {
       console.log(jwt)
 
       await setToken(jwt);
-      await setUser(user);
+
+      const userWithMenus = await loadUserWithMenus(jwt, user); //BUSCA OS MENUS
+      console.log("🚀 ~ conexaoLogin ~ userWithMenus:", userWithMenus)
+
+      await setUser(userWithMenus);
 
       checkToken(jwt)
       

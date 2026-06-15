@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../src/context/ThemeContext';
 import RouteListStyles from './styles/RouteListStyles';
 
 export default function RouteList({ routes, onRemoveRoute, onReorderRoutes}) {

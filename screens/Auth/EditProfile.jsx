@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import useAuth from '../../hooks/useAuth';
 import LoginStyles from '../styles/LoginStyles';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import { getThemeStyles } from '../../components/styles/ThemeStyles';
 
 export default function EditProfile() {

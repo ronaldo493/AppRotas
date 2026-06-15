@@ -11,6 +11,7 @@ export default function Login ()  {
 
   //Deixando padrão o email
   const email = `${username}@drogal.com.br`
+  console.log("🚀 ~ Login ~ email:", email)
 
   const handleLogin = async () => {
     if(!username || !password) {
@@ -19,6 +20,7 @@ export default function Login ()  {
     }
     
       await conexaoLogin(email, password);
+      console.log("🚀 ~ handleLogin ~ password:", password)
    
   };
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Switch, Text, View, Modal, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { getThemeStyles } from '../../components/styles/ThemeStyles';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import SettingStyles from '../styles/SettingStyles';
 import useSugestao from '../../hooks/useSugestao';
 

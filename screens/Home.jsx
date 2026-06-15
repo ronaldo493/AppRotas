@@ -4,7 +4,7 @@ import { Alert, Image, Text, TouchableOpacity, View } from 'react-native';
 import RouteList from '../components/RouteList';
 import SearchBar from '../components/SearchBar';
 import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../src/context/ThemeContext';
 import MapService from '../fixtures/mapService';
 import HomeStyles from './styles/HomeStyles';
 import useAuth from '../hooks/useAuth';;

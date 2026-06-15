@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { getThemeStyles } from '../../components/styles/ThemeStyles';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../src/context/ThemeContext';
 import SuporteStyles from '../styles/SuporteStyles';
 
 export default function Suporte ({navigation}){

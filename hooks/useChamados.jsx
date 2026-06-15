@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { useStrapiContext } from "../context/StrapiContext";
+import { useStrapiContext } from "../src/context/StrapiContext";
 import strapiClient from "../services/StrapiClient";
 import usePagination from "./usePagination";
-import { useAuthContext } from "../context/AuthContext";
+import { useAuthContext } from "../src/context/AuthContext";
 
 const useChamados = () => {
   const conexao = strapiClient();

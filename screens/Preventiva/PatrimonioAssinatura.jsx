@@ -4,7 +4,7 @@ import * as Linking from 'expo-linking';
 import React, { useState } from "react";
 import { Alert, Button, ScrollView, Text, TouchableOpacity, View, Platform } from "react-native";
 import { getThemeStyles } from "../../components/styles/ThemeStyles";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../src/context/ThemeContext";
 import PatrimonioAssinaturaStyles from "../styles/PatrimonioAssinaturaStyles";
 import MaquinaSection from "./MaquinaSection";
 import Modals from "./Modals";
