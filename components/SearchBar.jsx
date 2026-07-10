@@ -1,18 +1,17 @@
 import debounce from 'lodash.debounce';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Button, Keyboard, Text, TextInput, View } from 'react-native';
-import { useTheme } from '../src/context/ThemeContext';
 import useFiliais from '../hooks/useFiliais';
 import SearchBarStyles from './styles/SearchBarStyles';
-import { getThemeStyles } from './styles/ThemeStyles';
+import { useAppTheme } from './styles/ThemeStyles';
 
 export default function SearchBar({ onAddRoute }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilial, setSelectedFilial] = useState(null);
 
   //Modo escuro
-  const { isDarkMode } = useTheme();
-  const themeStyles = getThemeStyles(isDarkMode);
+  const themeStyles = useAppTheme();
+  const isDarkMode = themeStyles.custom.isDarkMode;
   
   //Lista Filiais
   const { filiais, error, loading } = useFiliais();

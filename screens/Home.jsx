@@ -3,8 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Alert, Image, Text, TouchableOpacity, View } from 'react-native';
 import RouteList from '../components/RouteList';
 import SearchBar from '../components/SearchBar';
-import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../src/context/ThemeContext';
+import { useAppTheme } from '../components/styles/ThemeStyles';
 import MapService from '../fixtures/mapService';
 import HomeStyles from './styles/HomeStyles';
 import useAuth from '../hooks/useAuth';;
@@ -15,8 +14,7 @@ export default function Home() {
   const [routes, setRoutes] = useState([]); //Estado que armazena as rotas/filiais selecionadas pelo usuário
 
   //Modo escuro
-  const { isDarkMode } = useTheme(); 
-  const themeStyles = getThemeStyles(isDarkMode);
+  const themeStyles = useAppTheme();
   
   //Execução de chekToken no carregamento da tela
   const { checkToken, token, message } = useAuth();

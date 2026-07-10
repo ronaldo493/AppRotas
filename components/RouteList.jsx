@@ -2,14 +2,12 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../src/context/ThemeContext';
+import { useAppTheme } from '../components/styles/ThemeStyles';
 import RouteListStyles from './styles/RouteListStyles';
 
 export default function RouteList({ routes, onRemoveRoute, onReorderRoutes}) {
-  //Modo escuro
-  const { isDarkMode } = useTheme(); 
-  const themeStyles = getThemeStyles(isDarkMode);
+  const themeStyles = useAppTheme();
+  const isDarkMode = themeStyles.custom.isDarkMode;
   
   //Renderenização de cada Item da Lista
   const renderItem = ({ item, drag, isActive }) => (

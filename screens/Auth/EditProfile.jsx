@@ -2,18 +2,15 @@ import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import useAuth from '../../hooks/useAuth';
 import LoginStyles from '../styles/LoginStyles';
-import { useTheme } from '../../src/context/ThemeContext';
-import { getThemeStyles } from '../../components/styles/ThemeStyles';
+import { useAppTheme } from '../../components/styles/ThemeStyles';
 
 export default function EditProfile() {
   //Usuário
   const { user } = useAuth();
 
  //Modo escuro
-  const { isDarkMode } = useTheme(); 
-  const themeStyles = getThemeStyles(isDarkMode);
+  const themeStyles = useAppTheme();
   
-
   useEffect(() => {
     console.log(user)
   },[])

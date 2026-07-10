@@ -8,14 +8,14 @@ import {
 import { NavigationContainer } from '@react-navigation/native';
 
 import { useAuthContext } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
+import { useThemeContext } from '../context/ThemeContext';
 
 import AuthNavigator from './AuthNavigator';
 import MainStackNavigator from './MainStackNavigator';
 
 export default function AppNavigation() {
   const { loading, isLoggedIn, user } = useAuthContext();
-  const { isDarkMode } = useTheme();
+  const { isDarkMode } = useThemeContext();
 
   if (loading) {
     return (

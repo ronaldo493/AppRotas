@@ -2,30 +2,39 @@ import React from 'react';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { DrawerContentComponentProps } from '@react-navigation/drawer';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getThemeStyles } from './styles/ThemeStyles';
-import { useTheme } from '../src/context/ThemeContext';
+import { useAppTheme } from './styles/ThemeStyles';
+import { useThemeContext } from '../src/context/ThemeContext';
 import { useAuthContext } from '../src/context/AuthContext';
 
 export default function Sidebar(props: DrawerContentComponentProps) {
-  const { isDarkMode, toggleTheme } = useTheme();
-  const theme = getThemeStyles(isDarkMode);
-
+  const { isDarkMode, toggleTheme } = useThemeContext();
+  const theme = useAppTheme();
   const { clearToken, user } = useAuthContext();
-  console.log("🚀 ~ Sidebar ~ user:", user)
+  
+  //Captura os espaçamentos seguros do dispositivo
+  const insets = useSafeAreaInsets();
 
   const handleLogout = () => {
     clearToken();
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      
+    <View 
+      style={[
+        styles.container, 
+        { 
+          backgroundColor: theme.colors.background,
+          paddingTop: insets.top, // Adiciona o padding superior seguro
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 16 // Adiciona o padding inferior seguro, com fallback para 16
+        }
+      ]}
+    >
       <View style={styles.headerUser}>
         <Text style={[styles.welcomeText, { color: isDarkMode ? '#94A3B8' : '#64748B' }]}>
           Bem-vindo,
         </Text>
-
         <Text style={[styles.userNameText, { color: theme.colors.foreground }]}>
           {user?.username || 'Usuário'}
         </Text>
@@ -33,29 +42,33 @@ export default function Sidebar(props: DrawerContentComponentProps) {
 
       <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
-      <TouchableOpacity
-        onPress={toggleTheme}
-        style={styles.menuItem}
-        activeOpacity={0.7}
-      >
-        <View style={styles.menuItemLeft}>
+      {/* Conteúdo Central da Sidebar */}
+      <View style={styles.menuContainer}>
+        <TouchableOpacity
+          onPress={toggleTheme}
+          style={styles.menuItem}
+          activeOpacity={0.7}
+        >
+          <View style={styles.menuItemLeft}>
+            <MaterialIcons 
+              name={isDarkMode ? 'dark-mode' : 'light-mode'} 
+              size={24} 
+              color={'#64748B'}
+            />
+            <Text style={[styles.menuText, { color: theme.colors.foreground }]}>
+              Modo Escuro
+            </Text>
+          </View>
+
           <MaterialIcons 
-            name={isDarkMode ? 'dark-mode' : 'light-mode'} 
-            size={24} 
-            color={'#64748B'}
+            name={isDarkMode ? 'toggle-on' : 'toggle-off'} 
+            size={36} 
+            color={isDarkMode ? theme.colors.primary : '#CBD5E1'}
           />
-          <Text style={[styles.menuText, { color: theme.colors.foreground }]}>
-            Modo Escuro
-          </Text>
-        </View>
+        </TouchableOpacity>
+      </View>
 
-        <MaterialIcons 
-          name={isDarkMode ? 'toggle-on' : 'toggle-off'} 
-          size={36} 
-          color={isDarkMode ? theme.colors.primary : '#CBD5E1'}
-        />
-      </TouchableOpacity>
-
+      {/* Botão de Sair fixado na parte inferior */}
       <TouchableOpacity
         onPress={handleLogout}
         style={[styles.buttonLogoff, { backgroundColor: theme.colors.primary }]}
@@ -77,7 +90,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   headerUser: {
-    paddingVertical: 24,
+    paddingVertical: 16,
     paddingHorizontal: 4,
   },
   welcomeText: {
@@ -93,6 +106,9 @@ const styles = StyleSheet.create({
     height: 1,
     marginHorizontal: 4,
     marginBottom: 16,
+  },
+  menuContainer: {
+    flex: 1,
   },
   menuItem: {
     flexDirection: 'row',
@@ -115,12 +131,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    // backgroundColor: theme.colors.foreground,
     gap: 8,
     paddingVertical: 14,
     borderRadius: 12,
-    marginTop: 'auto',
-    marginBottom: 24,
+    marginBottom: 8,
     elevation: 1,
   },
   logoffText: {

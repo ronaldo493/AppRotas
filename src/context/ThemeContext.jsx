@@ -38,6 +38,6 @@ export const ThemeProvider = ({ children }) => {
 };
 
 //Hook para usar o contexto de tema em outros componentes
-export const useTheme = () => {
+export const useThemeContext = () => {
     return useContext(ThemeContext); //Retorna o valor do contexto
 };

@@ -2,14 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Alert, FlatList, Text, TouchableOpacity, View } from 'react-native';
-import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../src/context/ThemeContext';
+import { useAppTheme } from '../components/styles/ThemeStyles';
+import { useThemeContext } from '../src/context/ThemeContext';
 import HistoricoStyles from './styles/HistoricoStyles';
 
 export default function Historico() {
   //Modo escuro
-  const { isDarkMode } = useTheme(); 
-  const themeStyles = getThemeStyles(isDarkMode);
+  const themeStyles = useAppTheme();
 
   const [routeHistory, setRouteHistory] = useState([]);
 

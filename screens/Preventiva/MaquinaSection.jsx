@@ -1,15 +1,14 @@
 import React from "react";
 import { Button, Text, TouchableOpacity, View } from "react-native";
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { getThemeStyles } from "../../components/styles/ThemeStyles";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useAppTheme } from "../../components/styles/ThemeStyles";
 import PatrimonioAssinaturaStyles from "../styles/PatrimonioAssinaturaStyles";
 import MaquinaItem from "./MaquinaItem";
 
 export default function MaquinaSection({ title, items, selectedItems, onAddItem, onDelete, onUpdateItem }) {
-    const { isDarkMode } = useTheme();
-    const themeStyles = getThemeStyles(isDarkMode);
-
+    const themeStyles = useAppTheme();
+    const isDarkMode = themeStyles.custom.isDarkMode;
+    
     return (
         <View style={[PatrimonioAssinaturaStyles.contentSection, themeStyles.sidebar]}>
             <View style={PatrimonioAssinaturaStyles.sectionHeader}>

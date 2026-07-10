@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
-import { getThemeStyles } from '../../components/styles/ThemeStyles';
-import { useTheme } from '../../src/context/ThemeContext';
+import { useAppTheme } from '../../components/styles/ThemeStyles';
 import PreventivaStyles from '../styles/PreventivaStyles';
 
 export default Checklist = () => {
     //Modo escuro
-    const { isDarkMode } = useTheme(); 
-    const themeStyles = getThemeStyles(isDarkMode);
+    const themeStyles = useAppTheme();
 
     const [items, setItems] = useState([
     'LIMPEZA DAS MÁQUINAS',

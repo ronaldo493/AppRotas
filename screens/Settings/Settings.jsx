@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { Switch, Text, View, Modal, TouchableOpacity, TextInput, Alert } from 'react-native';
-import { getThemeStyles } from '../../components/styles/ThemeStyles';
-import { useTheme } from '../../src/context/ThemeContext';
+import { useAppTheme } from '../../components/styles/ThemeStyles';
+import { useThemeContext } from '../../src/context/ThemeContext';
 import SettingStyles from '../styles/SettingStyles';
 import useSugestao from '../../hooks/useSugestao';
 
 export default function Settings({navigation}) {
   //Modo escuro
-  const { isDarkMode, toggleTheme } = useTheme(); 
-  const themeStyles = getThemeStyles(isDarkMode);
+  const { toggleTheme } = useThemeContext(); 
+  const themeStyles = useAppTheme();
+  const isDarkMode = themeStyles.custom.isDarkMode;
 
   const { postSugestao, loading, error, setError } = useSugestao();
 

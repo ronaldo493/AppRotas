@@ -1,26 +1,23 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 
 import BottomTabNavigator from './BottomTabNavigator';
 import HeaderMenu from '../../components/HeaderMenu';
 import Sidebar from '../../components/Sidebar';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
 
 function DrawerLayout() {
   return (
     <Drawer.Navigator
-      drawerContent={(props) => <Sidebar {...props} />}
-      screenOptions={({ navigation, route }) => ({
+      drawerContent={Sidebar}
+      screenOptions={({ navigation }) => ({
         headerShown: true,
-        header: ({ options }) => (
-          <HeaderMenu 
-            navigation={navigation} 
-            title={''} 
-          />
-        ),
+        header: () => (<HeaderMenu navigation={navigation} title={''} />),
+        drawerType: 'front',
+        detachInactiveScreens: true,
       })}
     >
       <Drawer.Screen 

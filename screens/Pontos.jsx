@@ -2,8 +2,7 @@ import React, { useState, } from 'react';
 import { ActivityIndicator, Alert, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../src/context/ThemeContext';
+import { useAppTheme } from '../components/styles/ThemeStyles';
 import useLocation from '../hooks/useLocation';
 import usePontos from '../hooks/usePontosDeInteresse';
 import AddPointStyles from './styles/AddPointStyles';
@@ -11,8 +10,8 @@ import Toast from 'react-native-toast-message';
 
 export default function Pontos() {
   //Modo escuro
-  const { isDarkMode } = useTheme();
-  const themeStyles = getThemeStyles(isDarkMode);
+  const themeStyles = useAppTheme();
+  const isDarkMode = themeStyles.custom.isDarkMode;
 
   const { pontos, loading, error, postPontos } = usePontos();
   const { currentLocation, mapRegion} = useLocation();

@@ -3,16 +3,15 @@ import * as FileSystem from 'expo-file-system';
 import * as Linking from 'expo-linking';
 import React, { useState } from "react";
 import { Alert, Button, ScrollView, Text, TouchableOpacity, View, Platform } from "react-native";
-import { getThemeStyles } from "../../components/styles/ThemeStyles";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useAppTheme } from "../../components/styles/ThemeStyles";
 import PatrimonioAssinaturaStyles from "../styles/PatrimonioAssinaturaStyles";
 import MaquinaSection from "./MaquinaSection";
 import Modals from "./Modals";
 
 export default function PatrimonioAssinatura() {
     //Modo Escuro
-    const { isDarkMode } = useTheme();
-    const themeStyles = getThemeStyles(isDarkMode);
+    const themeStyles = useAppTheme();
+    const isDarkMode = themeStyles.custom.isDarkMode;
 
     const route = useRoute();
     //Pega a filial passada como parâmetro

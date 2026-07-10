@@ -2,10 +2,11 @@ import React, { useState, useCallback } from 'react';
 import { TouchableOpacity, GestureResponderEvent, View, StyleSheet, Platform, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Menu, Divider } from 'react-native-paper';
-import { useAuthContext } from '../src/context/AuthContext';
-import { getThemeStyles } from './styles/ThemeStyles';
-import { useTheme } from '../src/context/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DrawerActions } from '@react-navigation/native';
 
+import { useAuthContext } from '../src/context/AuthContext';
+import { useAppTheme } from './styles/ThemeStyles';
 interface HeaderMenuProps {
   navigation: any;
   title?: string;
@@ -15,9 +16,10 @@ const HeaderMenu: React.FC<HeaderMenuProps> = React.memo(({ navigation, title })
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [anchorPosition, setAnchorPosition] = useState<{ x: number; y: number } | null>(null);
 
-  const { isDarkMode } = useTheme();
-  const theme = getThemeStyles(isDarkMode);
+  const theme = useAppTheme();
   const { clearToken } = useAuthContext();
+
+  const insets = useSafeAreaInsets();
 
   const handleLogout = () => {
     setIsMenuVisible(false);
@@ -35,7 +37,13 @@ const HeaderMenu: React.FC<HeaderMenuProps> = React.memo(({ navigation, title })
   }, []);
 
   return (
-    <View style={[styles.headerContainer, { backgroundColor: theme.colors.primary }]}>
+    <View style={[
+      styles.headerContainer, 
+      { 
+        backgroundColor: theme.colors.primary,
+        height: Platform.OS === 'ios' ? 60 + insets.top : 56 + insets.top,
+        paddingTop: insets.top, 
+      } ]}>
       <TouchableOpacity 
         onPress={() => {
           if (typeof navigation.openDrawer === 'function') {
@@ -103,12 +111,10 @@ const HeaderMenu: React.FC<HeaderMenuProps> = React.memo(({ navigation, title })
 
 const styles = StyleSheet.create({
   headerContainer: {
-    height: Platform.OS === 'ios' ? 105 : 70,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 8,
-    paddingTop: Platform.OS === 'ios' ? 40 : 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,

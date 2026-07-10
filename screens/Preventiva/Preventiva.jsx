@@ -1,15 +1,15 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Alert, Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { getThemeStyles } from '../../components/styles/ThemeStyles';
-import { useTheme } from '../../src/context/ThemeContext';
+import { useAppTheme } from '../../components/styles/ThemeStyles';
+import { useThemeContext } from '../../src/context/ThemeContext';
 import PreventivaStyles from '../styles/PreventivaStyles';
 import Checklist from './Checklist';
 
 export default function Preventiva (){
-    //Modo escuro
-    const { isDarkMode } = useTheme(); 
-    const themeStyles = getThemeStyles(isDarkMode);
+    //Modo escuro 
+    const themeStyles = useAppTheme();
+    const isDarkMode = themeStyles.custom.isDarkMode;
 
     //Filial Escolhida
     const [filialInput, setFilialInput] = useState('');

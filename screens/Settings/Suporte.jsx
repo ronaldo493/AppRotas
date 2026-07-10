@@ -1,14 +1,12 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { getThemeStyles } from '../../components/styles/ThemeStyles';
-import { useTheme } from '../../src/context/ThemeContext';
+import { useAppTheme } from '../../components/styles/ThemeStyles';
 import SuporteStyles from '../styles/SuporteStyles';
 
 export default function Suporte ({navigation}){
     //Modo escuro
-    const { isDarkMode } = useTheme(); 
-    const themeStyles = getThemeStyles(isDarkMode);
+    const themeStyles = useAppTheme();
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={SuporteStyles.scrollContainer}>

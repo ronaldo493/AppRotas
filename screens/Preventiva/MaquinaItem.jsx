@@ -1,15 +1,14 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import React, { useRef, useState } from "react";
 import { Alert, Button, Modal, Text, TextInput, View, TouchableOpacity, Platform } from "react-native";
-import { getThemeStyles } from "../../components/styles/ThemeStyles";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useAppTheme } from "../../components/styles/ThemeStyles";
 import RNPickerSelect from 'react-native-picker-select';
 import PatrimonioAssinaturaStyles from "../styles/PatrimonioAssinaturaStyles";
 
 export default MaquinaItem = ({ item, onUpdate }) => {
   //Modo Escuro
-  const { isDarkMode } = useTheme();
-  const themeStyles = getThemeStyles(isDarkMode);
+  const themeStyles = useAppTheme();
+  const isDarkMode = themeStyles.custom.isDarkMode;
 
   const { label, options = [], requiresSelection } = item;
 

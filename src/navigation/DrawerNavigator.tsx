@@ -5,9 +5,7 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import HeaderMenu from '../../components/HeaderMenu';
 import Sidebar from '../../components/Sidebar';
 
-import { getThemeStyles } from '../../components/styles/ThemeStyles';
-
-import { useTheme } from '../context/ThemeContext';
+import { useAppTheme } from '../../components/styles/ThemeStyles';;
 
 import AddPoint from '../../screens/Pontos';
 import EditProfile from '../../screens/Auth/EditProfile';
@@ -24,9 +22,8 @@ import SettingsStack from './SettingStackNavigator';
 const Drawer = createDrawerNavigator();
 
 export default function DrawerNavigator() {
-  const { isDarkMode } = useTheme();
 
-  const ThemeStyles = getThemeStyles(isDarkMode);
+  const ThemeStyles = useAppTheme();
 
   return (
     <Drawer.Navigator
@@ -48,7 +45,7 @@ export default function DrawerNavigator() {
         headerRight: () => (
           <HeaderMenu
             navigation={navigation}
-            themeStyles={ThemeStyles}
+            // themeStyles={ThemeStyles}
           />
         ),
       })}

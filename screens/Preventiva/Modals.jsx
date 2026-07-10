@@ -1,12 +1,11 @@
 import React from 'react';
 import { Button, Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { getThemeStyles } from "../../components/styles/ThemeStyles";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useAppTheme } from "../../components/styles/ThemeStyles";
 import PatrimonioAssinaturaStyles from "../styles/PatrimonioAssinaturaStyles";
 
 export default function Modals({ visible, onClose, modalType, allItems, onSelectItem, onAddMachine, newMachineLetter, setNewMachineLetter }) {
-    const { isDarkMode } = useTheme();
-    const themeStyles = getThemeStyles(isDarkMode);
+    const themeStyles = useAppTheme();
+    const isDarkMode = themeStyles.custom.isDarkMode;
 
     return (
         <Modal

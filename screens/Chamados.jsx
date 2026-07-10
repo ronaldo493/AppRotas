@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Text, TouchableOpacity, View, FlatList } from 'react-native';
-import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../src/context/ThemeContext';
+import { useAppTheme } from '../components/styles/ThemeStyles';
 import  useChamados  from '../hooks/useChamados'
 import ChamadosStyles from './styles/ChamadosStyles';
 import useFiliais from '../hooks/useFiliais';
@@ -9,9 +8,8 @@ import MapService from '../fixtures/mapService';
 import Toast from 'react-native-toast-message';
 
 export default function Chamados (){
-  //Modo escuro
-  const { isDarkMode } = useTheme(); 
-  const themeStyles = getThemeStyles(isDarkMode);
+  //Modo escuro 
+  const themeStyles = useAppTheme();
 
   const { filiais } = useFiliais();
   const { chamados } = useChamados();

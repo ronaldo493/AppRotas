@@ -1,17 +1,24 @@
-import React from 'react';
-import { MD2DarkTheme, MD2LightTheme, Provider as PaperProvider } from 'react-native-paper';
+import React, { useMemo } from 'react';
+import { Provider as PaperProvider } from 'react-native-paper';
 
 import { AuthProvider } from '../context/AuthContext';
 import { StrapiProvider } from '../context/StrapiContext';
-import { ThemeProvider, useTheme } from '../context/ThemeContext';
+import { ThemeProvider, useThemeContext } from '../context/ThemeContext';
+
+import { createAppTheme } from '../../components/styles/ThemeStyles'; 
 
 import AppNavigation from '../navigation/AppNavigation';
 
 function AppWithTheme() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode } = useThemeContext();
+
+  const theme = useMemo(
+    () => createAppTheme(isDarkMode),
+    [isDarkMode],
+  );
 
   return (
-    <PaperProvider theme={isDarkMode ? MD2DarkTheme : MD2LightTheme}>
+    <PaperProvider theme={theme}>
       <AppNavigation />
     </PaperProvider>
   );

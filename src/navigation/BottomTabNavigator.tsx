@@ -10,8 +10,7 @@ import Pontos from '../../screens/Pontos';
 
 import MoreMenuModal from '../../components/MoreMenuModal';
 import { useAuthContext } from '../context/AuthContext';
-import { getThemeStyles } from '../../components/styles/ThemeStyles';
-import { useTheme } from '../context/ThemeContext';
+import { useAppTheme } from '../../components/styles/ThemeStyles';
 
 type MenuItem = {
   titulo: string;
@@ -34,8 +33,7 @@ export default function BottomTabNavigator({ navigation }: { navigation: any }) 
   const [modalVisible, setModalVisible] = useState(false);
   const { user } = useAuthContext() as any;
 
-  const { isDarkMode } = useTheme();
-  const theme = getThemeStyles(isDarkMode);
+  const theme = useAppTheme();
 
   const menusOrdenados: MenuItem[] = (user?.menus || [])
     .filter((m: MenuItem) => m.ativo !== false)

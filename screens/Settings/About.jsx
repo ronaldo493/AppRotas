@@ -1,14 +1,12 @@
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { getThemeStyles } from '../../components/styles/ThemeStyles';
-import { useTheme } from '../../src/context/ThemeContext';
+import { useAppTheme } from '../../components/styles/ThemeStyles';
 import AboutStyles from '../../screens/styles/AboutStyles';
 import Constants from "expo-constants";
 
 export default function About({navigation}) {
   //Modo Escuro
-  const { isDarkMode } = useTheme();
-  const themeStyles = getThemeStyles(isDarkMode);
+  const themeStyles = useAppTheme();
 
   const currentVersion = Constants.expoConfig.version;
 

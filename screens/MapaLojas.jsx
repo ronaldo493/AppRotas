@@ -2,8 +2,7 @@ import debounce from 'lodash.debounce';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-import { getThemeStyles } from '../components/styles/ThemeStyles';
-import { useTheme } from '../src/context/ThemeContext';
+import { useAppTheme } from '../components/styles/ThemeStyles';
 import useFiliais from '../hooks/useFiliais';
 import useLocation from '../hooks/useLocation';
 import MapaLojasStyles from './styles/MapaLojasStyles';
@@ -11,8 +10,8 @@ import Toast from 'react-native-toast-message';
 
 export default function MapaLojas(){
   //Modo escuro
-  const { isDarkMode } = useTheme();
-  const themeStyles = getThemeStyles(isDarkMode);
+  const themeStyles = useAppTheme();
+  const isDarkMode = themeStyles.custom.isDarkMode;
 
   //Lista de filiais do contexto
   const { filiais } = useFiliais();
