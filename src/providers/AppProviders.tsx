@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
-import { Provider as PaperProvider } from 'react-native-paper';
+import { PaperProvider } from 'react-native-paper';
 
 import { AuthProvider } from '../context/AuthContext';
 import { StrapiProvider } from '../context/StrapiContext';
 import { ThemeProvider, useThemeContext } from '../context/ThemeContext';
 
-import { createAppTheme } from '../../components/styles/ThemeStyles'; 
-
 import AppNavigation from '../navigation/AppNavigation';
+import { createAppTheme } from '../components/ThemeStyles';
+import AppToast from '../components/AppToast';
 
 function AppWithTheme() {
   const { isDarkMode } = useThemeContext();
@@ -20,6 +20,7 @@ function AppWithTheme() {
   return (
     <PaperProvider theme={theme}>
       <AppNavigation />
+      <AppToast />
     </PaperProvider>
   );
 }

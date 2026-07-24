@@ -1,8 +1,9 @@
 import React from 'react';
-import AppProviders from './src/providers/AppProviders';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-export default function App() {
+import AppProviders from './src/providers/AppProviders';
+
+export default function App(): React.JSX.Element {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppProviders />

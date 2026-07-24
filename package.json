@@ -80,6 +80,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
+    "@types/lodash.debounce": "^4.0.9",
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
   },

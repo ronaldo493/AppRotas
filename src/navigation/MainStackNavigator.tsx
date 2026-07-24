@@ -3,8 +3,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 
 import BottomTabNavigator from './BottomTabNavigator';
-import HeaderMenu from '../../components/HeaderMenu';
-import Sidebar from '../../components/Sidebar';
+import HeaderMenu from '../components/HeaderMenu';
+import Sidebar from '../components/Sidebar';
+import Profile from '../screens/Settings/Profile';
+import About from '../screens/Settings/About';
+import Home from '../screens/Home/Home';
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -25,6 +28,24 @@ function DrawerLayout() {
         component={BottomTabNavigator} 
         options={{ headerTitle: 'Início' }} 
       />
+
+       <Drawer.Screen
+        name="EditProfile"
+        component={Profile}
+        options={{drawerItemStyle: { display: 'none' } }}
+      />
+
+      <Drawer.Screen
+        name="Sobre"
+        component={About}
+        options={{drawerItemStyle: { display: 'none' }}}
+      />
+
+      <Drawer.Screen
+        name="Inicio"
+        component={Home}
+        options={{drawerItemStyle: { display: 'none' }}}
+      />
     </Drawer.Navigator>
   );
 }
@@ -32,18 +53,10 @@ function DrawerLayout() {
 export default function MainStackNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {/* O Stack abre o DrawerLayout, que por sua vez abre as abas inferiores */}
       <Stack.Screen 
         name="MainDrawer" 
         component={DrawerLayout} 
       />
-      
-      {/* 💡 Dica de ouro: Se você tiver telas cheias que NÃO devem mostrar a barra de abas embaixo,
-          como por exemplo as telas de "Settings" ou "EditProfile", registre-as aqui no Stack:
-          
-          <Stack.Screen name="Settings" component={SettingsStack} />
-          <Stack.Screen name="EditProfile" component={EditProfile} />
-      */}
     </Stack.Navigator>
   );
 }

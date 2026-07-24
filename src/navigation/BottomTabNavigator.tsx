@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import Home from '../../screens/Home';
-import MapaLojas from '../../screens/MapaLojas';
-import Historico from '../../screens/Historico';
-import Pontos from '../../screens/Pontos';
-
-import MoreMenuModal from '../../components/MoreMenuModal';
+import MoreMenuModal from '../components/MoreMenuModal';
 import { useAuthContext } from '../context/AuthContext';
-import { useAppTheme } from '../../components/styles/ThemeStyles';
+
+import Historico from '../screens/History/Historico';
+import Home from '../screens/Home/Home';
+import MapaLojas from '../screens/Map/MapaLojas';
+import Pontos from '../screens/Points/Pontos';
+import Preventiva from '../screens/Preventive/Preventiva';
+import Chamados from '../screens/SupportTickets/Chamados';
+import { useAppTheme } from '../components/ThemeStyles';
+import Sugestion from '../components/Sugestion/Sugestion';
 
 type MenuItem = {
   titulo: string;
@@ -27,6 +30,8 @@ const screensMap: Record<string, React.ComponentType<any>> = {
   MapaLojas,
   Historico,
   Pontos,
+  Preventiva,
+  Chamados
 };
 
 export default function BottomTabNavigator({ navigation }: { navigation: any }) {
@@ -44,8 +49,8 @@ export default function BottomTabNavigator({ navigation }: { navigation: any }) 
   if (totalMenus === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background || '#232730', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={theme.colors.primaryIconFocus || '#CA484A'} />
-        <Text style={{ color: theme.colors.foreground || '#F5F6F6', marginTop: 12, fontWeight: '500' }}>
+        <ActivityIndicator size="large" color={theme.colors.iconActive || '#CA484A'} />
+        <Text style={{ color: theme.colors.onBackground || '#F5F6F6', marginTop: 12, fontWeight: '500' }}>
           Carregando menus...
         </Text>
       </View>
@@ -63,11 +68,14 @@ export default function BottomTabNavigator({ navigation }: { navigation: any }) 
     menusDoModal = [];
   }
 
+  const EmptyScreen = () => null;
+
   return (
-    <>
+    <View style={styles.container}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
+          tabBarHideOnKeyboard: true,
           tabBarIcon: ({ focused, color, size }) => {
             let iconName = '';
 
@@ -86,12 +94,13 @@ export default function BottomTabNavigator({ navigation }: { navigation: any }) 
               />
             );
           },
-          tabBarActiveTintColor: theme.colors.primaryIconFocus,
-          tabBarInactiveTintColor: theme.colors.primaryIconDarkBackground,
+          tabBarActiveTintColor: theme.colors.iconActive,
+          tabBarInactiveTintColor: theme.colors.iconDefault,
           tabBarStyle: { 
-            paddingBottom: 12, 
-            height: 70, 
-            backgroundColor: theme.colors.primary,
+            height: 85, 
+            paddingTop: 8,
+            paddingBottom: 8,
+            backgroundColor: theme.colors.tabBarBackground,
             borderTopWidth: 0
           },
           tabBarLabelStyle: { fontSize: 13, fontWeight: '500' },
@@ -109,11 +118,30 @@ export default function BottomTabNavigator({ navigation }: { navigation: any }) 
             />
           );
         })}
+        {menusDoModal.map((menu: MenuItem) => {
+          const Screen = screensMap[menu.rota];
+          if (!Screen) return null;
+
+          return (
+            <Tab.Screen
+              key={menu.titulo}
+              name={menu.titulo}
+              component={Screen}
+              options={{
+                title: menu.titulo,
+                tabBarButton: () => null,
+                tabBarItemStyle: {
+                  display: 'none',
+                },
+              }}
+            />
+          );
+        })}
 
         {totalMenus > 4 && (
           <Tab.Screen
             name="Mais"
-            component={View}
+            component={EmptyScreen}
             listeners={{
               tabPress: (e) => {
                 e.preventDefault();
@@ -124,12 +152,24 @@ export default function BottomTabNavigator({ navigation }: { navigation: any }) 
         )}
       </Tab.Navigator>
 
+      <Sugestion />
+
       <MoreMenuModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        navigation={navigation}
         menuItems={menusDoModal}
+        onNavigate={routeName => {
+          navigation.navigate('MainTabs', {
+            screen: routeName,
+          });
+        }}
       />
-    </>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});

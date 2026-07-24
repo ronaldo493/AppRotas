@@ -6,11 +6,11 @@
     "runtimeVersion": {
       "policy": "fingerprint"
     },
-    "icon": "./assets/img/LogoApp2.png",
+    "icon": "./src/assets/img/LogoApp2.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/img/LogoApp2.png",
+      "image": "./src/assets/img/LogoApp2.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -33,6 +33,7 @@
       "bundleIdentifier": "com.ronaldo2024.SuporteDrogal"
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },

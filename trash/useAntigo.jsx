@@ -1,4 +1,4 @@
-import strapiClient from "../services/StrapiClient";
+import useStrapiClient from "../src/services/StrapiClient";
 
 //Função genérica para buscar dados paginados
 export default usePagination = async (endpoint, pageSize = 100) => {
@@ -6,7 +6,7 @@ export default usePagination = async (endpoint, pageSize = 100) => {
     let page = 1;
     let hasMore = true;
   
-    const connection = strapiClient();  //Usando o cliente Strapi
+    const connection = useStrapiClient();  //Usando o cliente Strapi
   
     try {
       //Enquanto houver mais dados para buscar
