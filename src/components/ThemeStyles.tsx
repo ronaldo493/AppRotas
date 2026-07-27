@@ -150,7 +150,7 @@ export const createAppTheme = (isDarkMode: boolean) => {
 
     custom: {
       isDarkMode,
-      mapStyle: isDarkMode ? darkMapStyle : lightMapStyle,
+      mapStyle: isDarkMode ? darkMapStyle : [],
       radius: 12,
     },
   };

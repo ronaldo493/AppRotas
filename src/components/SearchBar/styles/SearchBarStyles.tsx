@@ -109,4 +109,84 @@ export default StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  cardSubtitle: {
+    marginTop: 3,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
+  estimateDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginTop: 6,
+    marginBottom: 12,
+  },
+
+  estimateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+
+  estimateIconContainer: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 19,
+  },
+
+  estimateContent: {
+    flex: 1,
+  },
+
+  estimateTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  estimateDescription: {
+    flex: 1,
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
+  estimateText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
+  estimateError: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  
+  notFoundContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+
+  notFoundContent: {
+    flex: 1,
+  },
+
+  notFoundTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  notFoundText: {
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+  },
 });

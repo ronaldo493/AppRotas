@@ -8,6 +8,7 @@ import { ThemeProvider, useThemeContext } from '../context/ThemeContext';
 import AppNavigation from '../navigation/AppNavigation';
 import { createAppTheme } from '../components/ThemeStyles';
 import AppToast from '../components/AppToast';
+import { LocationProvider } from '../context/LocationContext';
 
 function AppWithTheme() {
   const { isDarkMode } = useThemeContext();
@@ -19,8 +20,10 @@ function AppWithTheme() {
 
   return (
     <PaperProvider theme={theme}>
-      <AppNavigation />
-      <AppToast />
+      <LocationProvider>
+        <AppNavigation />
+        <AppToast />
+      </LocationProvider>
     </PaperProvider>
   );
 }

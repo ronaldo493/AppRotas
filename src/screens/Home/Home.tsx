@@ -1,9 +1,9 @@
 import React, {useCallback, useEffect, useState,} from 'react';
 import { Text, TouchableOpacity, View,} from 'react-native';
 import { Button, Dialog, Portal,} from 'react-native-paper';
+import { MaterialIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 
-import MapService from '../../../fixtures/mapService';
 import RouteList from '../../components/RouteList/RouteList';
 import SearchBar from '../../components/SearchBar/SearchBar';
 import { useAppTheme } from '../../components/ThemeStyles';
@@ -12,6 +12,8 @@ import useHistoryRoutes from '../../hooks/useHistoryRoutes';
 import { addPendingHistory, syncPendingHistory,} from '../../services/PendingRouteHistory';
 import type { Filial } from '../../type/Filial';
 import HomeStyles from './styles/HomeStyles';
+import useLocation from '../../hooks/useLocation';
+import MapService from '../../services/MapService';
 
 type NavigatorType = 'google' | 'waze';
 
@@ -21,6 +23,17 @@ export default function Home(): React.JSX.Element {
   const { checkToken, token, message } = useAuth();
   const { postHistoricoRota,  loading: savingHistory } = useHistoryRoutes();
 
+  const {
+    currentCity,
+    error: locationError,
+    loading: loadingLocation,
+    canAskAgain,
+    ensureLocation,
+    getLocation,
+    openLocationSettings,
+    currentLocation
+  } = useLocation();
+
   const [routes, setRoutes] = useState<Filial[]>([]);
   const [hasSearchResult, setHasSearchResult] = useState(false);
   const [navigatorDialogVisible, setNavigatorDialogVisible] = useState(false);
@@ -29,10 +42,14 @@ export default function Home(): React.JSX.Element {
 
   const synchronizePending = useCallback(
     async (showToast = false): Promise<void> => {
-      await syncPendingHistory( postHistoricoRota);
+      await syncPendingHistory(postHistoricoRota);
     },
     [postHistoricoRota],
   );
+
+  useEffect(() => {
+    void ensureLocation();
+  }, [ensureLocation]);
 
   useEffect(() => {
     if (token) {void checkToken(token); }
@@ -41,6 +58,22 @@ export default function Home(): React.JSX.Element {
   useEffect(() => {
     void synchronizePending();
   }, [synchronizePending]);
+
+  const handleLocationAction = useCallback((): void => {
+    if (loadingLocation) return;
+
+    if (canAskAgain) {
+      void getLocation(false);
+      return;
+    }
+
+    void openLocationSettings();
+  }, [
+    canAskAgain,
+    getLocation,
+    loadingLocation,
+    openLocationSettings,
+  ]);
 
   const handleAddRoute = (filial: Filial): void => {
     const alreadyExists = routes.some(
@@ -77,12 +110,12 @@ export default function Home(): React.JSX.Element {
     await synchronizePending();
 
     try {
-      const saved = await postHistoricoRota(routes, datahora, false);
+      const saved = await postHistoricoRota(routes, datahora, false, currentCity);
 
       if (saved)  return;
     } catch {}
 
-    await addPendingHistory(routes, datahora);
+    await addPendingHistory(routes, datahora, currentCity);
   };
 
   const openNavigator = async (navigator: NavigatorType): Promise<void> => {
@@ -91,11 +124,11 @@ export default function Home(): React.JSX.Element {
     await saveHistory();
 
     if (navigator === 'google') {
-      MapService.openGoogleMapsRoute(routes);
+      await MapService.openGoogleMapsRoute(routes);
       return;
     }
 
-    MapService.openWazeRoute(routes);
+    await MapService.openWazeRoute(routes);
   };
 
   const handleTraceRoute = (): void => {
@@ -107,6 +140,7 @@ export default function Home(): React.JSX.Element {
   return (
     <View style={[ HomeStyles.container, { backgroundColor: theme.colors.background }]}>
       <SearchBar
+        currentLocation={currentLocation}
         onAddRoute={handleAddRoute}
         onResultChange={setHasSearchResult}
       />
@@ -145,6 +179,44 @@ export default function Home(): React.JSX.Element {
             <Text style={{ color: theme.colors.onSurfaceVariant}}>
               {message}
             </Text>
+          </View>
+        )}
+
+        {locationError && !loadingLocation && (
+          <View style={[
+              HomeStyles.locationMessage,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor:theme.colors.outline,
+              },
+            ]}
+          >
+            <MaterialIcons
+              name="location-off"
+              size={21}
+              color={theme.colors.iconDefault}
+            />
+
+            <Text style={[HomeStyles.locationMessageText, {color: theme.colors.onSurfaceVariant}]} >
+              {locationError}
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleLocationAction}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={
+                canAskAgain
+                  ? 'Tentar acessar localização novamente'
+                  : 'Abrir configurações do aplicativo'
+              }
+            >
+              <Text style={[HomeStyles.locationActionText, { color: theme.colors.primary}]}>
+                {canAskAgain
+                  ? 'Tentar novamente'
+                  : 'Abrir configurações'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 

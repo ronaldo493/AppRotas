@@ -158,6 +158,7 @@ const useHistoryRoutes = () => {
       routes: Filial[],
       datahora = new Date().toISOString(),
       showErrorToast = true,
+      cidadeOrigem: string | null,
     ): Promise<boolean> => {
       if (!user) {
         const message = 'Usuário não identificado. Faça login novamente.';
@@ -198,6 +199,7 @@ const useHistoryRoutes = () => {
         datahora,
         username: user.username ?? 'Não informado',
         setor: user.setor ?? 'Não informado',
+        cidadeOrigem,
         rotas: routes.map((route, index) => ({
           codigofilial: route.codigofilial,
           nomefilial: route.nomefilial,

@@ -7,5 +7,7 @@ export interface Filial {
   bairro?: string;
   telefone?: string;
   cnpj?: string;
+  latitude?: string | number;
+  longitude?: string | number;
   [key: string]: unknown;
 }

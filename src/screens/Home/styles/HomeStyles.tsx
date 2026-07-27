@@ -69,4 +69,30 @@ export default StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+
+  locationMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    elevation: 2,
+  },
+
+  locationMessageText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
+  locationActionText: {
+    maxWidth: 90,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
 });

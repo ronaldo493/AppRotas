@@ -1,6 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import debounce from 'lodash.debounce';
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -9,102 +8,54 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import type { LatLng } from 'react-native-maps';
 
-import useFiliais from '../../hooks/useFiliais';
+import type { Filial } from '../../type/Filial';
 import { useAppTheme } from '../ThemeStyles';
+import FilialResultCard from './components/FilialResultCard';
+import useSearchFilial from './hook/useSearchFilial';
 import SearchBarStyles from './styles/SearchBarStyles';
 
 interface SearchBarProps {
-  onAddRoute: (filial: any) => void;
-  onResultChange?: (hasResult: boolean) => void;
+  currentLocation: LatLng | null;
+  onAddRoute: (filial: Filial) => void;
+  onResultChange?: (
+    hasSearch: boolean,
+  ) => void;
 }
 
 export default function SearchBar({
+  currentLocation,
   onAddRoute,
   onResultChange,
-}: SearchBarProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFilial, setSelectedFilial] = useState<any>(null);
-
+}: SearchBarProps): React.JSX.Element {
   const theme = useAppTheme();
-  const { filiais = [], error, loading } = useFiliais();
 
-  const debouncedSearch = useMemo(
-    () =>
-      debounce((text: string) => {
-        const value = text.trim();
+  const {
+    searchTerm,
+    handleSearch,
+    clearSearch,
 
-        if (!value) {
-          setSelectedFilial(null);
-          return;
-        }
+    selectedFilial,
+    filialNotFound,
+    addSelectedFilial,
 
-        const codigoFilial = Number(value);
+    loadingFiliais,
+    filiaisError,
 
-        if (Number.isNaN(codigoFilial)) {
-          setSelectedFilial(null);
-          return;
-        }
+    estimate,
+    loadingEstimate,
+    estimateError,
+  } = useSearchFilial({
+    currentLocation,
+    onAddRoute,
+    onResultChange,
+  });
 
-        const filialEncontrada = filiais.find(
-          (filial: any) => filial.codigofilial === codigoFilial,
-        );
-
-        setSelectedFilial(filialEncontrada ?? null);
-      }, 400),
-    [filiais],
-  );
-
-  useEffect(() => {
-    onResultChange?.(searchTerm.trim().length > 0);
-  }, [searchTerm, onResultChange]);
-
-  useEffect(() => {
-    return () => debouncedSearch.cancel();
-  }, [debouncedSearch]);
-
-  const handleSearch = (text: string) => {
-    setSearchTerm(text);
-
-    if (!text.trim()) {
-      setSelectedFilial(null);
-    }
-
-    debouncedSearch(text);
-  };
-
-  const clearSearch = () => {
-    setSearchTerm('');
-    setSelectedFilial(null);
-    debouncedSearch.cancel();
-  };
-
-  const handleSelectFilial = () => {
-    if (!selectedFilial) return;
-
-    onAddRoute(selectedFilial);
+  const handleClear = (): void => {
     clearSearch();
     Keyboard.dismiss();
   };
-
-  const filialDetails: {
-    key: string;
-    value: string;
-    complement?: string;
-  }[] = selectedFilial
-    ? [
-        {
-          key: 'endereco',
-          value: `Endereço: ${selectedFilial.endereco}, ${selectedFilial.numero}`,
-          complement: `Bairro: ${selectedFilial.bairro}`,
-        },
-        {
-          key: 'telefone',
-          value: selectedFilial.telefone || 'Não informado',
-          complement:`CNPJ: ${selectedFilial.cnpj}` ,
-        },
-      ]
-    : [];
 
   return (
     <View>
@@ -112,8 +63,10 @@ export default function SearchBar({
         style={[
           SearchBarStyles.inputContainer,
           {
-            backgroundColor: theme.colors.surfaceVariant,
-            borderColor: theme.colors.outline,
+            backgroundColor:
+              theme.colors.surfaceVariant,
+            borderColor:
+              theme.colors.outline,
           },
         ]}
       >
@@ -124,21 +77,20 @@ export default function SearchBar({
         />
 
         <TextInput
-          style={[
-            SearchBarStyles.input,
-            { color: theme.colors.onSurface },
-          ]}
+          value={searchTerm}
+          onChangeText={handleSearch}
+          onSubmitEditing={() => Keyboard.dismiss()}
           placeholder="Digite o número da filial"
           placeholderTextColor={theme.colors.onSurfaceVariant}
-          value={searchTerm}
           keyboardType="numeric"
-          onChangeText={handleSearch}
           returnKeyType="search"
+          style={[SearchBarStyles.input, { color: theme.colors.onSurface}]}
         />
 
         {searchTerm.length > 0 && (
           <TouchableOpacity
-            onPress={clearSearch}
+            onPress={handleClear}
+            activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Limpar busca"
           >
@@ -151,25 +103,18 @@ export default function SearchBar({
         )}
       </View>
 
-      {loading && (
+      {loadingFiliais && (
         <View style={SearchBarStyles.feedbackContainer}>
-          <ActivityIndicator
-            size="small"
-            color={theme.colors.primary}
-          />
 
-          <Text
-            style={[
-              SearchBarStyles.feedbackText,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
-          >
+          <ActivityIndicator size="small" color={theme.colors.primary}/>
+
+          <Text style={[SearchBarStyles.feedbackText, {color: theme.colors.onSurfaceVariant }]}>
             Carregando filiais...
           </Text>
         </View>
       )}
 
-      {error && (
+      {filiaisError && (
         <View
           style={[
             SearchBarStyles.errorContainer,
@@ -179,80 +124,66 @@ export default function SearchBar({
             },
           ]}
         >
-          <Text style={{ color: theme.colors.onErrorContainer }}>
-            {error}
+          <Text style={{color: theme.colors.onErrorContainer}}>
+            {filiaisError}
           </Text>
         </View>
       )}
 
-      {selectedFilial && (
+      {filialNotFound && (
         <View
           style={[
-            SearchBarStyles.resultCard,
+            SearchBarStyles.notFoundContainer,
             {
               backgroundColor: theme.colors.surface,
               borderColor: theme.colors.outline,
-              shadowColor: theme.colors.shadow,
             },
           ]}
         >
-          <View style={SearchBarStyles.cardHeader}>
-            <View style={SearchBarStyles.cardHeaderContent}>
-              <Text
-                numberOfLines={2}
-                style={[SearchBarStyles.cardTitle, { color: theme.colors.onSurface },]}
-              >
-                {selectedFilial.nomefilial}
-              </Text>
-            </View>
-          </View>
+          <MaterialIcons
+            name="search-off"
+            size={24}
+            color={theme.colors.iconDefault}
+          />
 
-          <View style={[SearchBarStyles.divider, { backgroundColor: theme.colors.outline },]}/>
-
-          {filialDetails.map(detail => (
-            <View key={detail.key} style={SearchBarStyles.detailRow}>
-              <MaterialIcons size={19} color={theme.colors.iconDefault}/>
-
-              <View style={SearchBarStyles.detailContent}>
-                <Text style={[SearchBarStyles.detailValue, { color: theme.colors.onSurface },]}>
-                  {detail.value}
-                </Text>
-
-                {detail.complement && (
-                  <Text style={[ SearchBarStyles.detailComplement, { color: theme.colors.onSurfaceVariant },]}>
-                    {detail.complement}
-                  </Text>
-                )}
-              </View>
-            </View>
-          ))}
-
-          <TouchableOpacity
-            onPress={handleSelectFilial}
-            activeOpacity={0.8}
-            style={[
-              SearchBarStyles.addButton,
-              { backgroundColor: theme.colors.primarySoft },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Adicionar filial ${selectedFilial.codigofilial}`}
-          >
-            <MaterialIcons
-              name="add"
-              size={20}
-              color={theme.colors.primary}
-            />
+          <View style={SearchBarStyles.notFoundContent}>
+            <Text
+              style={[
+                SearchBarStyles.notFoundTitle,
+                {
+                  color: theme.colors.onSurface,
+                },
+              ]}
+            >
+              Filial não encontrada
+            </Text>
 
             <Text
               style={[
-                SearchBarStyles.addButtonText,
-                { color: theme.colors.primary },
+                SearchBarStyles.notFoundText,
+                {
+                  color:
+                    theme.colors
+                      .onSurfaceVariant,
+                },
               ]}
             >
-              Adicionar à rota
+              Não encontramos a filial{' '}
+              {searchTerm.trim()}.
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
+      )}
+
+      {selectedFilial && (
+        <FilialResultCard
+          filial={selectedFilial}
+          estimate={estimate}
+          loadingEstimate={loadingEstimate}
+          estimateError={estimateError}
+          hasLocation={currentLocation !== null}
+          onAdd={addSelectedFilial}
+        />
       )}
     </View>
   );
