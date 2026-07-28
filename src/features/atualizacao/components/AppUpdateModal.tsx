@@ -116,11 +116,11 @@ export default function AppUpdateModal({
           {showMethods ? (
             <Button disabled={Boolean(openingUrl)} onPress={() => setShowMethods(false)}>Voltar</Button>
           ) : (
-            <>
-              <Button disabled={Boolean(openingUrl)} onPress={handleDismiss}>Agora não</Button>
-              <Button loading={Boolean(openingUrl)} disabled={Boolean(openingUrl)} onPress={handleUpdate}>Atualizar</Button>
-            </>
+            <Button disabled={Boolean(openingUrl)} onPress={handleDismiss}>Agora não</Button>
           )}
+          {!showMethods ? (
+            <Button loading={Boolean(openingUrl)} disabled={Boolean(openingUrl)} onPress={handleUpdate}>Atualizar</Button>
+          ) : null}
         </Dialog.Actions>
       </Dialog>
     </Portal>

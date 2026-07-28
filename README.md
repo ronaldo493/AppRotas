@@ -25,6 +25,7 @@ seus componentes, hooks, modelos, telas, serviços e casos de uso.
 - Checklist de preventiva e relatório de patrimônio compartilhável.
 - Envio de sugestões, melhorias e problemas.
 - Tema claro/escuro e componentes do React Native Paper.
+- Perfil com e-mail secundário e alteração autenticada de senha.
 
 ## Tecnologias principais
 
@@ -230,6 +231,7 @@ Exemplo de `rotas`:
 ### Outras coleções utilizadas
 
 - `update-app` (single type): `versao`, `appUrl` e mídia `appApk`.
+- Usuário do Users & Permissions: campo opcional `emailSec` do tipo Email.
 - `informacoeslojas`: dados e coordenadas das filiais.
 - `menus`: título, rota, ícone, situação, ordem e relação com setores.
 - `chamados`: chamados filtrados por responsável e setor.

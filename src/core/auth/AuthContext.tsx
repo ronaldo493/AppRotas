@@ -30,6 +30,7 @@ export interface AuthUser {
   documentId?: string;
   username?: string;
   email?: string;
+  emailSec?: string | null;
   confirmed?: boolean;
   blocked?: boolean;
   setor?: string | null;
