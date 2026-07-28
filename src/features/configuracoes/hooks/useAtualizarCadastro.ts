@@ -4,6 +4,8 @@ import Toast from 'react-native-toast-message';
 
 import {useAuthContext, type AuthUser} from '../../../core/auth/AuthContext';
 import useStrapiClient from '../../../core/api/strapiClient';
+import {AUDIT_LOG_ACTION} from '../../auditoria/models/AuditLog';
+import {createAuditLog} from '../../auditoria/services/auditLogService';
 
 interface AtualizarCadastroInput {
   emailSec: string;
@@ -120,6 +122,15 @@ export default function useAtualizarCadastro(): UseAtualizarCadastroReturn {
         };
         await setUser(updatedUser);
         emailUpdated = true;
+
+        await createAuditLog(client, {
+          acao: AUDIT_LOG_ACTION.ATUALIZACAO_EMAIL,
+          entidade: 'USUARIO',
+          entidadeId: String(user.id),
+          username: user.username ?? 'Não informado',
+          setor: user.setor ?? 'Não informado',
+          origem: 'APP_MOBILE',
+        });
       }
 
       if (wantsPasswordChange) {
@@ -140,6 +151,15 @@ export default function useAtualizarCadastro(): UseAtualizarCadastroReturn {
           };
           await setUser(updatedUser);
         }
+
+        await createAuditLog(client, {
+          acao: AUDIT_LOG_ACTION.ALTERACAO_SENHA,
+          entidade: 'USUARIO',
+          entidadeId: String(user.id),
+          username: user.username ?? 'Não informado',
+          setor: user.setor ?? 'Não informado',
+          origem: 'APP_MOBILE',
+        });
       }
 
       Toast.show({

@@ -54,6 +54,7 @@ const ProfileStyles = StyleSheet.create({
   },
   addEmailButton: {
     borderRadius: 8,
+    marginRight: -8,
   },
   addEmailButtonContent: {
     minHeight: 32,

@@ -69,10 +69,9 @@ export default function ProfileScreen(): React.JSX.Element {
             ) : (
               <Button
                 compact
-                mode="contained"
+                mode="text"
                 disabled={loading}
-                buttonColor={theme.colors.actionBackground}
-                textColor={theme.colors.actionForeground}
+                textColor={theme.colors.primary}
                 style={ProfileStyles.addEmailButton}
                 contentStyle={ProfileStyles.addEmailButtonContent}
                 labelStyle={ProfileStyles.addEmailButtonLabel}

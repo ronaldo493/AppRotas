@@ -228,6 +228,24 @@ Exemplo de `rotas`:
 | `categoria` | Enumeration: `Restaurante`, `Posto de Combustível` |
 | `usernameCriador` | Texto curto |
 
+### `audit-logs`
+
+Os registros de auditoria são criados somente depois que a alteração do
+cadastro é confirmada pelo Strapi. E-mails, senhas e tokens não são
+armazenados.
+
+| Campo | Tipo recomendado | Valores |
+| --- | --- | --- |
+| `acao` | Enumeration | `ATUALIZACAO_EMAIL`, `ALTERACAO_SENHA` |
+| `entidade` | Enumeration | `USUARIO` |
+| `entidadeId` | Texto curto | ID do usuário autenticado |
+| `username` | Texto curto | Usuário que realizou a ação |
+| `setor` | Texto curto | Setor do usuário |
+| `origem` | Enumeration | `APP_MOBILE` |
+
+O horário deve utilizar o campo automático `createdAt` do Strapi. O papel
+`Authenticated` precisa somente da permissão `create` nessa coleção.
+
 ### Outras coleções utilizadas
 
 - `update-app` (single type): `versao`, `appUrl` e mídia `appApk`.
