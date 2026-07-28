@@ -5,7 +5,7 @@ import axiosRetry from 'axios-retry';
 import { useAuthContext } from '../context/AuthContext';
 
 const BASE_URL_PRODUCTION = 'http://ec2-18-229-222-186.sa-east-1.compute.amazonaws.com:3021/api';
-const BASE_URL_DEVELOPMENT = 'http://10.215.10.30:3001/api'; //DOCKER
+const BASE_URL_DEVELOPMENT = 'http://10.215.10.30:1337/api'; //DOCKER
 // const BASE_URL_PRODUCTION = 'http://suporteappdrogal.ddns.com.br:18083/api'; - ANTIGO
 // const BASE_URL_DEVELOPMENT = 'http://192.168.1.73:3001/api';
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useMemo, useState} from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -25,6 +25,7 @@ type MenuItem = {
 };
 
 const Tab = createBottomTabNavigator();
+const EmptyScreen = () => null;
 
 const screensMap: Record<string, React.ComponentType<any>> = {
   Home,
@@ -42,9 +43,16 @@ export default function BottomTabNavigator({ navigation }: { navigation: any }) 
 
   const theme = useAppTheme();
 
-  const menusOrdenados: MenuItem[] = (user?.menus || [])
-    .filter((m: MenuItem) => m.ativo !== false)
-    .sort((a: MenuItem, b: MenuItem) => (a.ordem || 0) - (b.ordem || 0));
+  const menusOrdenados = useMemo<MenuItem[]>(
+    () =>
+      ((user?.menus ?? []) as MenuItem[])
+        .filter(menu => menu.ativo !== false)
+        .sort(
+          (first, second) =>
+            (first.ordem ?? 0) - (second.ordem ?? 0),
+        ),
+    [user?.menus],
+  );
 
   const totalMenus = menusOrdenados.length;
 
@@ -70,13 +78,14 @@ export default function BottomTabNavigator({ navigation }: { navigation: any }) 
     menusDoModal = [];
   }
 
-  const EmptyScreen = () => null;
-
   return (
     <View style={styles.container}>
       <Tab.Navigator
+        detachInactiveScreens
         screenOptions={({ route }) => ({
           headerShown: false,
+          lazy: true,
+          freezeOnBlur: true,
           tabBarHideOnKeyboard: true,
           tabBarIcon: ({ focused, color, size }) => {
             let iconName = '';

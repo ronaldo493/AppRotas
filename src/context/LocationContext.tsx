@@ -21,7 +21,15 @@ export interface LocationContextValue {
   canAskAgain: boolean;
   ensureLocation: () => Promise<void>;
   getLocation: (showErrorToast?: boolean,) => Promise<boolean>;
+  resolveCurrentCity: () => Promise<string | null>;
   openLocationSettings: () => Promise<void>;
+}
+
+export interface MapLocationContextValue {
+  currentLocation: LatLng | null;
+  currentCity: string | null;
+  mapRegion: Region | null;
+  loading: boolean;
 }
 
 interface LocationProviderProps {
@@ -29,6 +37,8 @@ interface LocationProviderProps {
 }
 
 export const LocationContext = createContext<LocationContextValue | null>(null);
+export const MapLocationContext =
+  createContext<MapLocationContextValue | null>(null);
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
@@ -55,9 +65,14 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
   const requestedAutomaticallyRef = useRef(false);
   const settingsOpenedRef = useRef(false);
   const lastGeocodedLocationRef = useRef<string | null>(null);
+  const lastGeocodedCityRef = useRef<string | null>(null);
+  const geocodeRequestRef = useRef<{
+    locationKey: string;
+    request: Promise<string | null>;
+  } | null>(null);
 
   const updateCurrentCity = useCallback(
-    async (coordinates: LatLng,): Promise<void> => {
+    async (coordinates: LatLng): Promise<string | null> => {
       const locationKey = [
         coordinates.latitude.toFixed(3),
         coordinates.longitude.toFixed(3),
@@ -67,40 +82,78 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
       * Evita consultar novamente quando ocorrer
       * apenas uma pequena oscilação do GPS.
       */
-      if (lastGeocodedLocationRef.current === locationKey) return;
+      if (lastGeocodedLocationRef.current === locationKey) {
+        return lastGeocodedCityRef.current;
+      }
+
+      if (
+        geocodeRequestRef.current?.locationKey ===
+        locationKey
+      ) {
+        return geocodeRequestRef.current.request;
+      }
+
+      const request = (async (): Promise<string | null> => {
+        try {
+          const addresses =
+            await Location.reverseGeocodeAsync({
+              latitude: coordinates.latitude,
+              longitude: coordinates.longitude,
+            });
+
+          const address = addresses[0];
+
+          const city =
+            address?.city?.trim() ||
+            address?.subregion?.trim() ||
+            null;
+
+          setCurrentCity(city);
+          lastGeocodedCityRef.current = city;
+
+          /*
+           * Salva a chave somente depois que a
+           * consulta for concluída.
+           */
+          lastGeocodedLocationRef.current =
+            locationKey;
+
+          return city;
+        } catch (geocodeError: unknown) {
+          console.error(
+            'Erro ao identificar cidade atual:',
+            geocodeError,
+          );
+
+          setCurrentCity(null);
+          return null;
+        }
+      })();
+
+      geocodeRequestRef.current = {
+        locationKey,
+        request,
+      };
 
       try {
-        const addresses =
-          await Location.reverseGeocodeAsync({
-            latitude: coordinates.latitude,
-            longitude: coordinates.longitude,
-          });
-
-        const address = addresses[0];
-
-        const city =
-          address?.city?.trim() ||
-          address?.subregion?.trim() ||
-          null;
-
-        setCurrentCity(city);
-
-        /*
-        * Salva a chave somente depois que a
-        * consulta for concluída.
-        */
-        lastGeocodedLocationRef.current = locationKey;
-      } catch (geocodeError: unknown) {
-        console.error('Erro ao identificar cidade atual:', geocodeError);
-
-        setCurrentCity(null);
+        return await request;
+      } finally {
+        if (
+          geocodeRequestRef.current?.request ===
+          request
+        ) {
+          geocodeRequestRef.current = null;
+        }
       }
     },
     [],
   );
 
   const applyLocation = useCallback(
-    (location: Location.LocationObject): void => {
+    (
+      location: Location.LocationObject,
+      resolveCity = true,
+    ): LatLng => {
       const coordinates: LatLng = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
@@ -120,13 +173,19 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
      * Não bloqueia a exibição do mapa enquanto
      * a cidade é identificada.
      */
-      void updateCurrentCity(coordinates);
+      if (resolveCity) {
+        void updateCurrentCity(coordinates);
+      }
+
+      return coordinates;
     },
-    [],
+    [updateCurrentCity],
   );
 
   const updateCurrentLocation = useCallback(
-    async (): Promise<boolean> => {
+    async (
+      resolveCity = true,
+    ): Promise<LatLng> => {
       /*
       * Tenta aproveitar uma localização obtida
       * nos últimos 60 segundos e com precisão
@@ -139,9 +198,10 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
         });
 
       if (lastKnownLocation) {
-        applyLocation(lastKnownLocation);
-
-        return true;
+        return applyLocation(
+          lastKnownLocation,
+          resolveCity,
+        );
       }
 
       /*
@@ -154,11 +214,54 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
           mayShowUserSettingsDialog: true,
         });
 
-      applyLocation(currentPosition);
-
-      return true;
+      return applyLocation(
+        currentPosition,
+        resolveCity,
+      );
     },
     [applyLocation],
+  );
+
+  const ensureForegroundPermission = useCallback(
+    async (showErrorToast: boolean): Promise<boolean> => {
+      let permission =
+        await Location.getForegroundPermissionsAsync();
+
+      if (
+        permission.status !==
+          Location.PermissionStatus.GRANTED &&
+        permission.canAskAgain
+      ) {
+        permission =
+          await Location.requestForegroundPermissionsAsync();
+      }
+
+      setCanAskAgain(permission.canAskAgain);
+
+      if (
+        permission.status ===
+        Location.PermissionStatus.GRANTED
+      ) {
+        return true;
+      }
+
+      const message = getPermissionMessage(
+        permission.canAskAgain,
+      );
+
+      setError(message);
+
+      if (showErrorToast) {
+        Toast.show({
+          type: 'info',
+          text1: 'Localização indisponível',
+          text2: message,
+        });
+      }
+
+      return false;
+    },
+    [],
   );
 
   const getLocation = useCallback(
@@ -172,31 +275,17 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
       setError(null);
 
       try {
-        let permission = await Location.getForegroundPermissionsAsync();
+        const hasPermission =
+          await ensureForegroundPermission(
+            showErrorToast,
+          );
 
-        if (permission.status !== Location.PermissionStatus.GRANTED && permission.canAskAgain) {
-          permission = await Location.requestForegroundPermissionsAsync();
-        }
-
-        setCanAskAgain(permission.canAskAgain);
-
-        if (permission.status !== Location.PermissionStatus.GRANTED) {
-          const message = getPermissionMessage(permission.canAskAgain);
-
-          setError(message);
-
-          if (showErrorToast) {
-            Toast.show({
-              type: 'info',
-              text1: 'Localização indisponível',
-              text2: message,
-            });
-          }
-
+        if (!hasPermission) {
           return false;
         }
 
-        return await updateCurrentLocation();
+        await updateCurrentLocation();
+        return true;
       } catch (err: unknown) {
         const message = getErrorMessage(err);
 
@@ -218,7 +307,63 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
         setLoading(false);
       }
     },
-    [updateCurrentLocation],
+    [
+      ensureForegroundPermission,
+      updateCurrentLocation,
+    ],
+  );
+
+  /*
+   * Fornece uma fotografia consistente da cidade para
+   * registros de auditoria, aguardando a geocodificação
+   * reversa quando ela ainda não tiver sido concluída.
+   */
+  const resolveCurrentCity = useCallback(
+    async (): Promise<string | null> => {
+      if (currentCity) return currentCity;
+
+      if (currentLocation) {
+        return updateCurrentCity(
+          currentLocation,
+        );
+      }
+
+      if (requestingRef.current) return null;
+
+      requestingRef.current = true;
+      requestedAutomaticallyRef.current = true;
+      setLoading(true);
+      setError(null);
+
+      try {
+        const hasPermission =
+          await ensureForegroundPermission(false);
+
+        if (!hasPermission) return null;
+
+        const coordinates =
+          await updateCurrentLocation(false);
+
+        return updateCurrentCity(coordinates);
+      } catch (locationError: unknown) {
+        console.error(
+          'Erro ao obter cidade para monitorar sessão:',
+          locationError,
+        );
+
+        return null;
+      } finally {
+        requestingRef.current = false;
+        setLoading(false);
+      }
+    },
+    [
+      currentCity,
+      currentLocation,
+      ensureForegroundPermission,
+      updateCurrentCity,
+      updateCurrentLocation,
+    ],
   );
 
   /*
@@ -302,6 +447,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
       canAskAgain,
       ensureLocation,
       getLocation,
+      resolveCurrentCity,
       openLocationSettings,
     }),
     [
@@ -313,13 +459,31 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
       canAskAgain,
       ensureLocation,
       getLocation,
+      resolveCurrentCity,
       openLocationSettings,
+    ],
+  );
+
+  const mapValue = useMemo<MapLocationContextValue>(
+    () => ({
+      currentLocation,
+      currentCity,
+      mapRegion,
+      loading,
+    }),
+    [
+      currentLocation,
+      currentCity,
+      mapRegion,
+      loading,
     ],
   );
 
   return (
     <LocationContext.Provider value={value}>
-      {children}
+      <MapLocationContext.Provider value={mapValue}>
+        {children}
+      </MapLocationContext.Provider>
     </LocationContext.Provider>
   );
 }

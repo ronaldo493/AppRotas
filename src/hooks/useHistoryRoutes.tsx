@@ -2,14 +2,24 @@ import { useCallback, useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
 
 import { useAuthContext } from '../context/AuthContext';
-import { useStrapiContext } from '../context/StrapiContext';
+import {useHistoricosContext} from '../context/StrapiContext';
 import useStrapiClient from '../services/StrapiClient';
 import type { Filial } from '../type/Filial';
-import type {FiltroHistoricoRota, HistoricoVisita, NovoHistoricoRota} from '../type/Historico';
+import {
+  TIPO_HISTORICO,
+  type FiltroHistoricoRota,
+  type HistoricoVisita,
+  type NovoHistoricoRota,
+  type TipoHistorico,
+} from '../type/Historico';
 import type {StrapiListResponse, StrapiRequestError, StrapiSingleResponse} from '../type/Strapi';
 import usePagination from './usePagination';
 
 const PAGE_SIZE = 20;
+
+interface UseHistoryRoutesOptions {
+  loadOnMount?: boolean;
+}
 
 const getErrorMessage = (err: unknown): string => {
   const strapiError = err as StrapiRequestError;
@@ -37,10 +47,14 @@ const getEndOfDay = (date: Date): string => {
   return endDate.toISOString();
 };
 
-const useHistoryRoutes = () => {
+const useHistoryRoutes = (
+  options: UseHistoryRoutesOptions = {},
+) => {
+  const {loadOnMount = true} = options;
   const conexao = useStrapiClient();
   const { user } = useAuthContext();
-  const { historicosRotas, setHistoricosRotas } = useStrapiContext();
+  const { historicosRotas, setHistoricosRotas } =
+    useHistoricosContext();
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +173,8 @@ const useHistoryRoutes = () => {
       datahora = new Date().toISOString(),
       showErrorToast = true,
       cidadeOrigem: string | null,
+      tipoHistorico: TipoHistorico =
+        TIPO_HISTORICO.LOJA,
     ): Promise<boolean> => {
       if (!user) {
         const message = 'Usuário não identificado. Faça login novamente.';
@@ -200,6 +216,7 @@ const useHistoryRoutes = () => {
         username: user.username ?? 'Não informado',
         setor: user.setor ?? 'Não informado',
         cidadeOrigem: cidadeOrigem ?? 'Não informado',
+        tipoHistorico,
         rotas: routes.map((route, index) => ({
           codigofilial: route.codigofilial,
           nomefilial: route.nomefilial,
@@ -209,10 +226,11 @@ const useHistoryRoutes = () => {
       };
 
       try {
-        const response = await conexao.post<StrapiSingleResponse<HistoricoVisita>>('/historico-visitas', {
+        const response = await conexao.post<
+          StrapiSingleResponse<HistoricoVisita>
+        >('/historico-visitas', {
           data: novoHistorico,
         });
-
         const historicoSalvo = response.data.data;
 
         setHistoricosRotas(currentHistoricos =>
@@ -287,10 +305,19 @@ const useHistoryRoutes = () => {
   };
 
   useEffect(() => {
-    if (!user?.username) return;
+    if (
+      !loadOnMount ||
+      !user?.username
+    ) {
+      return;
+    }
 
     void getHistoricoRotas();
-  }, [getHistoricoRotas, user?.username]);
+  }, [
+    getHistoricoRotas,
+    loadOnMount,
+    user?.username,
+  ]);
 
   return {
     historicosRotas,

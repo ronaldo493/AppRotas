@@ -13,7 +13,7 @@ import { useAuthContext } from '../context/AuthContext';
 import { useThemeContext } from '../context/ThemeContext';
 import { useAppTheme } from './ThemeStyles';
 
-export default function Sidebar({
+function Sidebar({
   navigation,
   state,
 }: DrawerContentComponentProps): React.JSX.Element {
@@ -237,6 +237,8 @@ export default function Sidebar({
     </View>
   );
 }
+
+export default React.memo(Sidebar);
 
 const styles = StyleSheet.create({
   container: {

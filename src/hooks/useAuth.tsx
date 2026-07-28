@@ -10,6 +10,7 @@ import {
 } from '../context/AuthContext';
 import useAuthMenus from './useAuthMenus';
 import useStrapiClient from '../services/StrapiClient';
+import useLocation from './useLocation';
 
 interface LoginResponse {
   jwt: string;
@@ -31,6 +32,7 @@ interface UseAuthReturn {
 export default function useAuth():
   UseAuthReturn {
   const conexao = useStrapiClient();
+  const {resolveCurrentCity} = useLocation();
 
   const {
     user,
@@ -69,12 +71,16 @@ export default function useAuth():
       }
 
       try {
+        const cidadeOrigem =
+          await resolveCurrentCity();
+
         await conexao.post(
           '/sessoes',
           {
             data: {
               user: userData.username,
               setor: userData.setor ?? null,
+              cidadeOrigem,
             },
           },
           {
@@ -103,7 +109,7 @@ export default function useAuth():
          */
       }
     },
-    [conexao],
+    [conexao, resolveCurrentCity],
   );
 
   const conexaoLogin = useCallback(

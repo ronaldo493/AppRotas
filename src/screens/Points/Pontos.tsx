@@ -1,50 +1,107 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, Text, View } from 'react-native';
-import MapView, { Marker, type LatLng, type MapPressEvent } from 'react-native-maps';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {Keyboard, Text, useWindowDimensions, View} from 'react-native';
+import MapView, {
+  Marker,
+  type LatLng,
+  type MapPressEvent,
+  type MarkerPressEvent,
+  type Region,
+} from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ActivityIndicator, FAB, Surface } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 
+import ClusterMarker from '../../components/maps/ClusterMarker';
 import { useAppTheme } from '../../components/ThemeStyles';
-import useLocation from '../../hooks/useLocation';
+import useHistoryRoutes from '../../hooks/useHistoryRoutes';
+import {useMapLocation} from '../../hooks/useLocation';
 import usePontos from '../../hooks/usePontosDeInteresse';
+import MapService from '../../services/MapService';
+import {addPendingHistory} from '../../services/PendingRouteHistory';
+import type {Filial} from '../../type/Filial';
+import {
+  TIPO_HISTORICO,
+  type TipoHistorico,
+} from '../../type/Historico';
+import type {
+  CategoriaPonto,
+  NovoPontoInput,
+  PontoInteresse,
+} from '../../type/Ponto';
 import { DEFAULT_REGION, getCoordinates } from '../../utils/coordinateUtils';
-import PontoForm, { type CategoriaPonto } from './components/PontoForm';
+import {
+  areRegionsClose,
+  clusterMapItems,
+} from '../../utils/mapClustering';
+import PontoForm from './components/PontoForm';
 import AddPointStyles from './styles/AddPointStyles';
-
-interface PontoInteresse {
-  id?: number;
-  documentId?: string;
-  latitude: string | number;
-  longitude: string | number;
-  descricao: string;
-  categoria: CategoriaPonto;
-}
-
-interface NovoPonto {
-  latitude: string;
-  longitude: string;
-  descricao: string;
-  categoria: CategoriaPonto;
-}
 
 interface PontoMapa extends PontoInteresse {
   coordinate: LatLng;
   uniqueKey: string;
 }
 
+const getPontoCoordinate = (ponto: PontoMapa): LatLng =>
+  ponto.coordinate;
+const getPontoKey = (ponto: PontoMapa): string =>
+  ponto.uniqueKey;
+
+const getTipoHistorico = (
+  categoria: CategoriaPonto,
+): TipoHistorico =>
+  categoria === 'Restaurante'
+    ? TIPO_HISTORICO.RESTAURANTE
+    : TIPO_HISTORICO.POSTO_COMBUSTIVEL;
+
+const toHistoryRoute = (
+  ponto: PontoInteresse,
+  cidadeOrigem: string | null,
+): Filial => ({
+  codigofilial: ponto.id ?? 0,
+  nomefilial: ponto.descricao,
+  nomecidade:
+    cidadeOrigem ?? 'Não informado',
+  latitude: ponto.latitude,
+  longitude: ponto.longitude,
+});
+
 export default function Pontos(): React.JSX.Element {
   const theme = useAppTheme();
+  const {width, height} = useWindowDimensions();
   const mapRef = useRef<MapView | null>(null);
 
   const { pontos, loading, error, postPontos } = usePontos();
-  const { currentLocation, mapRegion } = useLocation();
+  const {postHistoricoRota} = useHistoryRoutes({
+    loadOnMount: false,
+  });
+  const {
+    currentLocation,
+    currentCity,
+    mapRegion,
+  } = useMapLocation();
+  const initialRegionRef = useRef<Region>(
+    mapRegion ?? DEFAULT_REGION,
+  );
+  const centeredOnLocationRef = useRef(Boolean(mapRegion));
 
   const [isAddMode, setIsAddMode] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<LatLng | null>(null);
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [categoryDialogVisible, setCategoryDialogVisible] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [navigationPoint, setNavigationPoint] =
+    useState<PontoMapa | null>(null);
+  const [openingRoute, setOpeningRoute] =
+    useState(false);
+  const [visibleRegion, setVisibleRegion] =
+    useState<Region>(initialRegionRef.current);
 
   const currentCoordinate = useMemo<LatLng | null>(() => {
     return currentLocation ? getCoordinates(currentLocation) : null;
@@ -74,6 +131,160 @@ export default function Pontos(): React.JSX.Element {
     return Array.from(pontosUnicos.values());
   }, [pontos]);
 
+  const handleMapReady = useCallback((): void => {
+    setMapReady(true);
+  }, []);
+
+  const handleRegionChangeComplete = useCallback(
+    (region: Region): void => {
+      setVisibleRegion(current =>
+        areRegionsClose(current, region)
+          ? current
+          : region,
+      );
+    },
+    [],
+  );
+
+  /*
+   * Evita repetir a animação quando a localização já definiu
+   * initialRegion, mas centraliza se ela chegar depois do mapa.
+   */
+  useEffect(() => {
+    if (
+      !mapReady ||
+      !mapRegion ||
+      centeredOnLocationRef.current
+    ) {
+      return;
+    }
+
+    centeredOnLocationRef.current = true;
+
+    if (areRegionsClose(initialRegionRef.current, mapRegion)) {
+      return;
+    }
+
+    mapRef.current?.animateToRegion(mapRegion, 400);
+  }, [mapReady, mapRegion]);
+
+  const clusters = useMemo(
+    () =>
+      mapReady
+        ? clusterMapItems({
+            items: pontosValidos,
+            region: visibleRegion,
+            viewportWidth: width,
+            viewportHeight: height,
+            getCoordinate: getPontoCoordinate,
+            getKey: getPontoKey,
+          })
+        : [],
+    [
+      height,
+      mapReady,
+      pontosValidos,
+      visibleRegion,
+      width,
+    ],
+  );
+
+  const focusPontos = useCallback(
+    (pointsToFocus: readonly PontoMapa[]): void => {
+      if (pointsToFocus.length === 0) return;
+
+      setNavigationPoint(null);
+
+      if (pointsToFocus.length === 1) {
+        const {latitude, longitude} =
+          pointsToFocus[0].coordinate;
+
+        mapRef.current?.animateToRegion(
+          {
+            latitude,
+            longitude,
+            latitudeDelta: 0.03,
+            longitudeDelta: 0.03,
+          },
+          350,
+        );
+        return;
+      }
+
+      mapRef.current?.fitToCoordinates(
+        pointsToFocus.map(point => point.coordinate),
+        {
+          animated: true,
+          edgePadding: {
+            top: 80,
+            right: 48,
+            bottom: 120,
+            left: 48,
+          },
+        },
+      );
+    },
+    [],
+  );
+
+  const selectNavigationPoint = useCallback(
+    (point: PontoMapa): void => {
+      if (isAddMode) return;
+
+      setNavigationPoint(point);
+    },
+    [isAddMode],
+  );
+
+  const pointMarkers = useMemo(
+    () =>
+      clusters.map(cluster => {
+        if (cluster.items.length === 1) {
+          const point = cluster.items[0];
+
+          return (
+            <Marker
+              key={cluster.id}
+              coordinate={point.coordinate}
+              title={point.descricao}
+              description={point.categoria}
+              pinColor={
+                point.categoria === 'Restaurante'
+                  ? theme.colors.primary
+                  : theme.colors.success
+              }
+              tracksViewChanges={false}
+              onPress={(
+                event: MarkerPressEvent,
+              ) => {
+                event.stopPropagation();
+                selectNavigationPoint(point);
+              }}
+            />
+          );
+        }
+
+        return (
+          <ClusterMarker
+            key={cluster.id}
+            coordinate={cluster.coordinate}
+            count={cluster.items.length}
+            backgroundColor={theme.colors.primary}
+            textColor={theme.colors.onPrimary}
+            onPress={() => focusPontos(cluster.items)}
+          />
+        );
+      }),
+    [
+      clusters,
+      focusPontos,
+      selectNavigationPoint,
+      theme.colors.onPrimary,
+      theme.colors.primary,
+      theme.colors.success,
+    ],
+  );
+
   useEffect(() => {
     if (!error) return;
 
@@ -94,7 +305,10 @@ export default function Pontos(): React.JSX.Element {
   };
 
   const handleMapPress = (event: MapPressEvent): void => {
-    if (!isAddMode) return;
+    if (!isAddMode) {
+      setNavigationPoint(null);
+      return;
+    }
 
     Keyboard.dismiss();
     setSelectedPoint(event.nativeEvent.coordinate);
@@ -157,7 +371,7 @@ export default function Pontos(): React.JSX.Element {
   const savePoint = async (categoria: CategoriaPonto): Promise<void> => {
     if (!selectedPoint || saving) return;
 
-    const novoPonto: NovoPonto = {
+    const novoPonto: NovoPontoInput = {
       latitude: selectedPoint.latitude.toString(),
       longitude: selectedPoint.longitude.toString(),
       descricao: description.trim(),
@@ -193,35 +407,83 @@ export default function Pontos(): React.JSX.Element {
     }
   };
 
-  const getMarkerColor = (categoria: CategoriaPonto): string => {
-    return categoria === 'Restaurante'
-      ? theme.colors.primary
-      : theme.colors.success;
+  const handleOpenPointRoute = async (): Promise<void> => {
+    if (!navigationPoint || openingRoute) return;
+
+    const historyRoute =
+      toHistoryRoute(
+        navigationPoint,
+        currentCity,
+      );
+
+    setOpeningRoute(true);
+
+    try {
+      const routeOpened =
+        await MapService.openGoogleMapsRoute(
+          [historyRoute],
+        );
+
+      /*
+       * O histórico representa o início da navegação,
+       * não a simples seleção ou criação do ponto.
+       */
+      if (!routeOpened) return;
+
+      const datahora =
+        new Date().toISOString();
+      const tipoHistorico =
+        getTipoHistorico(
+          navigationPoint.categoria,
+        );
+      const historySaved =
+        await postHistoricoRota(
+          [historyRoute],
+          datahora,
+          false,
+          currentCity,
+          tipoHistorico,
+        );
+
+      if (historySaved) return;
+
+      try {
+        await addPendingHistory(
+          [historyRoute],
+          datahora,
+          currentCity,
+          tipoHistorico,
+        );
+      } catch (storageError: unknown) {
+        console.error(
+          'Erro ao guardar histórico da rota do ponto:',
+          storageError,
+        );
+      }
+    } finally {
+      setOpeningRoute(false);
+    }
   };
 
   return (
     <View style={[AddPointStyles.container, { backgroundColor: theme.colors.background }]}>
       <MapView
         ref={mapRef}
-        key={theme.custom.isDarkMode ? 'dark-map' : 'light-map'}
-        initialRegion={mapRegion ?? DEFAULT_REGION}
+        initialRegion={initialRegionRef.current}
         customMapStyle={theme.custom.mapStyle}
+        loadingEnabled
         showsUserLocation={Boolean(currentCoordinate)}
         showsMyLocationButton={Boolean(currentCoordinate)}
         zoomEnabled
         zoomControlEnabled={false}
+        toolbarEnabled={false}
+        moveOnMarkerPress={false}
         style={AddPointStyles.map}
         onPress={handleMapPress}
+        onMapReady={handleMapReady}
+        onRegionChangeComplete={handleRegionChangeComplete}
       >
-        {pontosValidos.map(point => (
-          <Marker
-            key={point.uniqueKey}
-            coordinate={point.coordinate}
-            title={point.descricao}
-            description={point.categoria}
-            pinColor={getMarkerColor(point.categoria)}
-          />
-        ))}
+        {pointMarkers}
 
         {selectedPoint && isAddMode && (
           <Marker
@@ -230,6 +492,7 @@ export default function Pontos(): React.JSX.Element {
             description="Arraste para ajustar"
             pinColor={theme.colors.info}
             draggable
+            tracksViewChanges={false}
             onDragEnd={event => setSelectedPoint(event.nativeEvent.coordinate)}
           />
         )}
@@ -295,7 +558,31 @@ export default function Pontos(): React.JSX.Element {
             AddPointStyles.addButton,
             { backgroundColor: theme.colors.actionBackground },
           ]}
-          onPress={() => setIsAddMode(true)}
+          onPress={() => {
+            setNavigationPoint(null);
+            setIsAddMode(true);
+          }}
+        />
+      )}
+
+      {!isAddMode && navigationPoint && (
+        <FAB
+          icon="directions"
+          label="Traçar rota"
+          loading={openingRoute}
+          disabled={openingRoute}
+          color={theme.colors.actionForeground}
+          accessibilityLabel={`Traçar rota até ${navigationPoint.descricao}`}
+          style={[
+            AddPointStyles.routeButton,
+            {
+              backgroundColor:
+                theme.colors.actionBackground,
+            },
+          ]}
+          onPress={() => {
+            void handleOpenPointRoute();
+          }}
         />
       )}
 

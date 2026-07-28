@@ -19,9 +19,10 @@ import {
 } from 'react-native-paper';
 
 import { useAppTheme } from '../../../components/ThemeStyles';
+import type {CategoriaPonto} from '../../../type/Ponto';
 import AddPointStyles from '../styles/AddPointStyles';
 
-export type CategoriaPonto = 'Restaurante' | 'Posto de Combustível';
+export type {CategoriaPonto} from '../../../type/Ponto';
 
 interface PontoFormProps {
   selectedPoint: LatLng | null;

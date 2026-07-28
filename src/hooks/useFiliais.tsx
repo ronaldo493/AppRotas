@@ -1,12 +1,21 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import Toast from 'react-native-toast-message';
+import type {AxiosInstance} from 'axios';
 
-import { useStrapiContext } from '../context/StrapiContext';
+import {useFiliaisContext} from '../context/StrapiContext';
+import {useAuthContext} from '../context/AuthContext';
 import useStrapiClient from '../services/StrapiClient';
 import type { Filial } from '../type/Filial';
 import type {StrapiListResponse, StrapiRequestError} from '../type/Strapi';
 
 const PAGE_SIZE = 100;
+
+interface PendingFiliaisRequest {
+  token: string | null;
+  promise: Promise<Filial[]>;
+}
+
+let pendingFiliaisRequest: PendingFiliaisRequest | null = null;
 
 interface UseFiliaisReturn {
   filiais: Filial[];
@@ -25,10 +34,41 @@ const getErrorMessage = (error: unknown): string => {
   );
 };
 
+const fetchAllFiliais = async (
+  conexao: AxiosInstance,
+): Promise<Filial[]> => {
+  const allFiliais: Filial[] = [];
+  let currentPage = 1;
+  let totalPages = 1;
+
+  do {
+    const response =
+      await conexao.get<StrapiListResponse<Filial>>(
+        '/informacoeslojas',
+        {
+          params: {
+            pagination: {
+              page: currentPage,
+              pageSize: PAGE_SIZE,
+            },
+          },
+        },
+      );
+    const {data, meta} = response.data;
+
+    allFiliais.push(...data);
+    totalPages = meta.pagination.pageCount;
+    currentPage += 1;
+  } while (currentPage <= totalPages);
+
+  return allFiliais;
+};
+
 export default function useFiliais(): UseFiliaisReturn {
   const conexao = useStrapiClient();
+  const {token} = useAuthContext();
 
-  const {filiais, setFiliais} = useStrapiContext();
+  const {filiais, setFiliais} = useFiliaisContext();
 
   const [error, setError] =  useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -46,30 +86,32 @@ export default function useFiliais(): UseFiliaisReturn {
       setLoading(true);
       setError(null);
 
-      const allFiliais: Filial[] = [];
-
-      let currentPage = 1;
-      let totalPages = 1;
-
       try {
-        do {
-          const response = await conexao.get<StrapiListResponse<Filial>>('/informacoeslojas', {
-            params: {
-              pagination: {
-                page: currentPage,
-                pageSize: PAGE_SIZE,
-              },
-            },
-          });
+        if (
+          !pendingFiliaisRequest ||
+          pendingFiliaisRequest.token !== token
+        ) {
+          const promise = fetchAllFiliais(conexao);
+          const request = {token, promise};
 
-          const {data, meta} = response.data;
+          pendingFiliaisRequest = request;
+          const clearPendingRequest = (): void => {
+            if (pendingFiliaisRequest === request) {
+              pendingFiliaisRequest = null;
+            }
+          };
 
-          allFiliais.push(...data);
+          void promise.then(
+            clearPendingRequest,
+            clearPendingRequest,
+          );
+        }
 
-          totalPages = meta.pagination.pageCount;
+        const activeRequest = pendingFiliaisRequest;
 
-          currentPage += 1;
-        } while (currentPage <= totalPages);
+        if (!activeRequest) return false;
+
+        const allFiliais = await activeRequest.promise;
 
         setFiliais(allFiliais);
 
@@ -100,7 +142,7 @@ export default function useFiliais(): UseFiliaisReturn {
         setLoading(false);
       }
     },
-    [conexao, setFiliais],
+    [conexao, setFiliais, token],
   );
 
   /*

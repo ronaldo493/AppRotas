@@ -10,6 +10,7 @@ import { useAppTheme } from '../../components/ThemeStyles';
 import useHistoryRoutes from '../../hooks/useHistoryRoutes';
 import { addPendingHistory, syncPendingHistory,} from '../../services/PendingRouteHistory';
 import type { Filial } from '../../type/Filial';
+import {TIPO_HISTORICO} from '../../type/Historico';
 import HomeStyles from './styles/HomeStyles';
 import useLocation from '../../hooks/useLocation';
 import MapService from '../../services/MapService';
@@ -105,12 +106,23 @@ export default function Home(): React.JSX.Element {
     await synchronizePending();
 
     try {
-      const saved = await postHistoricoRota(routes, datahora, false, currentCity);
+      const saved = await postHistoricoRota(
+        routes,
+        datahora,
+        false,
+        currentCity,
+        TIPO_HISTORICO.LOJA,
+      );
 
       if (saved)  return;
     } catch {}
 
-    await addPendingHistory(routes, datahora, currentCity);
+    await addPendingHistory(
+      routes,
+      datahora,
+      currentCity,
+      TIPO_HISTORICO.LOJA,
+    );
   };
 
   const openNavigator = async (navigator: NavigatorType): Promise<void> => {

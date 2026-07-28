@@ -1,6 +1,9 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createDrawerNavigator } from '@react-navigation/drawer';
+import {
+  createDrawerNavigator,
+  type DrawerContentComponentProps,
+} from '@react-navigation/drawer';
 
 import BottomTabNavigator from './BottomTabNavigator';
 import HeaderMenu from '../components/HeaderMenu';
@@ -12,15 +15,20 @@ import Home from '../screens/Home/Home';
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
 
+const renderDrawerContent = (
+  props: DrawerContentComponentProps,
+): React.JSX.Element => <Sidebar {...props} />;
+
 function DrawerLayout() {
   return (
     <Drawer.Navigator
-      drawerContent={Sidebar}
+      drawerContent={renderDrawerContent}
+      detachInactiveScreens
       screenOptions={({ navigation }) => ({
         headerShown: true,
         header: () => (<HeaderMenu navigation={navigation} title={''} />),
         drawerType: 'front',
-        detachInactiveScreens: true,
+        freezeOnBlur: true,
       })}
     >
       <Drawer.Screen 

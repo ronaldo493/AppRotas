@@ -304,6 +304,20 @@ Esse serviço não deve ficar em hooks, pois não utiliza estado ou recursos do 
 
 Strapi
 
+Sessões
+
+Collection:
+
+sessoes
+
+Campo de localização:
+
+cidadeOrigem (Text / Short text)
+
+O aplicativo identifica a cidade atual no login e envia o valor
+junto com `user` e `setor`. O campo deve aceitar valor nulo para
+sessões antigas ou quando o usuário não autorizar a localização.
+
 Histórico de visitas
 
 Collection:
@@ -315,6 +329,7 @@ Campos utilizados:
 datahora
 username
 setor
+tipoHistorico (Enumeration: loja, restaurante, posto_combustivel)
 rotas
 
 Exemplo do campo rotas:
@@ -335,6 +350,31 @@ create
 find
 
 findOne
+
+Pontos de interesse
+
+Collection:
+
+pontos-interesses
+
+Campo de auditoria:
+
+usernameCriador (Text / Short text)
+
+O aplicativo preenche esse campo com o `username` do usuário
+autenticado no momento da inclusão do ponto.
+
+Cadastrar um ponto não cria histórico. Quando o usuário seleciona
+um marcador e inicia a navegação pelo botão `Traçar rota`, o
+aplicativo registra uma entrada em `historico-visitas`:
+
+- `Restaurante` envia `tipoHistorico: restaurante`;
+- `Posto de Combustível` envia `tipoHistorico: posto_combustivel`.
+
+Os dados básicos do destino são armazenados no JSON `rotas`,
+mantendo o mesmo contrato já utilizado pelo histórico de lojas.
+Caso o histórico não possa ser enviado, ele entra na fila de
+sincronização offline sem impedir a abertura do Google Maps.
 
 Sugestões
 

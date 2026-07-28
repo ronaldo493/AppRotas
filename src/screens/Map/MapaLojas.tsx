@@ -1,15 +1,25 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React from 'react';
-import { Text, View } from 'react-native';
+import React, {useMemo} from 'react';
+import {Text, useWindowDimensions, View} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { ActivityIndicator, Banner, Searchbar, Surface } from 'react-native-paper';
 
+import ClusterMarker from '../../components/maps/ClusterMarker';
 import { useAppTheme } from '../../components/ThemeStyles';
+import {clusterMapItems} from '../../utils/mapClustering';
 import useMapaLojas from './hook/useMapaLojas';
 import MapaLojasStyles from './styles/MapaLojasStyles';
+import type {LojaMapa} from './utils/mapaLojaUtils';
+
+const MAP_PADDING = {top: 75, right: 0, bottom: 0, left: 0};
+
+const getLojaCoordinate = (loja: LojaMapa) => loja.coordinate;
+const getLojaKey = (loja: LojaMapa): string =>
+  String(loja.filial.codigofilial);
 
 export default function MapaLojas(): React.JSX.Element {
   const theme = useAppTheme();
+  const {width, height} = useWindowDimensions();
 
   const {
     mapRef,
@@ -19,6 +29,11 @@ export default function MapaLojas(): React.JSX.Element {
     lojas,
     initialRegion,
     currentLocation,
+    mapReady,
+    visibleRegion,
+    onMapReady,
+    onRegionChangeComplete,
+    focusLojas,
     loading,
     feedback,
   } = useMapaLojas();
@@ -30,31 +45,78 @@ export default function MapaLojas(): React.JSX.Element {
 
   const storeCountLabel = lojas.length === 1 ? 'filial exibida' : 'filiais exibidas';
 
+  const clusters = useMemo(
+    () =>
+      mapReady
+        ? clusterMapItems({
+            items: lojas,
+            region: visibleRegion,
+            viewportWidth: width,
+            viewportHeight: height,
+            getCoordinate: getLojaCoordinate,
+            getKey: getLojaKey,
+          })
+        : [],
+    [height, lojas, mapReady, visibleRegion, width],
+  );
+
+  const markers = useMemo(
+    () =>
+      clusters.map(cluster => {
+        if (cluster.items.length === 1) {
+          const {filial, coordinate, address} =
+            cluster.items[0];
+
+          return (
+            <Marker
+              key={cluster.id}
+              coordinate={coordinate}
+              title={`${filial.codigofilial} - ${filial.nomefilial}`}
+              description={address}
+              tracksViewChanges={false}
+            />
+          );
+        }
+
+        return (
+          <ClusterMarker
+            key={cluster.id}
+            coordinate={cluster.coordinate}
+            count={cluster.items.length}
+            backgroundColor={theme.colors.primary}
+            textColor={theme.colors.onPrimary}
+            onPress={() => focusLojas(cluster.items)}
+          />
+        );
+      }),
+    [
+      clusters,
+      focusLojas,
+      theme.colors.onPrimary,
+      theme.colors.primary,
+    ],
+  );
+
   return (
     <View style={[MapaLojasStyles.container, { backgroundColor: theme.colors.background }]}>
       <MapView
         ref={mapRef}
-        key={theme.custom.isDarkMode ? 'dark-map' : 'light-map'}
         provider={PROVIDER_GOOGLE}
         style={MapaLojasStyles.map}
         initialRegion={initialRegion}
         customMapStyle={theme.custom.mapStyle}
+        loadingEnabled
         showsUserLocation={currentLocation !== null}
         showsMyLocationButton={currentLocation !== null}
         zoomEnabled
         zoomControlEnabled={false}
         toolbarEnabled={false}
-        mapPadding={{ top: 75, right: 0, bottom: 0, left: 0 }}
+        moveOnMarkerPress={false}
+        mapPadding={MAP_PADDING}
+        onMapReady={onMapReady}
+        onRegionChangeComplete={onRegionChangeComplete}
       >
-        {lojas.map(({ filial, coordinate, address }) => (
-          <Marker
-            key={String(filial.codigofilial)}
-            coordinate={coordinate}
-            title={`${filial.codigofilial} - ${filial.nomefilial}`}
-            description={address}
-            tracksViewChanges={false}
-          />
-        ))}
+        {markers}
       </MapView>
 
       <Surface

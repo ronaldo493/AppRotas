@@ -5,7 +5,9 @@ import { Text, View } from 'react-native';
 import type {
   HistoricoRotaItem,
   HistoricoVisita,
+  TipoHistorico,
 } from '../../../type/Historico';
+import {TIPO_HISTORICO} from '../../../type/Historico';
 import HistoricoStyles from '../styles/HistoricoStyles';
 import { useAppTheme } from '../../../components/ThemeStyles';
 
@@ -15,7 +17,26 @@ interface HistoricoCardProps {
 
 interface RotaItemProps {
   rota: HistoricoRotaItem;
+  tipoHistorico: TipoHistorico;
 }
+
+const HISTORY_PRESENTATION = {
+  [TIPO_HISTORICO.LOJA]: {
+    title: 'Rota de lojas',
+    itemLabel: 'Filial',
+    icon: 'route',
+  },
+  [TIPO_HISTORICO.RESTAURANTE]: {
+    title: 'Restaurante',
+    itemLabel: 'Restaurante',
+    icon: 'restaurant',
+  },
+  [TIPO_HISTORICO.POSTO_COMBUSTIVEL]: {
+    title: 'Posto de combustível',
+    itemLabel: 'Posto de combustível',
+    icon: 'local-gas-station',
+  },
+} as const;
 
 function formatDate(date: string): string {
   const parsedDate = new Date(date);
@@ -27,8 +48,16 @@ function formatDate(date: string): string {
   return parsedDate.toLocaleString('pt-BR');
 }
 
-function RotaItem({rota}: RotaItemProps): React.JSX.Element {
+function RotaItem({
+  rota,
+  tipoHistorico,
+}: RotaItemProps): React.JSX.Element {
   const theme = useAppTheme();
+  const isStoreHistory =
+    tipoHistorico ===
+    TIPO_HISTORICO.LOJA;
+  const presentation =
+    HISTORY_PRESENTATION[tipoHistorico];
 
   return (
     <View style={[ HistoricoStyles.routeRow, {backgroundColor: theme.colors.surfaceVariant}]}>
@@ -47,8 +76,9 @@ function RotaItem({rota}: RotaItemProps): React.JSX.Element {
         </Text>
 
         <Text style={[HistoricoStyles.routeDescription, { color: theme.colors.onSurfaceVariant}]}>
-          Filial {rota.codigofilial} •{' '}
-          {rota.nomecidade}
+          {isStoreHistory
+            ? `Filial ${rota.codigofilial} • ${rota.nomecidade}`
+            : `${presentation.itemLabel} • ${rota.nomecidade}`}
         </Text>
       </View>
     </View>
@@ -57,6 +87,11 @@ function RotaItem({rota}: RotaItemProps): React.JSX.Element {
 
 export default function HistoricoCard({item}: HistoricoCardProps): React.JSX.Element {
   const theme = useAppTheme();
+  const tipoHistorico =
+    item.tipoHistorico ??
+    TIPO_HISTORICO.LOJA;
+  const presentation =
+    HISTORY_PRESENTATION[tipoHistorico];
 
   const rotasOrdenadas = [...(item.rotas ?? [])].sort(
     (a, b) => a.ordem - b.ordem,
@@ -75,12 +110,9 @@ export default function HistoricoCard({item}: HistoricoCardProps): React.JSX.Ele
     >
       <View style={HistoricoStyles.cardHeader}>
         <View style={HistoricoStyles.cardHeaderContent}>
-          {/* <Text style={[ HistoricoStyles.cardTitle, { color: theme.colors.onSurface }]}>
-            Rota com {rotasOrdenadas.length}{' '}
-            {rotasOrdenadas.length === 1
-              ? 'filial'
-              : 'filiais'}
-          </Text> */}
+          <Text style={[ HistoricoStyles.cardTitle, { color: theme.colors.onSurface }]}>
+            {presentation.title}
+          </Text>
 
           <Text style={[ HistoricoStyles.cardDate, { color: theme.colors.onSurfaceVariant }]}>
             {formatDate(item.datahora)}
@@ -88,7 +120,7 @@ export default function HistoricoCard({item}: HistoricoCardProps): React.JSX.Ele
         </View>
 
         <MaterialIcons
-          name="route"
+          name={presentation.icon}
           size={22}
           color={theme.colors.iconDefault}
         />
@@ -100,12 +132,13 @@ export default function HistoricoCard({item}: HistoricoCardProps): React.JSX.Ele
             <RotaItem
               key={`${rota.codigofilial}-${rota.ordem}`}
               rota={rota}
+              tipoHistorico={tipoHistorico}
             />
           ))}
         </View>
       ) : (
         <Text style={[ HistoricoStyles.emptyRoutesText, { color: theme.colors.onSurfaceVariant } ]}>
-          Nenhuma filial registrada nesta rota.
+          Nenhum item registrado neste histórico.
         </Text>
       )}
     </View>

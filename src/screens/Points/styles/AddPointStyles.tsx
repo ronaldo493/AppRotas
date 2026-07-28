@@ -72,6 +72,15 @@ const AddPointStyles = StyleSheet.create({
     elevation: 6,
   },
 
+  routeButton: {
+    position: 'absolute',
+    right: 18,
+    bottom: 18,
+    borderRadius: 16,
+    zIndex: 20,
+    elevation: 6,
+  },
+
   /*
    * A propriedade bottom é definida pelo Animated.Value.
    * Quando o teclado abre, o painel é posicionado acima dele.

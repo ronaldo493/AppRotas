@@ -1,6 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { Filial } from '../type/Filial';
+import {
+  TIPO_HISTORICO,
+  type TipoHistorico,
+} from '../type/Historico';
 
 const STORAGE_KEY =
   '@drogal:pending-route-history';
@@ -16,6 +20,12 @@ export interface PendingRouteHistory {
    */
   cidadeOrigem?: string | null;
 
+  /*
+   * Opcional para que históricos enfileirados por versões
+   * anteriores do aplicativo continuem sincronizando.
+   */
+  tipoHistorico?: TipoHistorico;
+
   createdAt?: string;
 }
 
@@ -24,6 +34,7 @@ type SendHistory = (
   datahora: string | undefined,
   showErrorToast: boolean | undefined,
   cidadeOrigem: string | null,
+  tipoHistorico: TipoHistorico,
 ) => Promise<boolean>;
 
 const readPendingHistory = async (): Promise<PendingRouteHistory[]> => {
@@ -53,6 +64,8 @@ export const addPendingHistory = async (
   routes: Filial[],
   datahora: string,
   cidadeOrigem: string | null,
+  tipoHistorico: TipoHistorico =
+    TIPO_HISTORICO.LOJA,
 ): Promise<void> => {
   const items = await readPendingHistory();
 
@@ -63,6 +76,7 @@ export const addPendingHistory = async (
     datahora,
     routes,
     cidadeOrigem,
+    tipoHistorico,
   };
 
   await savePendingHistory([
@@ -91,6 +105,8 @@ export const syncPendingHistory = async (sendHistory: SendHistory): Promise<numb
         originalDate,
         false,
         item.cidadeOrigem ?? null,
+        item.tipoHistorico ??
+          TIPO_HISTORICO.LOJA,
       );
 
       if (sent) {
