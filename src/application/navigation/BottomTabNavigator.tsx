@@ -16,6 +16,7 @@ import type {AuthMenu} from '../../core/auth/AuthMenu';
 import {useAppTheme} from '../../core/theme/appTheme';
 import AdminScreen from '../../features/admin/AdminScreen';
 import ChamadosScreen from '../../features/chamados/ChamadosScreen';
+import ContatosScreen from '../../features/contatos/screens/ContatosScreen';
 import MapaFiliaisScreen from '../../features/filiais/screens/MapaFiliaisScreen';
 import HistoricoScreen from '../../features/historico/screens/HistoricoScreen';
 import PontosScreen from '../../features/pontos/screens/PontosScreen';
@@ -47,6 +48,7 @@ const screensMap: Record<
   Pontos: PontosScreen,
   Preventiva: PreventivaScreen,
   Chamados: ChamadosScreen,
+  Contatos: ContatosScreen,
   Admin: AdminScreen,
 };
 

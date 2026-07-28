@@ -20,6 +20,7 @@ seus componentes, hooks, modelos, telas, serviços e casos de uso.
 - Histórico por usuário, período, cidade de origem e tipo de destino.
 - Fila local para históricos que não puderam ser enviados ao Strapi.
 - Consulta de chamados atribuídos e não atribuídos.
+- Lista de contatos com filtros por texto e departamento.
 - Checklist de preventiva e relatório de patrimônio compartilhável.
 - Envio de sugestões, melhorias e problemas.
 - Tema claro/escuro e componentes do React Native Paper.
@@ -53,6 +54,7 @@ src/
 │   ├── admin/
 │   ├── auth/
 │   ├── chamados/
+│   ├── contatos/
 │   ├── configuracoes/
 │   ├── filiais/
 │   ├── historico/
@@ -221,6 +223,7 @@ Exemplo de `rotas`:
 - `informacoeslojas`: dados e coordenadas das filiais.
 - `menus`: título, rota, ícone, situação, ordem e relação com setores.
 - `chamados`: chamados filtrados por responsável e setor.
+- `contatos`: `departamento`, `colaboradores`, `ramal`, `ddr` e `email`.
 - `sugestoes`: `user`, `setor`, `email`, `tipo`, `tela`, `sugestao` e
   `situation`.
 
