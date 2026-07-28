@@ -7,20 +7,19 @@ import Toast from 'react-native-toast-message';
 import RouteList from '../../components/RouteList/RouteList';
 import SearchBar from '../../components/SearchBar/SearchBar';
 import { useAppTheme } from '../../components/ThemeStyles';
-import useAuth from '../../hooks/useAuth';
 import useHistoryRoutes from '../../hooks/useHistoryRoutes';
 import { addPendingHistory, syncPendingHistory,} from '../../services/PendingRouteHistory';
 import type { Filial } from '../../type/Filial';
 import HomeStyles from './styles/HomeStyles';
 import useLocation from '../../hooks/useLocation';
 import MapService from '../../services/MapService';
+import Sugestion from '../../components/Sugestion/Sugestion';
 
 type NavigatorType = 'google' | 'waze';
 
 export default function Home(): React.JSX.Element {
   const theme = useAppTheme();
 
-  const { checkToken, token, message } = useAuth();
   const { postHistoricoRota,  loading: savingHistory } = useHistoryRoutes();
 
   const {
@@ -50,10 +49,6 @@ export default function Home(): React.JSX.Element {
   useEffect(() => {
     void ensureLocation();
   }, [ensureLocation]);
-
-  useEffect(() => {
-    if (token) {void checkToken(token); }
-  }, [checkToken, token]);
 
   useEffect(() => {
     void synchronizePending();
@@ -165,23 +160,6 @@ export default function Home(): React.JSX.Element {
             />
           )}
         </View>
-
-        {message && (
-          <View
-            style={[
-              HomeStyles.messageContainer,
-              {
-                backgroundColor:theme.colors.surfaceVariant,
-                borderColor: theme.colors.outline,
-              },
-            ]}
-          >
-            <Text style={{ color: theme.colors.onSurfaceVariant}}>
-              {message}
-            </Text>
-          </View>
-        )}
-
         {locationError && !loadingLocation && (
           <View style={[
               HomeStyles.locationMessage,
@@ -288,6 +266,8 @@ export default function Home(): React.JSX.Element {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+
+      <Sugestion />
     </View>
   );
 }

@@ -157,9 +157,7 @@ export default function Login(): React.JSX.Element {
             <TouchableOpacity
               onPress={handleTogglePassword}
               accessibilityRole="button"
-              accessibilityLabel={
-                showPassword ? 'Ocultar senha' : 'Exibir senha'
-              }
+              accessibilityLabel={showPassword ? 'Ocultar senha' : 'Exibir senha'}
             >
               <MaterialIcons
                 name={showPassword ? 'visibility-off' : 'visibility'}
@@ -184,17 +182,9 @@ export default function Login(): React.JSX.Element {
             ]}
           >
             {loading ? (
-              <ActivityIndicator
-                size="small"
-                color={theme.colors.actionForeground}
-              />
+              <ActivityIndicator size="small" color={theme.colors.actionForeground}/>
             ) : (
-              <Text
-                style={[
-                  LoginStyles.buttonText,
-                  { color: theme.colors.actionForeground },
-                ]}
-              >
+              <Text style={[LoginStyles.buttonText, { color: theme.colors.actionForeground }]}>
                 Entrar
               </Text>
             )}

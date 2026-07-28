@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "expo/AppEntry.js",
   "scripts": {
-    "build-android": "npx eas build -p android --profile preview_android",
+    "build-android": "npx eas-cli@latest build --platform android --profile preview_android",
     "start": "npx expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",

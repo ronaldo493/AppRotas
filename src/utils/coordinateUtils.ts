@@ -1,13 +1,12 @@
-import type {
-  LatLng,
-  Region,
-} from 'react-native-maps';
-import { Filial } from '../type/Filial';
+import type { LatLng, Region } from 'react-native-maps';
+import type { Filial } from '../type/Filial';
 
-export type FilialMapa = Filial & {
+export interface CoordinateSource {
   latitude?: string | number | null;
   longitude?: string | number | null;
-};
+}
+
+export type FilialMapa = Filial & CoordinateSource;
 
 export interface LojaMapa {
   filial: FilialMapa;
@@ -31,20 +30,13 @@ export const normalizeText = (value: unknown): string =>
     .trim();
 
 const parseCoordinate = (value: unknown): number | null => {
-  const coordinate = Number(
-    String(value ?? '')
-      .trim()
-      .replace(',', '.'),
-  );
-
-  return Number.isFinite(coordinate)
-    ? coordinate
-    : null;
+  const coordinate = Number(String(value ?? '').trim().replace(',', '.'));
+  return Number.isFinite(coordinate) ? coordinate : null;
 };
 
-export const getCoordinates = (filial: FilialMapa): LatLng | null => {
-  const latitude = parseCoordinate(filial.latitude);
-  const longitude = parseCoordinate(filial.longitude);
+export const getCoordinates = (item: CoordinateSource): LatLng | null => {
+  const latitude = parseCoordinate(item.latitude);
+  const longitude = parseCoordinate(item.longitude);
 
   if (
     latitude === null ||
@@ -57,10 +49,7 @@ export const getCoordinates = (filial: FilialMapa): LatLng | null => {
     return null;
   }
 
-  return {
-    latitude,
-    longitude,
-  };
+  return { latitude, longitude };
 };
 
 export const getRegion = (coordinate: LatLng): Region => ({
@@ -98,12 +87,10 @@ export const parseLojas = (filiais: FilialMapa[]): LojaMapa[] =>
 
     if (!coordinate) return [];
 
-    return [
-      {
-        filial,
-        coordinate,
-        address: getAddress(filial),
-        searchText: getSearchText(filial),
-      },
-    ];
+    return [{
+      filial,
+      coordinate,
+      address: getAddress(filial),
+      searchText: getSearchText(filial),
+    }];
   });

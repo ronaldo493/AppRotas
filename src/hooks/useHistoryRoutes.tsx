@@ -199,7 +199,7 @@ const useHistoryRoutes = () => {
         datahora,
         username: user.username ?? 'Não informado',
         setor: user.setor ?? 'Não informado',
-        cidadeOrigem,
+        cidadeOrigem: cidadeOrigem ?? 'Não informado',
         rotas: routes.map((route, index) => ({
           codigofilial: route.codigofilial,
           nomefilial: route.nomefilial,

@@ -1,52 +1,82 @@
 import { StyleSheet } from 'react-native';
 
-export default StyleSheet.create({
+const AboutStyles = StyleSheet.create({
   container: {
-    flex: 1,
-    paddingHorizontal: 20,
+    flexGrow: 1,
+    paddingHorizontal: 18,
     paddingTop: 24,
-    paddingBottom: 16,
+    paddingBottom: 28,
+  },
+
+  header: {
+    marginBottom: 20,
   },
 
   title: {
-    fontSize: 21,
-    lineHeight: 28,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 24,
-    letterSpacing: 0.4,
+  },
+
+  subtitle: {
+    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  contentCard: {
+    padding: 18,
+    borderWidth: 1,
+    borderRadius: 16,
   },
 
   text: {
+    marginBottom: 16,
     fontSize: 14,
-    lineHeight: 23,
-    textAlign: 'justify',
+    lineHeight: 22,
+    textAlign: 'left',
+  },
+
+  lastText: {
+    marginBottom: 0,
   },
 
   informationContainer: {
-    borderTopWidth: 1,
-    paddingTop: 18,
-    marginTop: 24,
-    gap: 8,
+    marginTop: 18,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 14,
   },
 
-  versionText: {
-    fontSize: 13,
-    lineHeight: 19,
+  informationRow: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
-  developerText: {
+  informationLabel: {
     fontSize: 13,
-    lineHeight: 19,
+  },
+
+  informationValue: {
+    marginLeft: 16,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+
+  divider: {
+    height: StyleSheet.hairlineWidth,
   },
 
   buttonBack: {
-    minHeight: 50,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 24,
     borderWidth: 1,
-    borderRadius: 25,
-    marginTop: 'auto',
+    borderRadius: 12,
   },
 
   buttonBackText: {
@@ -54,3 +84,5 @@ export default StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+export default AboutStyles;

@@ -3,90 +3,65 @@ import { StyleSheet } from 'react-native';
 const MapaLojasStyles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-
-  search: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 12,
-
-    borderWidth: 1,
-    borderRadius: 14,
-
-    elevation: 2,
-
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-  },
-
-  mapContainer: {
-    flex: 1,
     position: 'relative',
-    overflow: 'hidden',
   },
 
   map: {
     ...StyleSheet.absoluteFillObject,
   },
 
-  /*
-   * Contador de filiais exibidas.
-   */
+  searchContainer: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    right: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderRadius: 16,
+    zIndex: 20,
+    elevation: 6,
+  },
+
+  search: {
+    height: 52,
+    borderRadius: 16,
+  },
+
+  searchInput: {
+    minHeight: 52,
+    fontSize: 14,
+  },
+
   storeCountBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-
+    top: 84,
+    left: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-
-    paddingHorizontal: 12,
+    paddingHorizontal: 11,
     paddingVertical: 8,
-
     borderWidth: 1,
-    borderRadius: 20,
-
+    borderRadius: 18,
+    zIndex: 15,
     elevation: 4,
-
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
   },
 
   storeCountText: {
-    fontSize: 13,
-    fontWeight: '700',
+    marginLeft: 6,
+    fontSize: 12,
+    fontWeight: '600',
   },
 
-  /*
-   * Banner exibido sobre o mapa.
-   */
   bannerOverlay: {
     position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: 12,
-
+    top: 120,
+    left: 14,
+    right: 14,
+    overflow: 'hidden',
     borderWidth: 1,
     borderRadius: 14,
-    overflow: 'hidden',
-
+    zIndex: 18,
     elevation: 5,
-
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 5,
   },
 
   bannerContent: {
@@ -94,48 +69,32 @@ const MapaLojasStyles = StyleSheet.create({
   },
 
   bannerText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
 
-  /*
-   * Carregamento centralizado sobre o mapa.
-   */
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-
     alignItems: 'center',
     justifyContent: 'center',
-
-    backgroundColor:
-      'rgba(0, 0, 0, 0.12)',
+    backgroundColor: 'rgba(0, 0, 0, 0.12)',
+    zIndex: 30,
+    elevation: 30,
   },
 
   loadingCard: {
     alignItems: 'center',
-
-    minWidth: 180,
-
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-
+    minWidth: 175,
+    paddingHorizontal: 22,
+    paddingVertical: 18,
     borderWidth: 1,
     borderRadius: 16,
-
-    elevation: 5,
-
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 5,
   },
 
   loadingText: {
-    marginTop: 12,
+    marginTop: 10,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });
 

@@ -30,12 +30,12 @@ function AppWithTheme() {
 
 export default function AppProviders() {
   return (
-    <StrapiProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <StrapiProvider>
         <ThemeProvider>
           <AppWithTheme />
         </ThemeProvider>
-      </AuthProvider>
-    </StrapiProvider>
+      </StrapiProvider>
+    </AuthProvider>
   );
 }

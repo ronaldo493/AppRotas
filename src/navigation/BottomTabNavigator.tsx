@@ -13,7 +13,8 @@ import Pontos from '../screens/Points/Pontos';
 import Preventiva from '../screens/Preventive/Preventiva';
 import Chamados from '../screens/SupportTickets/Chamados';
 import { useAppTheme } from '../components/ThemeStyles';
-import Sugestion from '../components/Sugestion/Sugestion';
+import Admin from '../screens/Admin/Admin';
+// import Sugestion from '../components/Sugestion/Sugestion';
 
 type MenuItem = {
   titulo: string;
@@ -31,7 +32,8 @@ const screensMap: Record<string, React.ComponentType<any>> = {
   Historico,
   Pontos,
   Preventiva,
-  Chamados
+  Chamados,
+  Admin
 };
 
 export default function BottomTabNavigator({ navigation }: { navigation: any }) {
@@ -152,7 +154,7 @@ export default function BottomTabNavigator({ navigation }: { navigation: any }) 
         )}
       </Tab.Navigator>
 
-      <Sugestion />
+      {/* <Sugestion /> */}
 
       <MoreMenuModal
         visible={modalVisible}

@@ -88,6 +88,7 @@ const customDarkColors = {
   warning: '#F59E0B',
 };
 
+
 export const darkMapStyle = [
   { elementType: 'geometry', stylers: [{ color: '#232730' }] },
   { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
@@ -111,15 +112,15 @@ export const darkMapStyle = [
 ];
 
 export const lightMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#FDFDFD' }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#A32D34' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#FDFDFD' }] },
-  {
-    featureType: 'road',
-    elementType: 'geometry',
-    stylers: [{ color: '#F1F4F9' }],
-  },
+  // { elementType: 'geometry', stylers: [{ color: '#e0e0e0' }] },
+  // { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  // { elementType: 'labels.text.fill', stylers: [{ color: '#A32D34' }] },
+  // { elementType: 'labels.text.stroke', stylers: [{ color: '#FDFDFD' }] },
+  // {
+  //   featureType: 'road',
+  //   elementType: 'geometry',
+  //   stylers: [{ color: '#F1F4F9' }],
+  // },
   {
     featureType: 'road',
     elementType: 'labels.text.fill',
@@ -150,7 +151,7 @@ export const createAppTheme = (isDarkMode: boolean) => {
 
     custom: {
       isDarkMode,
-      mapStyle: isDarkMode ? darkMapStyle : [],
+      mapStyle: isDarkMode ? darkMapStyle : lightMapStyle,
       radius: 12,
     },
   };

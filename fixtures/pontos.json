@@ -1,7 +1,4 @@
-const axios = require('axios');
-
-//Dados das lojas
-const stores =[
+[
   {
     "id": 2,
     "documentId": "ek3rqwadpwgkv1bs9rp4fqgq",
@@ -1995,51 +1992,3 @@ const stores =[
     "locale": null
   }
 ]
-
-const camposIgnorados = [
-  'id',
-  'documentId',
-  'createdAt',
-  'updatedAt',
-  'publishedAt',
-  'locale',
-];
-
-const filiaisSemCamposInternos = stores.map(filial =>
-  Object.fromEntries(
-    Object.entries(filial).filter(
-      ([chave]) => !camposIgnorados.includes(chave),
-    ),
-  ),
-);
-//Função para enviar os dados
-const uploadStores = async () => {
-   const url = 'http://192.168.137.1:1337/api/pontos-interesses';
-   const token = '9daa01c9a2a011d52e3be0dadafe720ee349c7d77707081c0d9db457662f0a71db6b9c929ba3a813afe67fd0d49216ddbccfd773e5bfd1f0ca9fb9cfeb5ae0f1e7fee4712f24049e0be73433593f42a11ac9701394cd44d787ccd42ca324ed0b2a31b530c3b119b6db4905a41b05b339ba5ca21d0da42417e1224b69184e1055';
- 
-   for (const store of filiaisSemCamposInternos) {
-    //  console.log('Iniciando envio :', store.descricaosituacao);
-     console.log('Dados:', store);
- 
-     try {
-       const response = await axios.post(url, { data: store }, {
-         headers: {
-           Authorization: `Bearer ${token}`,
-           'Content-Type': 'application/json',
-         }
-       });
- 
-       console.log(`Dados adicionada com sucesso:`, response.data);
-     } catch (error) {
-       // Log de erro detalhado
-       console.error(`Erro ao adicionar ${store.descricaosituacao}:`, error.response ? error.response.data : error.message);
-       if (error.response) {
-         console.error('Detalhes do erro:', error.response.status, error.response.headers);
-       }
-     }
-   }
- };
- 
-
-// Executar a função
-uploadStores();

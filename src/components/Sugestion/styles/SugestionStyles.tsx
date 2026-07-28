@@ -3,7 +3,9 @@ import { StyleSheet } from 'react-native';
 const SugestionStyles = StyleSheet.create({
   fabContainer: {
     position: 'absolute',
-    right: 16,
+    right: 10,
+    top: '60%',
+    transform: [{ translateY: -25 }],
     zIndex: 20,
     elevation: 10,
   },

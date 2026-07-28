@@ -1,9 +1,10 @@
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
 import Constants from 'expo-constants';
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
-import AboutStyles from './styles/AboutStyles';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+
 import { useAppTheme } from '../../components/ThemeStyles';
+import AboutStyles from './styles/AboutStyles';
 
 type DrawerParamList = {
   MainTabs: undefined;
@@ -14,56 +15,145 @@ interface AboutProps {
   navigation: DrawerNavigationProp<DrawerParamList, 'About'>;
 }
 
-export default function About({navigation}: AboutProps): React.JSX.Element {
+export default function About({ navigation }: AboutProps): React.JSX.Element {
   const theme = useAppTheme();
-
-  const currentVersion: string = Constants.expoConfig?.version ?? 'Não informada';
+  const currentVersion = Constants.expoConfig?.version ?? 'Não informada';
 
   return (
-    <View style={[AboutStyles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[AboutStyles.title, { color: theme.colors.onBackground }]}>
-        SOBRE O APLICATIVO
-      </Text>
-
-      <Text style={[AboutStyles.text, { color: theme.colors.onSurfaceVariant }]}>
-        Este aplicativo foi desenvolvido para facilitar o trabalho dos
-        colaboradores que realizam atividades externas, ajudando na localização
-        de filiais, visualização de chamados, adição de pontos de restaurantes e
-        postos de combustíveis que aceitam ALELO e TICKET LOG, além da
-        possibilidade de colher patrimônios pelo celular. Com ele, você pode
-        traçar rotas para as filiais mais próximas utilizando o Google Maps ou
-        Waze. Além disso, o aplicativo permite a consulta de chamados, tanto os
-        atribuídos quanto os não atribuídos, proporcionando uma visão clara das
-        tarefas a serem realizadas.
-      </Text>
-
-      <View style={[AboutStyles.informationContainer, { borderTopColor: theme.colors.outline },]}>
-        <Text style={[AboutStyles.versionText, { color: theme.colors.onSurfaceVariant }]}>
-          Versão do aplicativo: {currentVersion}
+    <ScrollView
+      style={{ backgroundColor: theme.colors.background }}
+      contentContainerStyle={AboutStyles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={AboutStyles.header}>
+        <Text style={[AboutStyles.title, { color: theme.colors.onBackground }]}>
+          Sobre o aplicativo
         </Text>
 
-        <Text style={[AboutStyles.developerText, { color: theme.colors.onSurfaceVariant }]}>
-          Desenvolvido por: Ronaldo
+        <Text style={[AboutStyles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+          Apoio às atividades externas dos colaboradores
         </Text>
       </View>
 
-      <TouchableOpacity
-        onPress={() => navigation.goBack()}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Voltar"
+      <View
         style={[
-          AboutStyles.buttonBack,
+          AboutStyles.contentCard,
           {
             backgroundColor: theme.colors.surface,
             borderColor: theme.colors.outline,
           },
         ]}
       >
-        <Text style={[AboutStyles.buttonBackText, { color: theme.colors.onSurfaceVariant }]}>
-          ← Voltar
+        <Text style={[AboutStyles.text, { color: theme.colors.onSurfaceVariant }]}>
+          Este aplicativo foi desenvolvido para auxiliar os colaboradores nas
+          atividades realizadas fora da empresa, reunindo recursos de localização,
+          rotas e apoio ao trabalho em campo.
+        </Text>
+
+        <Text style={[AboutStyles.text, { color: theme.colors.onSurfaceVariant }]}>
+          Pelo sistema, é possível localizar filiais por código, nome ou cidade,
+          visualizar os endereços no mapa e utilizar a localização atual para
+          encontrar unidades próximas.
+        </Text>
+
+        <Text style={[AboutStyles.text, { color: theme.colors.onSurfaceVariant }]}>
+          As rotas podem ser abertas diretamente no Google Maps ou no Waze. O
+          aplicativo também permite consultar o histórico de rotas e cadastrar pontos
+          de interesse, como restaurantes e postos de combustível que aceitam Alelo
+          ou Ticket Log.
+        </Text>
+
+        <Text
+          style={[
+            AboutStyles.text,
+            AboutStyles.lastText,
+            { color: theme.colors.onSurfaceVariant },
+          ]}
+        >
+          As funcionalidades disponíveis são definidas de acordo com o perfil e as
+          permissões de cada colaborador.
+        </Text>
+      </View>
+
+      <View
+        style={[
+          AboutStyles.informationContainer,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outline,
+          },
+        ]}
+      >
+        <View style={AboutStyles.informationRow}>
+          <Text
+            style={[
+              AboutStyles.informationLabel,
+              { color: theme.colors.onSurfaceVariant },
+            ]}
+          >
+            Versão
+          </Text>
+
+          <Text
+            style={[
+              AboutStyles.informationValue,
+              { color: theme.colors.onSurface },
+            ]}
+          >
+            {currentVersion}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            AboutStyles.divider,
+            { backgroundColor: theme.colors.outline },
+          ]}
+        />
+
+        <View style={AboutStyles.informationRow}>
+          <Text
+            style={[
+              AboutStyles.informationLabel,
+              { color: theme.colors.onSurfaceVariant },
+            ]}
+          >
+            Desenvolvido por
+          </Text>
+
+          <Text
+            style={[
+              AboutStyles.informationValue,
+              { color: theme.colors.onSurface },
+            ]}
+          >
+            Ronaldo Vieira
+          </Text>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.75}
+        accessibilityRole="button"
+        accessibilityLabel="Voltar"
+        style={[
+          AboutStyles.buttonBack,
+          {
+            backgroundColor: theme.colors.actionBackground,
+            borderColor: theme.colors.outline,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            AboutStyles.buttonBackText,
+            { color: theme.colors.actionForeground },
+          ]}
+        >
+          Voltar
         </Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }

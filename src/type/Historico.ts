@@ -25,6 +25,7 @@ export interface NovoHistoricoRota {
   datahora: string;
   username: string;
   setor: string;
+  cidadeOrigem?: string;
   rotas: HistoricoRotaItem[];
 }
 
