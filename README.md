@@ -1,339 +1,201 @@
-AppRotas
+# AppRotas — Suporte Drogal
 
-Aplicativo mobile desenvolvido com React Native, Expo e TypeScript para criação de rotas entre filiais, abertura em aplicativos de navegação e registro de histórico no Strapi.
+Aplicativo mobile para apoiar equipes em campo com criação de rotas entre
+filiais, consulta de lojas no mapa, pontos de interesse, chamados, inventário
+de equipamentos e registro de atividades no Strapi.
 
-O projeto também possui autenticação, tema claro/escuro, navegação por abas e menu lateral, sugestões de usuários e suporte ao armazenamento local de históricos pendentes.
+O projeto utiliza React Native, Expo e TypeScript estrito. A organização é
+orientada a funcionalidades (`feature-first`): cada domínio mantém próximos
+seus componentes, hooks, modelos, telas, serviços e casos de uso.
 
-Funcionalidades
+## Funcionalidades
 
-Rotas entre filiais
+- Autenticação com JWT, restauração e expiração automática da sessão.
+- Menus dinâmicos por cargo e setor, carregados do Strapi.
+- Registro de sessão com usuário, setor e cidade de origem.
+- Busca, ordenação e navegação por rotas entre filiais.
+- Abertura de rotas no Google Maps e no Waze.
+- Mapa de filiais e pontos de interesse com agrupamento de marcadores.
+- Cadastro de restaurantes e postos com identificação do usuário criador.
+- Histórico por usuário, período, cidade de origem e tipo de destino.
+- Fila local para históricos que não puderam ser enviados ao Strapi.
+- Consulta de chamados atribuídos e não atribuídos.
+- Checklist de preventiva e relatório de patrimônio compartilhável.
+- Envio de sugestões, melhorias e problemas.
+- Tema claro/escuro e componentes do React Native Paper.
 
-Pesquisa de filiais pelo código.
+## Tecnologias principais
 
-Inclusão e remoção de filiais da rota.
+- React 19 e React Native 0.81
+- Expo SDK 54
+- TypeScript 5.9
+- React Navigation 7
+- React Native Paper
+- React Native Maps
+- Axios
+- AsyncStorage
+- Strapi
 
-Reordenação das filiais selecionadas.
+## Arquitetura
 
-Validação para impedir filiais duplicadas.
-
-Abertura da rota no:
-
-Google Maps;
-
-Waze.
-
-Histórico de rotas
-
-Registro das rotas realizadas no Strapi.
-
-Histórico associado ao usuário e ao setor.
-
-Ordenação por data e hora.
-
-Paginação dos registros.
-
-Carregamento incremental.
-
-Armazenamento local quando o envio falhar.
-
-Tentativa de sincronização dos históricos pendentes quando a conexão voltar.
-
-Sugestões e feedbacks
-
-Botão flutuante disponível durante a navegação.
-
-Botão reposicionável por arraste.
-
-Posição persistida com AsyncStorage.
-
-Tipos de feedback:
-
-Sugestão;
-
-Melhoria;
-
-Problema.
-
-Envio das sugestões para o Strapi.
-
-Toast de sucesso ou erro.
-
-Modal adaptado ao teclado do dispositivo.
-
-Aparência
-
-Tema claro e escuro.
-
-Integração com React Native Paper.
-
-Cores personalizadas para:
-
-fundo;
-
-superfícies;
-
-textos;
-
-ícones;
-
-botões;
-
-menu lateral;
-
-barra inferior;
-
-mensagens de sucesso, erro e informação.
-
-Estilo personalizado para mapas nos dois temas.
-
-Navegação
-
-A estrutura principal da navegação é:
-
-Drawer
-└── MainTabs
-    ├── Home
-    ├── Histórico
-    ├── Mapa de Lojas
-    ├── Pontos
-    ├── Preventiva
-    ├── Chamados
-    └── Mais
-
-O Drawer também possui rotas auxiliares, como:
-
-Editar perfil;
-
-Sobre.
-
-Tecnologias utilizadas
-
-React Native
-
-Expo
-
-TypeScript
-
-React Navigation
-
-React Native Paper
-
-React Native Gesture Handler
-
-React Native Safe Area Context
-
-AsyncStorage
-
-React Native Toast Message
-
-Strapi
-
-Estrutura do projeto
-
+```text
 src/
-├── components/
-│   ├── AppToast.tsx
-│   ├── HeaderMenu/
-│   ├── MoreMenuModal/
-│   ├── RouteList/
-│   ├── SearchBar/
-│   ├── Sidebar/
-│   ├── Sugestion/
-│   └── ThemeStyles.ts
-│
-├── context/
-│   ├── AuthContext.tsx
-│   ├── StrapiContext.tsx
-│   └── ThemeContext.tsx
-│
-├── hooks/
-│   ├── useAuth.ts
-│   ├── useFabPosition.ts
-│   ├── useHistoryRoutes.ts
-│   ├── usePagination.ts
-│   └── useSugestao.ts
-│
-├── navigation/
-│   ├── AppNavigation.tsx
-│   ├── BottomTabNavigator.tsx
-│   └── MainStackNavigator.tsx
-│
-├── providers/
-│   └── AppProviders.tsx
-│
-├── screens/
-│   ├── Home/
-│   ├── History/
-│   ├── Map/
-│   ├── Preventive/
-│   ├── Profile/
-│   └── About/
-│
-├── services/
-│   ├── api/
-│   └── storage/
-│       └── pendingRouteHistory.ts
-│
-└── type/
-    ├── FeedBack.ts
-    ├── Filial.ts
-    ├── Historico.ts
-    └── Strapi.ts
+├── application/
+│   ├── navigation/       # composição e tipos da navegação
+│   └── providers/        # composição dos providers da aplicação
+├── core/
+│   ├── api/              # cliente e contratos genéricos do Strapi
+│   ├── auth/             # sessão autenticada e menus
+│   ├── config/           # configuração por ambiente
+│   ├── location/         # permissão, coordenadas e cidade atual
+│   └── theme/            # tema e preferências visuais
+├── features/
+│   ├── admin/
+│   ├── auth/
+│   ├── chamados/
+│   ├── configuracoes/
+│   ├── filiais/
+│   ├── historico/
+│   ├── pontos/
+│   ├── preventiva/
+│   ├── rotas/
+│   └── sugestoes/
+└── shared/
+    ├── components/       # componentes reutilizados entre domínios
+    ├── hooks/            # hooks genéricos
+    ├── icons/            # utilitários de ícones
+    └── maps/             # coordenadas e agrupamento de marcadores
+```
+
+### Direção das dependências
+
+```mermaid
+flowchart LR
+    App["application: composição"] --> Features["features: regras por domínio"]
+    App --> Core["core: infraestrutura global"]
+    App --> Shared["shared: recursos reutilizáveis"]
+    Features --> Core
+    Features --> Shared
+    Core --> External["Expo, Strapi e bibliotecas"]
+    Shared --> External
+```
+
+Regras adotadas:
+
+- `application` monta a aplicação, mas não contém regra de negócio. Esse nome
+  também evita conflito com o diretório `src/app` reservado pelo Expo Router.
+- `core` concentra infraestrutura global e não depende de uma feature.
+- `shared` não conhece regras específicas de uma feature.
+- cada feature expõe sua própria tela, estado, modelo e operações;
+- telas coordenam interface; não implementam persistência ou regra de negócio;
+- hooks contêm integração com React, contexto e ciclo de vida;
+- casos de uso orquestram regras de negócio sem depender da interface;
+- serviços encapsulam integrações com sistema operacional ou armazenamento.
+
+### Estrutura interna de uma feature
+
+Nem toda feature precisa de todas as pastas. Elas são criadas somente quando
+há uma responsabilidade real:
+
+```text
+feature/
+├── components/           # interface exclusiva da feature
+├── hooks/                # estado e integração com React/API
+├── models/               # contratos e tipos do domínio
+├── screens/              # telas registradas na navegação
+├── services/             # armazenamento ou integração externa
+├── useCases/             # orquestração das regras de negócio
+└── FeatureContext.tsx    # estado compartilhado apenas pelo domínio
+```
+
+## Convenções de código
+
+### Extensões
+
+- `.tsx`: arquivos que renderizam JSX, como telas, componentes, providers e
+  contextos.
+- `.ts`: hooks sem JSX, modelos, casos de uso, serviços, configurações,
+  utilitários e estilos.
+- JavaScript/JSX não faz parte do código ativo em `src`.
+
+### Nomes
+
+- Componentes e telas: `PascalCase`, por exemplo `PontosScreen.tsx`.
+- Hooks: prefixo `use` e `camelCase`, por exemplo `useHistoricoRotas.ts`.
+- Casos de uso: verbo no infinitivo, por exemplo
+  `registrarHistoricoRota.ts`.
+- Estilos: nome do componente seguido de `.styles.ts`.
+- Modelos: nome do conceito em `PascalCase`.
+- Nomes do contrato do Strapi permanecem iguais aos do backend para evitar
+  mapeamentos implícitos e regressões.
+
+## Fluxos de negócio importantes
+
+### Login e sessão
+
+1. O aplicativo autentica em `/auth/local`.
+2. Carrega os menus permitidos para o cargo e setor.
+3. Valida e persiste o JWT e o usuário.
+4. Resolve a cidade atual quando houver permissão de localização.
+5. Registra a sessão em `/sessoes`.
+
+Uma falha no monitoramento da sessão não bloqueia o login.
+
+### Rota entre filiais
 
-A estrutura pode variar conforme a evolução do projeto.
+1. O usuário pesquisa e adiciona uma ou mais filiais.
+2. Escolhe Google Maps ou Waze.
+3. O caso de uso tenta registrar o histórico.
+4. Se o Strapi estiver indisponível, o histórico entra na fila local.
+5. A navegação externa continua mesmo se o histórico não puder ser persistido.
 
-Organização das responsabilidades
+### Rota para ponto de interesse
 
-screens
+O cadastro de um ponto **não cria histórico**. O histórico só é criado quando:
 
-Contém as telas da aplicação e coordena as ações do usuário.
+1. o usuário abre o menu de pontos;
+2. seleciona um marcador;
+3. toca no botão `Traçar rota`;
+4. o Google Maps é aberto com sucesso.
 
-Exemplo:
+O tipo registrado é `restaurante` ou `posto_combustivel`. Se o envio falhar,
+o mesmo mecanismo de fila offline é utilizado.
 
-Home
-→ seleciona filiais
-→ tenta salvar o histórico
-→ abre o navegador escolhido
+### Histórico offline
 
-components
+Os registros pendentes ficam no AsyncStorage sob uma chave versionada da
+aplicação. A sincronização é tentada de forma oportunista ao entrar no fluxo
+de rotas e antes de novos registros de lojas. Registros antigos sem os campos
+mais recentes continuam compatíveis na leitura.
 
-Contém componentes reutilizáveis, como:
+## Integração com o Strapi
 
-barra de pesquisa;
+O aplicativo espera os endpoints abaixo. Os nomes representam o contrato atual
+do código; mudanças no Strapi devem ser refletidas nos modelos da respectiva
+feature.
 
-lista de rotas;
+### `sessoes`
 
-menu lateral;
+| Campo | Tipo recomendado | Uso |
+| --- | --- | --- |
+| `user` | Texto curto | Username autenticado |
+| `setor` | Texto curto | Setor do usuário |
+| `cidadeOrigem` | Texto curto | Cidade resolvida no login |
 
-cabeçalho;
+### `historico-visitas`
 
-modal de sugestões;
+| Campo | Tipo recomendado | Uso |
+| --- | --- | --- |
+| `datahora` | DateTime | Instante original da ação |
+| `username` | Texto curto | Usuário que iniciou a rota |
+| `setor` | Texto curto | Setor do usuário |
+| `cidadeOrigem` | Texto curto | Cidade de início |
+| `tipoHistorico` | Enumeration | `loja`, `restaurante` ou `posto_combustivel` |
+| `rotas` | JSON | Destinos e ordem da rota |
 
-Toast personalizado.
+Exemplo de `rotas`:
 
-hooks
-
-Centraliza regras que utilizam recursos do React, como:
-
-estado;
-
-efeitos;
-
-contexto;
-
-comunicação com a API;
-
-paginação.
-
-services
-
-Contém regras independentes do React, como:
-
-cliente HTTP;
-
-acesso ao AsyncStorage;
-
-sincronização de dados pendentes;
-
-integração com mapas.
-
-context
-
-Mantém estados globais da aplicação:
-
-autenticação;
-
-token;
-
-dados do Strapi;
-
-tema claro ou escuro.
-
-Tema
-
-O tema é criado por meio da função:
-
-createAppTheme(isDarkMode)
-
-Ela combina o tema base do React Native Paper com as cores personalizadas do aplicativo.
-
-Exemplo de uso:
-
-import { useAppTheme } from '../../components/ThemeStyles';
-
-const theme = useAppTheme();
-
-<View
-  style={{
-    backgroundColor: theme.colors.background,
-  }}
-/>
-
-O PaperProvider é configurado em AppProviders.tsx:
-
-<PaperProvider theme={theme}>
-  <AppNavigation />
-  <AppToast />
-</PaperProvider>
-
-O AppToast fica dentro do provider para respeitar automaticamente o tema atual.
-
-Histórico offline
-
-Quando não for possível enviar o histórico ao Strapi, a aplicação salva a rota no AsyncStorage.
-
-Fluxo:
-
-Usuário traça a rota
-        ↓
-Tenta enviar ao Strapi
-        ↓
-Envio falhou?
-   ├── Não → histórico salvo
-   └── Sim → salva localmente
-                  ↓
-         abre o navegador normalmente
-                  ↓
-       tenta sincronizar posteriormente
-
-O serviço responsável pode ficar em:
-
-src/services/storage/pendingRouteHistory.ts
-
-Esse serviço não deve ficar em hooks, pois não utiliza estado ou recursos do React.
-
-Strapi
-
-Sessões
-
-Collection:
-
-sessoes
-
-Campo de localização:
-
-cidadeOrigem (Text / Short text)
-
-O aplicativo identifica a cidade atual no login e envia o valor
-junto com `user` e `setor`. O campo deve aceitar valor nulo para
-sessões antigas ou quando o usuário não autorizar a localização.
-
-Histórico de visitas
-
-Collection:
-
-historico-visitas
-
-Campos utilizados:
-
-datahora
-username
-setor
-tipoHistorico (Enumeration: loja, restaurante, posto_combustivel)
-rotas
-
-Exemplo do campo rotas:
-
+```json
 [
   {
     "codigofilial": 1,
@@ -342,181 +204,112 @@ Exemplo do campo rotas:
     "ordem": 1
   }
 ]
+```
 
-Permissões necessárias para usuários autenticados:
+### `pontos-interesses`
 
-create
+| Campo | Tipo recomendado |
+| --- | --- |
+| `latitude` | Texto curto ou Decimal, conforme o contrato existente |
+| `longitude` | Texto curto ou Decimal, conforme o contrato existente |
+| `descricao` | Texto curto |
+| `categoria` | Enumeration: `Restaurante`, `Posto de Combustível` |
+| `usernameCriador` | Texto curto |
 
-find
+### Outras coleções utilizadas
 
-findOne
+- `informacoeslojas`: dados e coordenadas das filiais.
+- `menus`: título, rota, ícone, situação, ordem e relação com setores.
+- `chamados`: chamados filtrados por responsável e setor.
+- `sugestoes`: `user`, `setor`, `email`, `tipo`, `tela`, `sugestao` e
+  `situation`.
 
-Pontos de interesse
+Os papéis autenticados do Strapi precisam das permissões `find`, `findOne` ou
+`create` somente nas coleções exigidas pelo fluxo de cada usuário.
 
-Collection:
+## Configuração
 
-pontos-interesses
+Requisitos:
 
-Campo de auditoria:
-
-usernameCriador (Text / Short text)
-
-O aplicativo preenche esse campo com o `username` do usuário
-autenticado no momento da inclusão do ponto.
-
-Cadastrar um ponto não cria histórico. Quando o usuário seleciona
-um marcador e inicia a navegação pelo botão `Traçar rota`, o
-aplicativo registra uma entrada em `historico-visitas`:
-
-- `Restaurante` envia `tipoHistorico: restaurante`;
-- `Posto de Combustível` envia `tipoHistorico: posto_combustivel`.
-
-Os dados básicos do destino são armazenados no JSON `rotas`,
-mantendo o mesmo contrato já utilizado pelo histórico de lojas.
-Caso o histórico não possa ser enviado, ele entra na fila de
-sincronização offline sem impedir a abertura do Google Maps.
-
-Sugestões
-
-Collection:
-
-sugestoes
-
-Campos utilizados:
-
-user
-setor
-email
-tipo
-sugestao
-
-Instalação
-
-Clone o projeto e entre na pasta:
-
-git clone <url-do-repositorio>
-cd AppRotas
+- Node.js 18 ou superior;
+- Yarn;
+- Android Studio/SDK para execução nativa no Android;
+- Xcode para execução nativa no iOS.
 
 Instale as dependências:
 
-yarn
+```bash
+yarn install
+```
 
-Inicie o Expo:
+Copie o arquivo de exemplo:
 
+```bash
+cp .env.example .env.local
+```
+
+Configure a API:
+
+```dotenv
+EXPO_PUBLIC_STRAPI_URL=http://localhost:1337/api
+```
+
+O código preserva os endereços atuais como fallback para compatibilidade.
+Em builds distribuídos, configure `EXPO_PUBLIC_STRAPI_URL` no ambiente do EAS.
+
+## Execução
+
+```bash
+# Metro/Expo
 yarn start
 
-Para limpar o cache do Metro:
-
-npx expo start -c
-
-Executar no Android:
-
+# Android nativo
 yarn android
 
-Executar no iOS:
-
+# iOS nativo
 yarn ios
 
-Os comandos podem variar conforme os scripts definidos no package.json.
+# Web
+yarn web
 
-Configuração da API
+# validação estática
+yarn typecheck
+```
 
-Mantenha a URL do Strapi centralizada em um arquivo de configuração ou variável de ambiente.
+Quando houver problema de cache:
 
-Exemplo:
+```bash
+npx expo start --clear
+```
 
-EXPO_PUBLIC_STRAPI_URL=https://seu-servidor.com/api
+## Segurança
 
-Uso:
+- Nunca coloque tokens JWT, senhas ou segredos do Strapi no aplicativo.
+- Variáveis `EXPO_PUBLIC_*` ficam disponíveis no bundle e não devem conter
+  segredos.
+- Chaves de Google Maps usadas por aplicativos móveis também ficam no pacote;
+  restrinja-as no Google Cloud pelo package/bundle identifier e pelas APIs
+  estritamente necessárias.
+- Use HTTPS no Strapi em produção.
+- Conceda no Strapi apenas as permissões necessárias para cada papel.
 
-const apiUrl = process.env.EXPO_PUBLIC_STRAPI_URL;
+## Qualidade e evolução
 
-Não salve tokens, senhas ou URLs privadas diretamente no repositório.
+Antes de entregar uma alteração:
 
-Tipos principais
+1. mantenha a regra dentro da feature proprietária;
+2. extraia orquestrações de negócio para `useCases`;
+3. não faça uma feature importar arquivos internos de outra sem necessidade;
+4. atualize os modelos quando o contrato do Strapi mudar;
+5. execute `yarn typecheck`;
+6. valide manualmente login, mapas, criação de ponto e histórico offline quando
+   a alteração atingir esses fluxos.
 
-Filial
+Próximos passos recomendados:
 
-export interface Filial {
-  codigofilial: number;
-  nomefilial: string;
-  nomecidade: string;
-  endereco?: string;
-  numero?: string | number;
-  bairro?: string;
-  telefone?: string;
-  cnpj?: string;
-  [key: string]: unknown;
-}
-
-Histórico
-
-export interface HistoricoRotaItem {
-  codigofilial: number;
-  nomefilial: string;
-  nomecidade: string;
-  ordem: number;
-}
-
-export interface HistoricoVisita {
-  id: number;
-  documentId?: string;
-  datahora: string;
-  username: string;
-  setor: string;
-  rotas: HistoricoRotaItem[];
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-Boas práticas adotadas
-
-Componentes escritos em TypeScript.
-
-Regras de API isoladas em hooks ou serviços.
-
-Tema centralizado.
-
-Um único Toast global.
-
-Um único componente de sugestão compartilhado entre as abas.
-
-Tipos separados para entidades e respostas do Strapi.
-
-Paginação do histórico.
-
-Persistência local para operações pendentes.
-
-Falhas no histórico não bloqueiam a navegação da rota.
-
-Navegação dinâmica usando o campo rota como nome da tela.
-
-Próximas melhorias
-
-Sincronização automática ao detectar o retorno da internet.
-
-Indicador de históricos pendentes.
-
-Botão manual para sincronizar.
-
-Idempotência para evitar históricos duplicados.
-
-Testes unitários dos serviços.
-
-Testes de integração dos hooks.
-
-Tratamento centralizado de erros da API.
-
-Registro de data da última sincronização.
-
-Limite para registros pendentes armazenados localmente.
-
-Tela administrativa para sugestões.
-
-Controle de status das sugestões.
-
-Observações
-
-O aplicativo deve continuar funcionando mesmo quando o Strapi estiver indisponível. O registro do histórico é importante, mas não deve impedir o usuário de abrir a rota no Google Maps ou no Waze.
-
-Para evitar duplicidades futuras, recomenda-se adicionar uma chave única de idempotência aos históricos enviados.
+- testes unitários dos casos de uso de histórico;
+- testes de integração dos hooks do Strapi;
+- idempotência no backend para evitar histórico duplicado após sincronização;
+- monitor de conectividade para sincronização automática;
+- lint e formatação automatizados no CI;
+- migração da API de produção para HTTPS.

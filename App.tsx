@@ -1,7 +1,7 @@
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import AppProviders from './src/providers/AppProviders';
+import AppProviders from './src/application/providers/AppProviders';
 
 export default function App(): React.JSX.Element {
   return (
