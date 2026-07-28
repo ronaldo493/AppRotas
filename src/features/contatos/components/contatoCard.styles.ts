@@ -2,18 +2,19 @@ import {StyleSheet} from 'react-native';
 
 const styles = StyleSheet.create({
   card: {
+    height: 116,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 14,
+    alignItems: 'center',
+    padding: 12,
     borderWidth: 1,
     borderRadius: 14,
   },
   avatar: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 21,
+    borderRadius: 20,
     marginRight: 12,
   },
   content: {

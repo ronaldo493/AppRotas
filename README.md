@@ -11,6 +11,7 @@ seus componentes, hooks, modelos, telas, serviços e casos de uso.
 ## Funcionalidades
 
 - Autenticação com JWT, restauração e expiração automática da sessão.
+- Verificação automática de novas versões do aplicativo.
 - Menus dinâmicos por cargo e setor, carregados do Strapi.
 - Registro de sessão com usuário, setor e cidade de origem.
 - Busca, ordenação e navegação por rotas entre filiais.
@@ -52,6 +53,7 @@ src/
 │   └── theme/            # tema e preferências visuais
 ├── features/
 │   ├── admin/
+│   ├── atualizacao/
 │   ├── auth/
 │   ├── chamados/
 │   ├── contatos/
@@ -143,6 +145,13 @@ feature/
 
 Uma falha no monitoramento da sessão não bloqueia o login.
 
+### Verificação de versão
+
+Ao iniciar, o aplicativo consulta o single type `update-app` e compara a versão
+disponível com a versão definida no Expo. A comparação é numérica por segmento,
+portanto versões como `2.0.10` são tratadas corretamente. O aviso é sempre
+opcional e pode abrir um link externo ou o APK publicado no Strapi.
+
 ### Rota entre filiais
 
 1. O usuário pesquisa e adiciona uma ou mais filiais.
@@ -220,6 +229,7 @@ Exemplo de `rotas`:
 
 ### Outras coleções utilizadas
 
+- `update-app` (single type): `versao`, `appUrl` e mídia `appApk`.
 - `informacoeslojas`: dados e coordenadas das filiais.
 - `menus`: título, rota, ícone, situação, ordem e relação com setores.
 - `chamados`: chamados filtrados por responsável e setor.

@@ -22,6 +22,10 @@ const exibirErroAcao = (acao: string): void => {
 
 function ContatoCard({contato}: ContatoCardProps): React.JSX.Element {
   const theme = useAppTheme();
+  const telefoneLabel = [
+    contato.ramal ? `Ramal: ${contato.ramal}` : '',
+    contato.ddr ? `DDR: ${contato.ddr}` : '',
+  ].filter(Boolean).join('  •  ');
 
   const handlePhone = async (): Promise<void> => {
     const telefone = contato.ddr?.trim() || contato.ramal?.trim();
@@ -40,35 +44,24 @@ function ContatoCard({contato}: ContatoCardProps): React.JSX.Element {
       </View>
 
       <View style={styles.content}>
-        <Text style={[styles.name, {color: theme.colors.onSurface}]}>{contato.colaboradores}</Text>
-        <Text style={[styles.department, {color: theme.colors.onSurfaceVariant}]}>{contato.departamento}</Text>
+        <Text numberOfLines={1} style={[styles.name, {color: theme.colors.onSurface}]}>{contato.colaboradores}</Text>
+        <Text numberOfLines={1} style={[styles.department, {color: theme.colors.onSurfaceVariant}]}>{contato.departamento}</Text>
 
         <View style={styles.details}>
-          {contato.ramal ? <Text style={[styles.detail, {color: theme.colors.onSurface}]}>Ramal: {contato.ramal}</Text> : null}
-          {contato.ddr ? <Text style={[styles.detail, {color: theme.colors.onSurface}]}>DDR: {contato.ddr}</Text> : null}
+          {telefoneLabel ? <Text numberOfLines={1} style={[styles.detail, {color: theme.colors.onSurface}]}>{telefoneLabel}</Text> : null}
           {contato.email ? <Text numberOfLines={1} style={[styles.detail, {color: theme.colors.onSurface}]}>{contato.email}</Text> : null}
         </View>
       </View>
 
       <View style={styles.actions}>
         {(contato.ddr || contato.ramal) ? (
-          <TouchableOpacity 
-            accessibilityRole="button" 
-            accessibilityLabel={`Ligar para ${contato.colaboradores}`} 
-            style={[styles.action, {backgroundColor: theme.colors.buttonBackground}]} 
-            onPress={() => void handlePhone()}
-          >
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Ligar para ${contato.colaboradores}`} style={[styles.action, {backgroundColor: theme.colors.buttonBackground}]} onPress={() => void handlePhone()}>
             <MaterialIcons name="phone" size={20} color={theme.colors.success} />
           </TouchableOpacity>
         ) : null}
 
         {contato.email ? (
-          <TouchableOpacity 
-            accessibilityRole="button" 
-            accessibilityLabel={`Enviar e-mail para ${contato.colaboradores}`} 
-            style={[styles.action, {backgroundColor: theme.colors.buttonBackground}]} 
-            onPress={() => void handleEmail()}
-          >
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Enviar e-mail para ${contato.colaboradores}`} style={[styles.action, {backgroundColor: theme.colors.buttonBackground}]} onPress={() => void handleEmail()}>
             <MaterialIcons name="email" size={20} color={theme.colors.info} />
           </TouchableOpacity>
         ) : null}

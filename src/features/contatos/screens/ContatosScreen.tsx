@@ -1,6 +1,6 @@
 import React, {useCallback, useDeferredValue, useEffect, useMemo, useState} from 'react';
 import {MaterialIcons} from '@expo/vector-icons';
-import {ActivityIndicator, FlatList, Text, TouchableOpacity, View, type ListRenderItemInfo} from 'react-native';
+import {ActivityIndicator, FlatList, Platform, Text, TouchableOpacity, View, type ListRenderItemInfo} from 'react-native';
 import {Chip, Searchbar} from 'react-native-paper';
 
 import {useAppTheme} from '../../../core/theme/appTheme';
@@ -11,9 +11,22 @@ import type {Contato} from '../models/Contato';
 import styles from './contatosScreen.styles';
 
 const TODOS_DEPARTAMENTOS = '';
+const CONTATO_HEIGHT = 116;
+const CONTATO_SPACING = 10;
 
 const normalizarTexto = (value: string): string =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR');
+
+const ContatoSeparator = (): React.JSX.Element => <View style={styles.itemSeparator} />;
+
+const getContatoLayout = (
+  _data: ArrayLike<Contato> | null | undefined,
+  index: number,
+) => ({
+  length: CONTATO_HEIGHT,
+  offset: (CONTATO_HEIGHT + CONTATO_SPACING) * index,
+  index,
+});
 
 export default function ContatosScreen(): React.JSX.Element {
   const theme = useAppTheme();
@@ -121,13 +134,17 @@ export default function ContatosScreen(): React.JSX.Element {
         data={contatosFiltrados}
         renderItem={renderContato}
         keyExtractor={keyExtractor}
+        getItemLayout={getContatoLayout}
+        ItemSeparatorComponent={ContatoSeparator}
         refreshing={loading && contatos.length > 0}
         contentContainerStyle={[styles.listContent, contatosFiltrados.length === 0 && styles.emptyListContent]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={7}
+        initialNumToRender={7}
+        maxToRenderPerBatch={5}
+        updateCellsBatchingPeriod={50}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
         onRefresh={() => void recarregar()}
         ListEmptyComponent={
           <View style={styles.emptyState}>

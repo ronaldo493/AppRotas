@@ -31,14 +31,19 @@ const AboutStyles = StyleSheet.create({
   },
 
   text: {
-    marginBottom: 16,
     fontSize: 14,
     lineHeight: 22,
     textAlign: 'left',
   },
-
-  lastText: {
-    marginBottom: 0,
+  spacedText: {
+    marginTop: 16,
+  },
+  permissionText: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 
   informationContainer: {

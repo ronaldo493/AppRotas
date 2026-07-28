@@ -9,6 +9,7 @@ import {
 } from '../../core/theme/ThemeContext';
 
 import AppToast from '../../shared/components/AppToast';
+import AppVersionChecker from '../../features/atualizacao/components/AppVersionChecker';
 import AppNavigation from '../navigation/AppNavigation';
 import {createAppTheme} from '../../core/theme/appTheme';
 import AppDataProviders from './AppDataProviders';
@@ -24,6 +25,7 @@ function AppWithTheme() {
   return (
     <PaperProvider theme={theme}>
       <LocationProvider>
+        <AppVersionChecker />
         <AppNavigation />
         <AppToast />
       </LocationProvider>

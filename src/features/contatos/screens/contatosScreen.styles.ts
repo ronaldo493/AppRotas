@@ -53,8 +53,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   listContent: {
-    gap: 10,
     paddingBottom: 24,
+  },
+  itemSeparator: {
+    height: 10,
   },
   emptyListContent: {
     flexGrow: 1,

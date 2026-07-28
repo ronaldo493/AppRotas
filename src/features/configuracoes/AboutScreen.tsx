@@ -1,19 +1,13 @@
-import type { DrawerNavigationProp } from '@react-navigation/drawer';
+import type {DrawerScreenProps} from '@react-navigation/drawer';
 import Constants from 'expo-constants';
 import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
 
+import type {DrawerParamList} from '../../application/navigation/navigationTypes';
 import {useAppTheme} from '../../core/theme/appTheme';
 import AboutStyles from './aboutScreen.styles';
 
-type DrawerParamList = {
-  MainTabs: undefined;
-  About: undefined;
-};
-
-interface AboutProps {
-  navigation: DrawerNavigationProp<DrawerParamList, 'About'>;
-}
+type AboutProps = DrawerScreenProps<DrawerParamList, 'Sobre'>;
 
 export default function AboutScreen({ navigation }: AboutProps): React.JSX.Element {
   const theme = useAppTheme();
@@ -31,7 +25,7 @@ export default function AboutScreen({ navigation }: AboutProps): React.JSX.Eleme
         </Text>
 
         <Text style={[AboutStyles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Apoio às atividades externas dos colaboradores
+          Rotas, suporte e informação para equipes em campo
         </Text>
       </View>
 
@@ -45,33 +39,28 @@ export default function AboutScreen({ navigation }: AboutProps): React.JSX.Eleme
         ]}
       >
         <Text style={[AboutStyles.text, { color: theme.colors.onSurfaceVariant }]}>
-          Este aplicativo foi desenvolvido para auxiliar os colaboradores nas
-          atividades realizadas fora da empresa, reunindo recursos de localização,
-          rotas e apoio ao trabalho em campo.
+          O Suporte Drogal reúne em um único lugar os recursos necessários para
+          planejar deslocamentos, consultar informações e registrar atividades
+          operacionais com mais agilidade.
         </Text>
 
-        <Text style={[AboutStyles.text, { color: theme.colors.onSurfaceVariant }]}>
-          Pelo sistema, é possível localizar filiais por código, nome ou cidade,
-          visualizar os endereços no mapa e utilizar a localização atual para
-          encontrar unidades próximas.
+        <Text style={[AboutStyles.text, AboutStyles.spacedText, {color: theme.colors.onSurfaceVariant}]}>
+          É possível localizar filiais, montar trajetos e abrir a navegação diretamente no Google Maps ou no Waze.
         </Text>
 
-        <Text style={[AboutStyles.text, { color: theme.colors.onSurfaceVariant }]}>
-          As rotas podem ser abertas diretamente no Google Maps ou no Waze. O
-          aplicativo também permite consultar o histórico de rotas e cadastrar pontos
-          de interesse, como restaurantes e postos de combustível que aceitam Alelo
-          ou Ticket Log.
+        <Text style={[AboutStyles.text, AboutStyles.spacedText, {color: theme.colors.onSurfaceVariant}]}>
+          O aplicativo também registra o histórico das rotas, funciona com uma fila offline e permite navegar até restaurantes e postos cadastrados como pontos de interesse.
         </Text>
 
-        <Text
-          style={[
-            AboutStyles.text,
-            AboutStyles.lastText,
-            { color: theme.colors.onSurfaceVariant },
-          ]}
-        >
-          As funcionalidades disponíveis são definidas de acordo com o perfil e as
-          permissões de cada colaborador.
+        <Text style={[AboutStyles.text, AboutStyles.spacedText, {color: theme.colors.onSurfaceVariant}]}>
+          A consulta de contatos internos e o envio de sugestões completam os recursos disponíveis para os colaboradores.
+        </Text>
+
+        <Text style={[AboutStyles.permissionText, {
+          color: theme.colors.onSurfaceVariant,
+          borderTopColor: theme.colors.outline,
+        }]}>
+          Os recursos exibidos são definidos pelo cargo, setor e permissões de cada colaborador.
         </Text>
       </View>
 
