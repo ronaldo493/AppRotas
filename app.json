@@ -16,16 +16,9 @@
     },
     "ios": {
       "supportsTablet": true,
-      "config": {
-        "googleMapsApiKey": "AIzaSyCdWLfccDPylQ5I1peF-wC0vm9uNKZ-PWY"
-      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Este aplicativo precisa acessar sua localização para mostrar as lojas próximas a você.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Este aplicativo precisa acessar sua localização para mostrar as lojas próximas a você.",
         "NSCameraUsageDescription": "Este aplicativo precisa acessar sua câmera para ler códigos de barras e QR codes.",
-        "UIBackgroundModes": [
-          "fetch"
-        ],
         "LSApplicationQueriesSchemes": [
           "whatsapp"
         ]
@@ -41,36 +34,18 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "CAMERA",
-        "RECEIVE_BOOT_COMPLETED",
-        "WAKE_LOCK",
-        "ACCESS_BACKGROUND_LOCATION"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyCdWLfccDPylQ5I1peF-wC0vm9uNKZ-PWY"
-        }
-      }
+        "CAMERA"
+      ]
     },
     "plugins": [
       "expo-font",
       [
-        "expo-build-properties",
-        {
-          "android": {
-            "usesCleartextTraffic": true
-          }
-        }
-      ],
-      [
         "expo-camera",
         {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera"
+          "cameraPermission": "Permitir que o Suporte Drogal acesse a câmera",
+          "recordAudioAndroid": false
         }
       ],
-      "expo-background-fetch",
-      "expo-task-manager",
-      "expo-sqlite",
       "@react-native-community/datetimepicker",
       "expo-mail-composer"
     ],

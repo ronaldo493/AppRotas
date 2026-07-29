@@ -285,10 +285,15 @@ Configure a API:
 
 ```dotenv
 EXPO_PUBLIC_STRAPI_URL=http://localhost:1337/api
+GOOGLE_MAPS_API_KEY=
+ALLOW_CLEARTEXT_TRAFFIC=false
 ```
 
 O código preserva os endereços atuais como fallback para compatibilidade.
 Em builds distribuídos, configure `EXPO_PUBLIC_STRAPI_URL` no ambiente do EAS.
+A chave do Google Maps também deve ser configurada no EAS e é aplicada ao
+Android e iOS por `app.config.ts`. Use `ALLOW_CLEARTEXT_TRAFFIC=true` somente
+em desenvolvimento local quando a API realmente utilizar HTTP.
 
 ## Execução
 
