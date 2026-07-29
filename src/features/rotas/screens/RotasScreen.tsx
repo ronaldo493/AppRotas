@@ -11,13 +11,10 @@ import type {Filial} from '../../filiais/models/Filial';
 import useHistoricoRotas from '../../historico/hooks/useHistoricoRotas';
 import {TIPO_HISTORICO} from '../../historico/models/Historico';
 import {registrarHistoricoRota} from '../../historico/useCases/registrarHistoricoRota';
+import useHistoricoOffline from '../../historico/hooks/useHistoricoOffline';
 import SugestaoFab from '../../sugestoes/components/SugestaoFab';
 import RouteList from '../components/RouteList';
 import MapService from '../services/mapService';
-import {
-  adicionarHistoricoPendente,
-  sincronizarHistoricosPendentes,
-} from '../services/historicoRotaPendente';
 import HomeStyles from './rotasScreen.styles';
 
 type NavigatorType = 'google' | 'waze';
@@ -26,6 +23,10 @@ export default function RotasScreen(): React.JSX.Element {
   const theme = useAppTheme();
 
   const { postHistoricoRota,  loading: savingHistory } = useHistoricoRotas();
+  const {
+    adicionarHistoricoPendente,
+    sincronizarHistoricosPendentes,
+  } = useHistoricoOffline();
 
   const {
     currentCity,
@@ -46,11 +47,23 @@ export default function RotasScreen(): React.JSX.Element {
 
   const synchronizePending = useCallback(
     async (): Promise<void> => {
-      await sincronizarHistoricosPendentes(
-        postHistoricoRota,
-      );
+      try {
+        await sincronizarHistoricosPendentes(
+          postHistoricoRota,
+        );
+      } catch (error: unknown) {
+        console.error(
+          'Erro ao acessar o histórico offline:',
+          error instanceof Error
+            ? error.message
+            : 'erro desconhecido',
+        );
+      }
     },
-    [postHistoricoRota],
+    [
+      postHistoricoRota,
+      sincronizarHistoricosPendentes,
+    ],
   );
 
   useEffect(() => {

@@ -20,12 +20,9 @@ import Toast from 'react-native-toast-message';
 import {useMapLocation} from '../../../core/location/useLocation';
 import {useAppTheme} from '../../../core/theme/appTheme';
 import ClusterMarker from '../../../shared/components/maps/ClusterMarker';
+import useHistoricoOffline from '../../historico/hooks/useHistoricoOffline';
 import useHistoricoRotas from '../../historico/hooks/useHistoricoRotas';
 import MapService from '../../rotas/services/mapService';
-import {
-  adicionarHistoricoPendente,
-  sincronizarHistoricosPendentes,
-} from '../../rotas/services/historicoRotaPendente';
 import usePontos from '../hooks/usePontos';
 import type {
   CategoriaPonto,
@@ -64,6 +61,10 @@ export default function PontosScreen(): React.JSX.Element {
   const {postHistoricoRota} = useHistoricoRotas({
     loadOnMount: false,
   });
+  const {
+    adicionarHistoricoPendente,
+    sincronizarHistoricosPendentes,
+  } = useHistoricoOffline();
   const {
     currentLocation,
     currentCity,

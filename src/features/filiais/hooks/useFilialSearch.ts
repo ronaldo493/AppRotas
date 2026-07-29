@@ -18,7 +18,7 @@ interface UseSearchFilialProps {
 }
 
 const SEARCH_DEBOUNCE_MS = 400;
-const ESTIMATE_DEBOUNCE_MS = 700;
+const ESTIMATE_DEBOUNCE_MS = 500;
 
 export default function useSearchFilial({
   currentLocation,
@@ -85,7 +85,7 @@ export default function useSearchFilial({
 
   /*
    * Depois que a filial for encontrada,
-   * aguarda mais 800 ms antes de consultar
+   * aguarda mais 500 ms antes de consultar
    * o Strapi/Google.
    */
   useEffect(() => {

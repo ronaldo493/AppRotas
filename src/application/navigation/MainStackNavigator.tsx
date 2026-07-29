@@ -31,7 +31,11 @@ function DrawerLayout() {
         headerShown: true,
         header: () => (<HeaderMenu navigation={navigation} title={''} />),
         drawerType: 'front',
-        freezeOnBlur: true,
+        /*
+         * O drawer pode manter as telas nativas destacadas, mas não deve
+         * congelar a árvore React porque o tema pode mudar em outra rota.
+         */
+        freezeOnBlur: false,
       })}
     >
       <Drawer.Screen 

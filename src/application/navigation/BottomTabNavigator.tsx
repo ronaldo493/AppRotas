@@ -65,7 +65,11 @@ export default function BottomTabNavigator({navigation}: BottomTabNavigatorProps
         screenOptions={({route}) => ({
           headerShown: false,
           lazy: true,
-          freezeOnBlur: true,
+          /*
+           * As telas não são congeladas para continuarem reagindo a mudanças
+           * globais, como tema e sessão, mesmo após navegar pelo drawer.
+           */
+          freezeOnBlur: false,
           tabBarHideOnKeyboard: true,
           tabBarIcon: ({
             focused,

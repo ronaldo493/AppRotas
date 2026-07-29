@@ -173,8 +173,10 @@ As rotas atualmente aceitas no Strapi são: `Home`, `MapaLojas`, `Historico`,
 
 Ao iniciar, o aplicativo consulta o single type `update-app` e compara a versão
 disponível com a versão definida no Expo. A comparação é numérica por segmento,
-portanto versões como `2.0.10` são tratadas corretamente. O aviso é sempre
-opcional e pode abrir um link externo ou o APK publicado no Strapi.
+portanto versões como `2.0.10` são tratadas corretamente. Quando existe uma
+versão superior, a atualização é obrigatória e bloqueia o uso do aplicativo. O
+usuário pode abrir um link externo ou o APK publicado no Strapi, mas não pode
+dispensar o aviso.
 
 ### Rota entre filiais
 
@@ -207,10 +209,16 @@ a se dividir.
 
 ### Histórico offline
 
-Os registros pendentes ficam no AsyncStorage sob uma chave versionada da
-aplicação. A sincronização é tentada de forma oportunista ao entrar no fluxo
-de rotas e antes de novos registros de lojas. Registros antigos sem os campos
-mais recentes continuam compatíveis na leitura.
+Os registros pendentes ficam no AsyncStorage em uma chave versionada e
+derivada do identificador estável do usuário. Cada item também guarda seu
+proprietário, impedindo que a fila criada pelo usuário A seja enviada pela
+sessão do usuário B.
+
+A sincronização é tentada de forma oportunista ao entrar no fluxo de rotas e
+antes de novos registros de lojas. A chave global usada pelas versões
+anteriores é migrada para o usuário autenticado somente depois que a nova fila
+é gravada com sucesso. Registros antigos sem os campos mais recentes continuam
+compatíveis na leitura.
 
 ## Integração com o Strapi
 

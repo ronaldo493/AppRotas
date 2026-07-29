@@ -61,6 +61,10 @@ const converterPontoEmRota = (
   longitude: ponto.longitude,
 });
 
+/**
+ * Abre a rota de um ponto de interesse e registra o histórico somente depois
+ * que o aplicativo de navegação confirma a abertura.
+ */
 export async function iniciarRotaPonto(
   {
     ponto,

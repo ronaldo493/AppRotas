@@ -9,10 +9,11 @@ import {abrirUrlAtualizacao, obterUrlApk} from '../services/atualizacaoService';
 import styles from './appUpdateModal.styles';
 
 interface AppUpdateModalProps {
-  visible: boolean;
   currentVersion: string;
   update: AtualizacaoApp;
-  onDismiss: () => void;
+  checking: boolean;
+  verificationError: string | null;
+  onRetry: () => void;
 }
 
 interface MetodoAtualizacao {
@@ -20,11 +21,16 @@ interface MetodoAtualizacao {
   url: string;
 }
 
+/**
+ * Exibe uma atualização obrigatória sem permitir dispensa pelo toque externo
+ * ou botão voltar. Abrir o instalador não remove o bloqueio do aplicativo.
+ */
 export default function AppUpdateModal({
-  visible,
   currentVersion,
   update,
-  onDismiss,
+  checking,
+  verificationError,
+  onRetry,
 }: AppUpdateModalProps): React.JSX.Element {
   const theme = useAppTheme();
   const [showMethods, setShowMethods] = useState(false);
@@ -41,15 +47,9 @@ export default function AppUpdateModal({
   }, [update.appApk, update.appUrl]);
 
   useEffect(() => {
-    if (!visible) return;
-
     setShowMethods(false);
     setOpeningUrl(null);
-  }, [update.versao, visible]);
-
-  const handleDismiss = (): void => {
-    if (!openingUrl) onDismiss();
-  };
+  }, [update.versao]);
 
   const handleOpenUrl = async (url: string): Promise<void> => {
     setOpeningUrl(url);
@@ -65,16 +65,11 @@ export default function AppUpdateModal({
       return;
     }
 
-    onDismiss();
   };
 
   const handleUpdate = (): void => {
     if (methods.length === 0) {
-      Toast.show({
-        type: 'error',
-        text1: 'Atualização indisponível',
-        text2: 'Nenhum APK ou link externo foi configurado.',
-      });
+      onRetry();
       return;
     }
 
@@ -88,8 +83,17 @@ export default function AppUpdateModal({
 
   return (
     <Portal>
-      <Dialog visible={visible} dismissable={!openingUrl} dismissableBackButton={!openingUrl} style={styles.dialog} onDismiss={handleDismiss}>
-        <Dialog.Title>{showMethods ? 'Escolha uma opção' : 'Atualização disponível'}</Dialog.Title>
+      <Dialog
+        visible
+        dismissable={false}
+        dismissableBackButton={false}
+        style={styles.dialog}
+      >
+        <Dialog.Title>
+          {showMethods
+            ? 'Escolha uma opção'
+            : 'Atualização obrigatória'}
+        </Dialog.Title>
 
         <Dialog.Content>
           {showMethods ? (
@@ -103,11 +107,22 @@ export default function AppUpdateModal({
           ) : (
             <>
               <Text style={[styles.description, {color: theme.colors.onSurfaceVariant}]}>
-                A versão {update.versao} está disponível para download.
+                Para continuar usando o aplicativo, instale a versão {update.versao}.
               </Text>
               <Text style={[styles.currentVersion, {color: theme.colors.onSurfaceVariant}]}>
                 Versão instalada: {currentVersion}
               </Text>
+              {methods.length === 0 ? (
+                <Text
+                  style={[
+                    styles.errorText,
+                    {color: theme.colors.error},
+                  ]}
+                >
+                  {verificationError
+                    ?? 'O link da atualização ainda não está disponível. Tente novamente.'}
+                </Text>
+              ) : null}
             </>
           )}
         </Dialog.Content>
@@ -115,11 +130,18 @@ export default function AppUpdateModal({
         <Dialog.Actions>
           {showMethods ? (
             <Button disabled={Boolean(openingUrl)} onPress={() => setShowMethods(false)}>Voltar</Button>
-          ) : (
-            <Button disabled={Boolean(openingUrl)} onPress={handleDismiss}>Agora não</Button>
-          )}
-          {!showMethods ? (
+          ) : null}
+          {!showMethods && methods.length > 0 ? (
             <Button loading={Boolean(openingUrl)} disabled={Boolean(openingUrl)} onPress={handleUpdate}>Atualizar</Button>
+          ) : null}
+          {!showMethods && methods.length === 0 ? (
+            <Button
+              loading={checking}
+              disabled={checking}
+              onPress={onRetry}
+            >
+              Tentar novamente
+            </Button>
           ) : null}
         </Dialog.Actions>
       </Dialog>

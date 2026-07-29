@@ -13,6 +13,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 8,
   },
+  errorText: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 12,
+  },
   methods: {
     gap: 10,
   },

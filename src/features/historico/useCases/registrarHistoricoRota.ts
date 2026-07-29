@@ -35,6 +35,10 @@ export type ResultadoRegistroHistorico =
   | {status: 'pendente'}
   | {status: 'falha'; erro: unknown};
 
+/**
+ * Tenta enviar o histórico da rota e, quando o backend está indisponível,
+ * preserva a ação na fila offline vinculada ao usuário atual.
+ */
 export async function registrarHistoricoRota(
   {
     rotas,
