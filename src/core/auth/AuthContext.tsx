@@ -15,7 +15,7 @@ import React, {
 import { AppState, type AppStateStatus} from 'react-native';
 import Toast from 'react-native-toast-message';
 
-import type {AuthMenu} from './AuthMenu';
+import type {MenuItem} from '../menu/Menu';
 
 const TOKEN_STORAGE_KEY = 'userToken';
 const USER_STORAGE_KEY = 'userData';
@@ -35,7 +35,7 @@ export interface AuthUser {
   blocked?: boolean;
   setor?: string | null;
   cargo?: string | null;
-  menus?: AuthMenu[];
+  menus?: MenuItem[];
   [key: string]: unknown;
 }
 

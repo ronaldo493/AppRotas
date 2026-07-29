@@ -8,9 +8,8 @@ import {
 import BottomTabNavigator from './BottomTabNavigator';
 import AboutScreen from '../../features/configuracoes/AboutScreen';
 import ProfileScreen from '../../features/configuracoes/ProfileScreen';
-import useMenuAccessSync from '../../features/auth/hooks/useMenuAccessSync';
+import useMenuAccessSync from '../../features/menus/hooks/useMenuAccessSync';
 import PatrimonioScreen from '../../features/preventiva/PatrimonioScreen';
-import RotasScreen from '../../features/rotas/screens/RotasScreen';
 import HeaderMenu from '../../shared/components/HeaderMenu';
 import Sidebar from '../../shared/components/Sidebar';
 import type {
@@ -53,11 +52,6 @@ function DrawerLayout() {
         options={{drawerItemStyle: { display: 'none' }}}
       />
 
-      <Drawer.Screen
-        name="Inicio"
-        component={RotasScreen}
-        options={{drawerItemStyle: { display: 'none' }}}
-      />
     </Drawer.Navigator>
   );
 }

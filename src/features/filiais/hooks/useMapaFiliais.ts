@@ -118,6 +118,10 @@ export default function useMapaFiliais() {
 
   const handleRegionChangeComplete = useCallback(
     (region: Region): void => {
+      /*
+       * O mapa nativo pode devolver pequenas variações mesmo após parar.
+       * Ignorá-las mantém os clusters estáveis e evita recálculos visuais.
+       */
       setVisibleRegion(current =>
         areClusterRegionsClose(current, region)
           ? current

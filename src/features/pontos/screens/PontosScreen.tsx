@@ -152,6 +152,10 @@ export default function PontosScreen(): React.JSX.Element {
     mapRef.current?.animateToRegion(mapRegion, 400);
   }, [mapReady, mapRegion]);
 
+  /*
+   * O índice é recriado somente quando os pontos válidos mudam. Alterações de
+   * câmera reutilizam a mesma estrutura espacial do Supercluster.
+   */
   const clusterIndex = useMemo(
     () =>
       new MapClusterIndex({
@@ -162,6 +166,10 @@ export default function PontosScreen(): React.JSX.Element {
     [pontosValidos],
   );
 
+  /*
+   * Consulta o índice pela região e zoom atuais, mantendo sob controle a
+   * quantidade de markers renderizados.
+   */
   const clusters = useMemo(
     () => mapReady
       ? clusterIndex.getClusters({
@@ -179,6 +187,10 @@ export default function PontosScreen(): React.JSX.Element {
     ],
   );
 
+  /*
+   * Usa o zoom de expansão calculado pelo Supercluster para revelar os pontos
+   * do agrupamento progressivamente.
+   */
   const focusCluster = useCallback(
     (clusterId: number, coordinate: LatLng): void => {
       setNavigationPoint(null);

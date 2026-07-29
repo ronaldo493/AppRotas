@@ -46,7 +46,7 @@ function Sidebar({
   const handleNavigateHome = (): void => {
     navigation.closeDrawer();
 
-    navigation.navigate('MainTabs', {screen: 'Home'});
+    navigation.navigate('MainTabs');
   };
 
   return (

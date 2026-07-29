@@ -1,4 +1,4 @@
-export interface AuthMenu {
+export interface MenuItem {
   titulo: string;
   rota: string;
   ativo: boolean;

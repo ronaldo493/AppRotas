@@ -44,6 +44,10 @@ export default function MapaFiliaisScreen(): React.JSX.Element {
 
   const storeCountLabel = lojas.length === 1 ? 'filial exibida' : 'filiais exibidas';
 
+  /*
+   * O índice é reconstruído somente quando as lojas mudam. Movimentar o mapa
+   * apenas consulta a estrutura espacial já carregada pelo Supercluster.
+   */
   const clusterIndex = useMemo(
     () =>
       new MapClusterIndex({
@@ -54,6 +58,10 @@ export default function MapaFiliaisScreen(): React.JSX.Element {
     [lojas],
   );
 
+  /*
+   * Retorna apenas clusters e pontos da região visível no zoom atual,
+   * reduzindo a quantidade de markers montados pelo React Native Maps.
+   */
   const clusters = useMemo(
     () => mapReady
       ? clusterIndex.getClusters({
@@ -71,6 +79,10 @@ export default function MapaFiliaisScreen(): React.JSX.Element {
     ],
   );
 
+  /*
+   * Abre o agrupamento usando o zoom calculado pelo próprio Supercluster,
+   * sem depender de incrementos fixos que poderiam manter o cluster fechado.
+   */
   const focusCluster = useCallback(
     (clusterId: number, coordinate: LojaMapa['coordinate']): void => {
       mapRef.current?.animateCamera(

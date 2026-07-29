@@ -48,9 +48,10 @@ src/
 │   └── providers/        # composição dos providers da aplicação
 ├── core/
 │   ├── api/              # cliente e contratos genéricos do Strapi
-│   ├── auth/             # sessão autenticada e menus
+│   ├── auth/             # estado da sessão autenticada
 │   ├── config/           # configuração por ambiente
 │   ├── location/         # permissão, coordenadas e cidade atual
+│   ├── menu/             # contrato compartilhado dos menus
 │   └── theme/            # tema e preferências visuais
 ├── features/
 │   ├── admin/
@@ -61,6 +62,7 @@ src/
 │   ├── configuracoes/
 │   ├── filiais/
 │   ├── historico/
+│   ├── menus/            # acesso, sincronização e interface dos menus
 │   ├── pontos/
 │   ├── preventiva/
 │   ├── rotas/
@@ -131,6 +133,8 @@ feature/
   `registrarHistoricoRota.ts`.
 - Estilos: nome do componente seguido de `.styles.ts`.
 - Modelos: nome do conceito em `PascalCase`.
+- Funções exportadas, hooks e casos de uso devem ter um comentário `/** */`
+  curto descrevendo responsabilidade e comportamentos que não sejam óbvios.
 - Nomes do contrato do Strapi permanecem iguais aos do backend para evitar
   mapeamentos implícitos e regressões.
 
@@ -149,6 +153,21 @@ Os acessos do menu são sincronizados silenciosamente quando uma sessão salva �
 restaurada, quando o aplicativo volta ao primeiro plano e a cada cinco minutos
 de uso ativo. Se o Strapi estiver indisponível, os últimos acessos válidos são
 preservados.
+
+### Menus dinâmicos
+
+O campo `rota` do Strapi é o identificador técnico usado pela navegação. O
+campo `titulo` é somente o texto apresentado ao usuário e pode ser alterado sem
+quebrar a rota. As rotas suportadas ficam centralizadas em
+`application/navigation/menuRegistry.ts`.
+
+Menus inativos, rotas desconhecidas e rotas técnicas duplicadas não são
+registrados no navegador. As regras de cargo e setor ficam no caso de uso
+`features/menus/useCases/filtrarMenusPermitidos.ts`, sem dependência de React ou
+da interface.
+
+As rotas atualmente aceitas no Strapi são: `Home`, `MapaLojas`, `Historico`,
+`Pontos`, `Preventiva`, `Chamados`, `Contatos` e `Admin`.
 
 ### Verificação de versão
 
@@ -176,6 +195,15 @@ O cadastro de um ponto **não cria histórico**. O histórico só é criado quan
 
 O tipo registrado é `restaurante` ou `posto_combustivel`. Se o envio falhar,
 o mesmo mecanismo de fila offline é utilizado.
+
+### Agrupamento dos mapas
+
+Os mapas de filiais e pontos utilizam Supercluster. A lista de coordenadas cria
+um índice espacial somente quando os dados mudam; movimentos de câmera apenas
+consultam esse índice pela região visível e pelo zoom. Pequenas oscilações da
+região nativa são ignoradas para evitar que os agrupamentos pareçam se mover
+sozinhos. Ao tocar em um cluster, a biblioteca calcula o zoom em que ele começa
+a se dividir.
 
 ### Histórico offline
 

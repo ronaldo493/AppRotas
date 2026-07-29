@@ -1,22 +1,15 @@
 import {useCallback, useEffect, useRef} from 'react';
-import { AppState, type AppStateStatus} from 'react-native';
+import {AppState, type AppStateStatus} from 'react-native';
 
-import { type AuthUser,useAuthContext} from '../../../core/auth/AuthContext';
-import type {AuthMenu} from '../../../core/auth/AuthMenu';
-import useAuthMenus, { wasMenuAccessLoadedRecently} from './useAuthMenus';
+import {useAuthContext} from '../../../core/auth/AuthContext';
+import type {MenuItem} from '../../../core/menu/Menu';
+import {getMenuAccessUserKey, wasMenuAccessLoadedRecently} from '../services/menuAccessCache';
+import useAuthMenus from './useAuthMenus';
 
 const FOREGROUND_REFRESH_COOLDOWN_MS = 30_000;
 const ACTIVE_SESSION_REFRESH_INTERVAL_MS = 5 * 60_000;
 
-const getUserKey = (user: AuthUser | null): string | null => {
-  if (!user) return null;
-  if (user.documentId) return `document:${user.documentId}`;
-  if (typeof user.id === 'number') return `id:${user.id}`;
-
-  return user.username ? `username:${user.username}` : null;
-};
-
-const getMenuSignature = (menus: AuthMenu[] | undefined): string =>
+const getMenuSignature = (menus: MenuItem[] | undefined): string =>
   [...(menus ?? [])]
     .sort((first, second) =>
       `${first.rota}:${first.titulo}`.localeCompare(
@@ -32,8 +25,12 @@ const getMenuSignature = (menus: AuthMenu[] | undefined): string =>
     ].join('|'))
     .join('::');
 
+/**
+ * Mantém os acessos do menu sincronizados durante a sessão, ao retornar ao
+ * primeiro plano e em intervalos regulares, preservando o cache em falhas.
+ */
 export default function useMenuAccessSync(): void {
-  const { user, token, setUser} = useAuthContext();
+  const {user, token, setUser} = useAuthContext();
   const {loadAllowedMenus} = useAuthMenus();
 
   const userRef = useRef(user);
@@ -44,12 +41,12 @@ export default function useMenuAccessSync(): void {
   userRef.current = user;
   tokenRef.current = token;
 
-  const userKey = getUserKey(user);
+  const userKey = getMenuAccessUserKey(user);
 
   const refreshMenuAccess = useCallback(async (force = false): Promise<void> => {
     const currentUser = userRef.current;
     const currentToken = tokenRef.current;
-    const currentUserKey = getUserKey(currentUser);
+    const currentUserKey = getMenuAccessUserKey(currentUser);
     const now = Date.now();
 
     if (
@@ -83,19 +80,20 @@ export default function useMenuAccessSync(): void {
         currentToken,
         currentUser,
       );
-
       const latestUser = userRef.current;
 
-      // Ignora respostas de uma sessão que foi encerrada ou substituída.
       if (
         tokenRef.current !== currentToken
-        || getUserKey(latestUser) !== currentUserKey
+        || getMenuAccessUserKey(latestUser) !== currentUserKey
         || !latestUser
       ) {
         return;
       }
 
-      if (getMenuSignature(latestUser.menus) === getMenuSignature(refreshedMenus)) {
+      if (
+        getMenuSignature(latestUser.menus)
+        === getMenuSignature(refreshedMenus)
+      ) {
         return;
       }
 
@@ -104,11 +102,7 @@ export default function useMenuAccessSync(): void {
         menus: refreshedMenus,
       });
     } catch (error: unknown) {
-      // A indisponibilidade do Strapi não remove os acessos já armazenados.
-      console.warn(
-        'Não foi possível atualizar os acessos do menu:',
-        error instanceof Error ? error.message : 'erro desconhecido',
-      );
+      console.warn('Não foi possível atualizar os acessos do menu:', error instanceof Error ? error.message : 'erro desconhecido',);
     } finally {
       refreshInProgressRef.current = false;
     }
@@ -138,7 +132,6 @@ export default function useMenuAccessSync(): void {
       'change',
       handleAppStateChange,
     );
-
     const intervalId = setInterval(() => {
       if (AppState.currentState === 'active') {
         void refreshMenuAccess(true);

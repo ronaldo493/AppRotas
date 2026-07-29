@@ -1,8 +1,17 @@
 import Supercluster from 'supercluster';
 import type {LatLng, Region} from 'react-native-maps';
 
+/*
+ * O raio é medido em pixels do tile. O índice deixa de agrupar no zoom 18
+ * para permitir a seleção individual de pontos muito próximos.
+ */
 const DEFAULT_CLUSTER_RADIUS = 32;
 const DEFAULT_MAX_CLUSTER_ZOOM = 18;
+
+/*
+ * Inclui uma pequena área fora da tela para os marcadores não surgirem
+ * abruptamente nas bordas durante o movimento do mapa.
+ */
 const DEFAULT_VIEWPORT_PADDING = 0.12;
 const MAP_TILE_SIZE = 256;
 const MIN_REGION_DELTA = 0.000_001;
@@ -70,6 +79,10 @@ const toMercatorLatitude = (latitude: number): number => {
   );
 };
 
+/**
+ * Converte a região do React Native Maps para o nível inteiro de zoom usado
+ * pelo Supercluster, considerando as dimensões reais do mapa na tela.
+ */
 const getMapZoom = ({
   region,
   viewportWidth,
@@ -105,6 +118,10 @@ const getMapZoom = ({
   );
 };
 
+/**
+ * Transforma a região visível no bounding box esperado pelo Supercluster:
+ * oeste, sul, leste e norte, sempre em longitude/latitude.
+ */
 const getBoundingBox = (
   region: Region,
   viewportPadding: number,
@@ -135,9 +152,7 @@ const getBoundingBox = (
   ];
 };
 
-const isValidCoordinate = (
-  coordinate: LatLng,
-): boolean =>
+const isValidCoordinate = (coordinate: LatLng): boolean =>
   Number.isFinite(coordinate.latitude) &&
   Number.isFinite(coordinate.longitude) &&
   coordinate.latitude >= -MAX_LATITUDE &&
@@ -145,6 +160,10 @@ const isValidCoordinate = (
   coordinate.longitude >= -180 &&
   coordinate.longitude <= 180;
 
+/**
+ * Compara regiões com tolerância pequena para evitar animações de câmera
+ * redundantes sem bloquear movimentos intencionais do usuário.
+ */
 export const areRegionsClose = (
   first: Region | null | undefined,
   second: Region | null | undefined,
@@ -162,6 +181,10 @@ export const areRegionsClose = (
   );
 };
 
+/**
+ * Compara regiões com tolerância proporcional ao zoom atual. Isso evita
+ * recalcular clusters por oscilações mínimas emitidas pelo mapa nativo.
+ */
 export const areClusterRegionsClose = (
   first: Region | null | undefined,
   second: Region | null | undefined,
@@ -191,11 +214,19 @@ export const areClusterRegionsClose = (
   );
 };
 
+/**
+ * Adaptador genérico do Supercluster para os dados do aplicativo. O índice
+ * espacial é criado por conjunto de itens e consultado por região e zoom.
+ */
 export class MapClusterIndex<T> {
   private readonly index: Supercluster<MapPointProperties>;
 
   private readonly itemsByKey = new Map<string, T>();
 
+  /**
+   * Converte itens válidos em pontos GeoJSON e carrega o índice espacial.
+   * Chaves repetidas recebem um sufixo apenas dentro deste índice.
+   */
   constructor({
     items,
     getCoordinate,
@@ -247,6 +278,10 @@ export class MapClusterIndex<T> {
     this.index.load(features);
   }
 
+  /**
+   * Retorna clusters e pontos individuais relevantes para a região visível.
+   * Clusters possuem `clusterId`; pontos individuais possuem `item`.
+   */
   getClusters({
     region,
     viewportWidth,
@@ -296,6 +331,9 @@ export class MapClusterIndex<T> {
     }, []);
   }
 
+  /**
+   * Retorna o primeiro zoom em que o agrupamento selecionado se divide.
+   */
   getClusterExpansionZoom(clusterId: number): number {
     return this.index.getClusterExpansionZoom(clusterId);
   }

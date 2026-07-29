@@ -1,16 +1,9 @@
 import axios from 'axios';
-import {
-  useCallback,
-  useState,
-} from 'react';
-
-import {
-  type AuthUser,
-  useAuthContext,
-} from '../../../core/auth/AuthContext';
+import {useCallback, useState} from 'react';
+import {type AuthUser, useAuthContext} from '../../../core/auth/AuthContext';
 import useStrapiClient from '../../../core/api/strapiClient';
 import useLocation from '../../../core/location/useLocation';
-import useAuthMenus from './useAuthMenus';
+import useAuthMenus from '../../menus/hooks/useAuthMenus';
 
 interface LoginResponse {
   jwt: string;
@@ -23,10 +16,7 @@ interface UseAuthReturn {
   loading: boolean;
   error: string | null;
 
-  conexaoLogin: (
-    codigoUsuario: string,
-    senha: string,
-  ) => Promise<boolean>;
+  conexaoLogin: (codigoUsuario: string, senha: string) => Promise<boolean>;
 }
 
 export default function useAuth():

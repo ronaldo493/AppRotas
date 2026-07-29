@@ -1,8 +1,8 @@
 import type {NavigatorScreenParams} from '@react-navigation/native';
 import type {TipoServico} from '../../features/preventiva/models';
+import type {MenuRouteName} from './menuRegistry';
 
-export type BottomTabParamList =
-  Record<string, undefined>;
+export type BottomTabParamList = {[Route in MenuRouteName]: undefined} & {Mais: undefined};
 
 export type RootStackParamList = {
   MainDrawer: undefined;
@@ -18,7 +18,6 @@ export type DrawerParamList = {
     | undefined;
   EditProfile: undefined;
   Sobre: undefined;
-  Inicio: undefined;
 };
 
 export type AuthStackParamList = {

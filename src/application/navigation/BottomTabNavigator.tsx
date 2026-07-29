@@ -1,120 +1,82 @@
-import React, {useMemo, useState} from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import type {
-  DrawerScreenProps,
-} from '@react-navigation/drawer';
-import { MaterialIcons } from '@expo/vector-icons';
+import {MaterialIcons} from '@expo/vector-icons';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import type {DrawerScreenProps} from '@react-navigation/drawer';
+import React, { useEffect, useMemo, useState} from 'react';
+import {Text, View} from 'react-native';
 
 import {useAuthContext} from '../../core/auth/AuthContext';
-import type {AuthMenu} from '../../core/auth/AuthMenu';
 import {useAppTheme} from '../../core/theme/appTheme';
-import AdminScreen from '../../features/admin/AdminScreen';
-import ChamadosScreen from '../../features/chamados/ChamadosScreen';
-import ContatosScreen from '../../features/contatos/screens/ContatosScreen';
-import MapaFiliaisScreen from '../../features/filiais/screens/MapaFiliaisScreen';
-import HistoricoScreen from '../../features/historico/screens/HistoricoScreen';
-import PontosScreen from '../../features/pontos/screens/PontosScreen';
-import PreventivaScreen from '../../features/preventiva/PreventivaScreen';
-import RotasScreen from '../../features/rotas/screens/RotasScreen';
-import MoreMenuModal from '../../shared/components/MoreMenuModal';
+import MoreMenuModal from '../../features/menus/components/MoreMenuModal';
 import {obterNomeIconeMaterial} from '../../shared/icons/materialIcon';
-import type {
-  BottomTabParamList,
-  DrawerParamList,
-} from './navigationTypes';
+import styles from './bottomTabNavigator.styles';
+import {isMenuRouteName, menuScreenRegistry, resolveMenuNavigation, type MenuRouteName} from './menuRegistry';
+import type { BottomTabParamList, DrawerParamList} from './navigationTypes';
 
-type BottomTabNavigatorProps = DrawerScreenProps<
-  DrawerParamList,
-  'MainTabs'
->;
+type BottomTabNavigatorProps = DrawerScreenProps<DrawerParamList, 'MainTabs'>;
 
-const Tab =
-  createBottomTabNavigator<BottomTabParamList>();
-const EmptyScreen = () => null;
+const PRIMARY_MENU_LIMIT = 4;
+const Tab = createBottomTabNavigator<BottomTabParamList>();
+const EmptyScreen = (): null => null;
 
-const screensMap: Record<
-  string,
-  React.ComponentType<object>
-> = {
-  Home: RotasScreen,
-  MapaLojas: MapaFiliaisScreen,
-  Historico: HistoricoScreen,
-  Pontos: PontosScreen,
-  Preventiva: PreventivaScreen,
-  Chamados: ChamadosScreen,
-  Contatos: ContatosScreen,
-  Admin: AdminScreen,
-};
-
-export default function BottomTabNavigator({
-  navigation,
-}: BottomTabNavigatorProps): React.JSX.Element {
+/**
+ * Monta as abas a partir dos acessos do usuário, usando a rota como chave
+ * técnica e o título do Strapi apenas como rótulo visual.
+ */
+export default function BottomTabNavigator({navigation}: BottomTabNavigatorProps): React.JSX.Element {
   const [modalVisible, setModalVisible] = useState(false);
   const {user} = useAuthContext();
-
   const theme = useAppTheme();
 
-  const menusOrdenados = useMemo<AuthMenu[]>(
-    () =>
-      (user?.menus ?? [])
-        .filter(menu => menu.ativo !== false)
-        .sort(
-          (first, second) =>
-            (first.ordem ?? 0) - (second.ordem ?? 0),
-        ),
+  const {menus: orderedMenus, unsupportedRoutes} = useMemo(
+    () => resolveMenuNavigation(user?.menus ?? []),
     [user?.menus],
   );
 
-  const totalMenus = menusOrdenados.length;
+  const menuByRoute = useMemo(
+    () => new Map(
+      orderedMenus.map(menu => [menu.rota, menu]),
+    ),
+    [orderedMenus],
+  );
 
-  if (totalMenus === 0) {
+  useEffect(() => {
+    if (__DEV__ && unsupportedRoutes.length > 0) {
+      console.warn('Rotas de menu não registradas no aplicativo:', unsupportedRoutes.join(', '));
+    }
+  }, [unsupportedRoutes]);
+
+  if (orderedMenus.length === 0) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.background || '#232730', justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: theme.colors.onBackground || '#F5F6F6', marginTop: 12, fontWeight: '500' }}>
+      <View style={[styles.emptyState, {backgroundColor: theme.colors.background}]}>
+        <Text style={[styles.emptyStateText, {color: theme.colors.onBackground}]}>
           Nenhum menu disponível para o seu acesso.
         </Text>
       </View>
     );
   }
 
-  let menusDaTab: AuthMenu[] = [];
-  let menusDoModal: AuthMenu[] = [];
-
-  if (totalMenus > 4) {
-    menusDaTab = menusOrdenados.slice(0, 4); 
-    menusDoModal = menusOrdenados.slice(4);
-  } else {
-    menusDaTab = menusOrdenados;
-    menusDoModal = [];
-  }
+  const primaryMenus = orderedMenus.slice(0, PRIMARY_MENU_LIMIT);
+  const overflowMenus = orderedMenus.slice(PRIMARY_MENU_LIMIT);
 
   return (
     <View style={styles.container}>
       <Tab.Navigator
         detachInactiveScreens
-        screenOptions={({ route }) => ({
+        screenOptions={({route}) => ({
           headerShown: false,
           lazy: true,
           freezeOnBlur: true,
           tabBarHideOnKeyboard: true,
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName = '';
-
-            if (route.name === 'Mais') {
-              iconName = 'more-horiz';
-            } else {
-              const menu = menusOrdenados.find(
-                item => item.titulo === route.name,
-              );
-              iconName = obterNomeIconeMaterial(
-                menu?.icone,
-              );
-            }
+          tabBarIcon: ({
+            focused,
+            color,
+            size,
+          }) => {
+            const iconName = route.name === 'Mais'
+              ? 'more-horiz'
+              : menuByRoute.get(
+                  route.name as MenuRouteName,
+                )?.icone;
 
             return (
               <MaterialIcons
@@ -126,55 +88,50 @@ export default function BottomTabNavigator({
           },
           tabBarActiveTintColor: theme.colors.iconActive,
           tabBarInactiveTintColor: theme.colors.iconDefault,
-          tabBarStyle: { 
-            height: 85, 
-            paddingTop: 8,
-            paddingBottom: 8,
-            backgroundColor: theme.colors.tabBarBackground,
-            borderTopWidth: 0
-          },
-          tabBarLabelStyle: { fontSize: 13, fontWeight: '500' },
+          tabBarStyle: [
+            styles.tabBar,
+            {
+              backgroundColor:
+                theme.colors.tabBarBackground,
+            },
+          ],
+          tabBarLabelStyle: styles.tabBarLabel,
         })}
       >
-        {menusDaTab.map((menu: AuthMenu) => {
-          const Screen = screensMap[menu.rota];
-          if (!Screen) return null;
+        {primaryMenus.map(menu => (
+          <Tab.Screen
+            key={menu.rota}
+            name={menu.rota}
+            component={menuScreenRegistry[menu.rota]}
+            options={{
+              title: menu.titulo,
+              tabBarLabel: menu.titulo,
+            }}
+          />
+        ))}
 
-          return (
-            <Tab.Screen
-              key={menu.titulo}
-              name={menu.titulo}
-              component={Screen}
-            />
-          );
-        })}
-        {menusDoModal.map((menu: AuthMenu) => {
-          const Screen = screensMap[menu.rota];
-          if (!Screen) return null;
+        {overflowMenus.map(menu => (
+          <Tab.Screen
+            key={menu.rota}
+            name={menu.rota}
+            component={menuScreenRegistry[menu.rota]}
+            options={{
+              title: menu.titulo,
+              tabBarButton: () => null,
+              tabBarItemStyle: {
+                display: 'none',
+              },
+            }}
+          />
+        ))}
 
-          return (
-            <Tab.Screen
-              key={menu.titulo}
-              name={menu.titulo}
-              component={Screen}
-              options={{
-                title: menu.titulo,
-                tabBarButton: () => null,
-                tabBarItemStyle: {
-                  display: 'none',
-                },
-              }}
-            />
-          );
-        })}
-
-        {totalMenus > 4 && (
+        {overflowMenus.length > 0 && (
           <Tab.Screen
             name="Mais"
             component={EmptyScreen}
             listeners={{
-              tabPress: (e) => {
-                e.preventDefault();
+              tabPress: event => {
+                event.preventDefault();
                 setModalVisible(true);
               },
             }}
@@ -184,9 +141,11 @@ export default function BottomTabNavigator({
 
       <MoreMenuModal
         visible={modalVisible}
+        menuItems={overflowMenus}
         onClose={() => setModalVisible(false)}
-        menuItems={menusDoModal}
         onNavigate={routeName => {
+          if (!isMenuRouteName(routeName)) return;
+
           navigation.navigate('MainTabs', {
             screen: routeName,
           });
@@ -195,9 +154,3 @@ export default function BottomTabNavigator({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
