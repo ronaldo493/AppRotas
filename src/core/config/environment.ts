@@ -1,6 +1,6 @@
 const DEFAULT_STRAPI_URL_DEVELOPMENT = 'http://192.168.1.73:1337/api';
 // const DEFAULT_STRAPI_URL_DEVELOPMENT = 'http://10.215.10.30:1337/api';
-const DEFAULT_STRAPI_URL_PRODUCTION = 'http://ec2-18-229-222-186.sa-east-1.compute.amazonaws.com:3021/api';
+const DEFAULT_STRAPI_URL_PRODUCTION = 'https://rotas.drogal.com.br/api';
 
 const removeTrailingSlash = (value: string): string =>
   value.replace(/\/+$/, '');
