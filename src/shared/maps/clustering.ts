@@ -1,24 +1,42 @@
-import type { LatLng, Region } from 'react-native-maps';
+import Supercluster from 'supercluster';
+import type {LatLng, Region} from 'react-native-maps';
 
-const DEFAULT_CELL_SIZE = 72;
+const DEFAULT_CLUSTER_RADIUS = 32;
+const DEFAULT_MAX_CLUSTER_ZOOM = 18;
 const DEFAULT_VIEWPORT_PADDING = 0.12;
+const MAP_TILE_SIZE = 256;
 const MIN_REGION_DELTA = 0.000_001;
+const MIN_MAP_ZOOM = 0;
+const MAX_MAP_ZOOM = 22;
+const MAX_LATITUDE = 90;
+const MAX_MERCATOR_LATITUDE = 85.051_128_78;
+const CLUSTER_REGION_TOLERANCE_RATIO = 0.02;
+
+interface MapPointProperties {
+  itemKey: string;
+}
+
+interface CreateMapClusterIndexOptions<T> {
+  items: readonly T[];
+  getCoordinate: (item: T) => LatLng;
+  getKey: (item: T) => string;
+  radius?: number;
+  maxZoom?: number;
+}
+
+interface GetMapClustersOptions {
+  region: Region;
+  viewportWidth: number;
+  viewportHeight: number;
+  viewportPadding?: number;
+}
 
 export interface MapCluster<T> {
   id: string;
   coordinate: LatLng;
-  items: readonly T[];
-}
-
-interface ClusterMapItemsOptions<T> {
-  items: readonly T[];
-  region: Region;
-  viewportWidth: number;
-  viewportHeight: number;
-  getCoordinate: (item: T) => LatLng;
-  getKey: (item: T) => string;
-  cellSize?: number;
-  viewportPadding?: number;
+  count: number;
+  item: T | null;
+  clusterId: number | null;
 }
 
 const normalizeLongitudeOffset = (offset: number): number => {
@@ -28,21 +46,104 @@ const normalizeLongitudeOffset = (offset: number): number => {
   return offset;
 };
 
-const clamp = (value: number, minimum: number, maximum: number): number =>
+const clamp = (
+  value: number,
+  minimum: number,
+  maximum: number,
+): number =>
   Math.min(Math.max(value, minimum), maximum);
 
-const hashKeys = (keys: readonly string[]): string => {
-  let hash = 2_166_136_261;
+const toMercatorLatitude = (latitude: number): number => {
+  const normalizedLatitude = clamp(
+    latitude,
+    -MAX_MERCATOR_LATITUDE,
+    MAX_MERCATOR_LATITUDE,
+  );
+  const sinLatitude = Math.sin(
+    normalizedLatitude * Math.PI / 180,
+  );
 
-  keys.forEach(key => {
-    for (let index = 0; index < key.length; index += 1) {
-      hash ^= key.charCodeAt(index);
-      hash = Math.imul(hash, 16_777_619);
-    }
-  });
-
-  return (hash >>> 0).toString(36);
+  return (
+    0.5 -
+    Math.log((1 + sinLatitude) / (1 - sinLatitude)) /
+      (4 * Math.PI)
+  );
 };
+
+const getMapZoom = ({
+  region,
+  viewportWidth,
+  viewportHeight,
+}: Omit<GetMapClustersOptions, 'viewportPadding'>): number => {
+  const longitudeDelta = Math.max(
+    Math.abs(region.longitudeDelta),
+    MIN_REGION_DELTA,
+  );
+  const northMercator = toMercatorLatitude(
+    region.latitude + Math.abs(region.latitudeDelta) / 2,
+  );
+  const southMercator = toMercatorLatitude(
+    region.latitude - Math.abs(region.latitudeDelta) / 2,
+  );
+  const mercatorLatitudeDelta = Math.max(
+    Math.abs(northMercator - southMercator),
+    MIN_REGION_DELTA,
+  );
+  const horizontalZoom = Math.log2(
+    (360 * Math.max(viewportWidth, 1)) /
+      (longitudeDelta * MAP_TILE_SIZE),
+  );
+  const verticalZoom = Math.log2(
+    Math.max(viewportHeight, 1) /
+      (mercatorLatitudeDelta * MAP_TILE_SIZE),
+  );
+
+  return clamp(
+    Math.floor(Math.min(horizontalZoom, verticalZoom)),
+    MIN_MAP_ZOOM,
+    MAX_MAP_ZOOM,
+  );
+};
+
+const getBoundingBox = (
+  region: Region,
+  viewportPadding: number,
+): [number, number, number, number] => {
+  const paddingMultiplier = 1 + viewportPadding * 2;
+  const latitudeRadius =
+    Math.abs(region.latitudeDelta) *
+    paddingMultiplier /
+    2;
+  const longitudeRadius =
+    Math.abs(region.longitudeDelta) *
+    paddingMultiplier /
+    2;
+
+  return [
+    region.longitude - longitudeRadius,
+    clamp(
+      region.latitude - latitudeRadius,
+      -MAX_LATITUDE,
+      MAX_LATITUDE,
+    ),
+    region.longitude + longitudeRadius,
+    clamp(
+      region.latitude + latitudeRadius,
+      -MAX_LATITUDE,
+      MAX_LATITUDE,
+    ),
+  ];
+};
+
+const isValidCoordinate = (
+  coordinate: LatLng,
+): boolean =>
+  Number.isFinite(coordinate.latitude) &&
+  Number.isFinite(coordinate.longitude) &&
+  coordinate.latitude >= -MAX_LATITUDE &&
+  coordinate.latitude <= MAX_LATITUDE &&
+  coordinate.longitude >= -180 &&
+  coordinate.longitude <= 180;
 
 export const areRegionsClose = (
   first: Region | null | undefined,
@@ -61,108 +162,141 @@ export const areRegionsClose = (
   );
 };
 
-export const clusterMapItems = <T>({
-  items,
-  region,
-  viewportWidth,
-  viewportHeight,
-  getCoordinate,
-  getKey,
-  cellSize = DEFAULT_CELL_SIZE,
-  viewportPadding = DEFAULT_VIEWPORT_PADDING,
-}: ClusterMapItemsOptions<T>): MapCluster<T>[] => {
-  if (items.length === 0) return [];
+export const areClusterRegionsClose = (
+  first: Region | null | undefined,
+  second: Region | null | undefined,
+): boolean => {
+  if (!first || !second) return false;
 
-  const latitudeDelta = Math.max(
-    Math.abs(region.latitudeDelta),
+  const latitudeTolerance = Math.max(
     MIN_REGION_DELTA,
+    Math.abs(first.latitudeDelta) *
+      CLUSTER_REGION_TOLERANCE_RATIO,
   );
-  const longitudeDelta = Math.max(
-    Math.abs(region.longitudeDelta),
+  const longitudeTolerance = Math.max(
     MIN_REGION_DELTA,
+    Math.abs(first.longitudeDelta) *
+      CLUSTER_REGION_TOLERANCE_RATIO,
   );
 
-  const paddedLatitudeDelta =
-    latitudeDelta * (1 + viewportPadding * 2);
-  const paddedLongitudeDelta =
-    longitudeDelta * (1 + viewportPadding * 2);
-
-  const columns = Math.max(
-    1,
-    Math.ceil(Math.max(viewportWidth, cellSize) / cellSize),
+  return (
+    Math.abs(first.latitude - second.latitude) <= latitudeTolerance &&
+    Math.abs(
+      normalizeLongitudeOffset(first.longitude - second.longitude),
+    ) <= longitudeTolerance &&
+    Math.abs(first.latitudeDelta - second.latitudeDelta) <=
+      latitudeTolerance &&
+    Math.abs(first.longitudeDelta - second.longitudeDelta) <=
+      longitudeTolerance
   );
-  const rows = Math.max(
-    1,
-    Math.ceil(Math.max(viewportHeight, cellSize) / cellSize),
-  );
-
-  const cells = new Map<string, T[]>();
-
-  items.forEach(item => {
-    const coordinate = getCoordinate(item);
-    const latitudeOffset = coordinate.latitude - region.latitude;
-    const longitudeOffset = normalizeLongitudeOffset(
-      coordinate.longitude - region.longitude,
-    );
-
-    if (
-      Math.abs(latitudeOffset) > paddedLatitudeDelta / 2 ||
-      Math.abs(longitudeOffset) > paddedLongitudeDelta / 2
-    ) {
-      return;
-    }
-
-    const horizontalPosition =
-      longitudeOffset / paddedLongitudeDelta + 0.5;
-    const verticalPosition =
-      0.5 - latitudeOffset / paddedLatitudeDelta;
-
-    const column = clamp(
-      Math.floor(horizontalPosition * columns),
-      0,
-      columns - 1,
-    );
-    const row = clamp(
-      Math.floor(verticalPosition * rows),
-      0,
-      rows - 1,
-    );
-    const cellKey = `${column}:${row}`;
-    const cellItems = cells.get(cellKey);
-
-    if (cellItems) {
-      cellItems.push(item);
-      return;
-    }
-
-    cells.set(cellKey, [item]);
-  });
-
-  return Array.from(cells.entries()).map(([cellKey, cellItems]) => {
-    const coordinate = cellItems.reduce<LatLng>(
-      (result, item) => {
-        const itemCoordinate = getCoordinate(item);
-
-        return {
-          latitude: result.latitude + itemCoordinate.latitude,
-          longitude: result.longitude + itemCoordinate.longitude,
-        };
-      },
-      {latitude: 0, longitude: 0},
-    );
-
-    const keys = cellItems.map(getKey);
-
-    return {
-      id:
-        cellItems.length === 1
-          ? `item:${keys[0]}`
-          : `cluster:${cellKey}:${cellItems.length}:${hashKeys(keys)}`,
-      coordinate: {
-        latitude: coordinate.latitude / cellItems.length,
-        longitude: coordinate.longitude / cellItems.length,
-      },
-      items: cellItems,
-    };
-  });
 };
+
+export class MapClusterIndex<T> {
+  private readonly index: Supercluster<MapPointProperties>;
+
+  private readonly itemsByKey = new Map<string, T>();
+
+  constructor({
+    items,
+    getCoordinate,
+    getKey,
+    radius = DEFAULT_CLUSTER_RADIUS,
+    maxZoom = DEFAULT_MAX_CLUSTER_ZOOM,
+  }: CreateMapClusterIndexOptions<T>) {
+    this.index = new Supercluster<MapPointProperties>({
+      radius,
+      maxZoom,
+      minPoints: 2,
+      nodeSize: 64,
+    });
+
+    const keyOccurrences = new Map<string, number>();
+    const features: Array<
+      Supercluster.PointFeature<MapPointProperties>
+    > = [];
+
+    items.forEach(item => {
+      const coordinate = getCoordinate(item);
+
+      if (!isValidCoordinate(coordinate)) return;
+
+      const baseKey = getKey(item);
+      const occurrence = keyOccurrences.get(baseKey) ?? 0;
+      const itemKey =
+        occurrence === 0
+          ? baseKey
+          : `${baseKey}:${occurrence}`;
+
+      keyOccurrences.set(baseKey, occurrence + 1);
+      this.itemsByKey.set(itemKey, item);
+      features.push({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [
+            coordinate.longitude,
+            coordinate.latitude,
+          ],
+        },
+        properties: {
+          itemKey,
+        },
+      });
+    });
+
+    this.index.load(features);
+  }
+
+  getClusters({
+    region,
+    viewportWidth,
+    viewportHeight,
+    viewportPadding = DEFAULT_VIEWPORT_PADDING,
+  }: GetMapClustersOptions): MapCluster<T>[] {
+    const zoom = getMapZoom({
+      region,
+      viewportWidth,
+      viewportHeight,
+    });
+    const features = this.index.getClusters(
+      getBoundingBox(region, viewportPadding),
+      zoom,
+    );
+
+    return features.reduce<MapCluster<T>[]>((clusters, feature) => {
+      const [longitude, latitude] =
+        feature.geometry.coordinates;
+      const properties = feature.properties;
+
+      if ('cluster' in properties && properties.cluster) {
+        clusters.push({
+          id: `cluster:${properties.cluster_id}`,
+          coordinate: {latitude, longitude},
+          count: properties.point_count,
+          item: null,
+          clusterId: properties.cluster_id,
+        });
+
+        return clusters;
+      }
+
+      const item = this.itemsByKey.get(properties.itemKey);
+
+      if (!item) return clusters;
+
+      clusters.push({
+        id: `item:${properties.itemKey}`,
+        coordinate: {latitude, longitude},
+        count: 1,
+        item,
+        clusterId: null,
+      });
+
+      return clusters;
+    }, []);
+  }
+
+  getClusterExpansionZoom(clusterId: number): number {
+    return this.index.getClusterExpansionZoom(clusterId);
+  }
+}

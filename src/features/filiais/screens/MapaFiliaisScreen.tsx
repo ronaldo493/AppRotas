@@ -1,12 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React, {useMemo} from 'react';
+import React, {useCallback, useMemo} from 'react';
 import {Text, useWindowDimensions, View} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { ActivityIndicator, Banner, Searchbar, Surface } from 'react-native-paper';
 
 import ClusterMarker from '../../../shared/components/maps/ClusterMarker';
 import {useAppTheme} from '../../../core/theme/appTheme';
-import {clusterMapItems} from '../../../shared/maps/clustering';
+import {MapClusterIndex} from '../../../shared/maps/clustering';
 import useMapaFiliais from '../hooks/useMapaFiliais';
 import styles from './mapaFiliais.styles';
 import type {LojaMapa} from '../utils/mapaFilialUtils';
@@ -33,7 +33,6 @@ export default function MapaFiliaisScreen(): React.JSX.Element {
     visibleRegion,
     onMapReady,
     onRegionChangeComplete,
-    focusLojas,
     loading,
     feedback,
   } = useMapaFiliais();
@@ -45,27 +44,54 @@ export default function MapaFiliaisScreen(): React.JSX.Element {
 
   const storeCountLabel = lojas.length === 1 ? 'filial exibida' : 'filiais exibidas';
 
-  const clusters = useMemo(
+  const clusterIndex = useMemo(
     () =>
-      mapReady
-        ? clusterMapItems({
-            items: lojas,
-            region: visibleRegion,
-            viewportWidth: width,
-            viewportHeight: height,
-            getCoordinate: getLojaCoordinate,
-            getKey: getLojaKey,
-          })
-        : [],
-    [height, lojas, mapReady, visibleRegion, width],
+      new MapClusterIndex({
+        items: lojas,
+        getCoordinate: getLojaCoordinate,
+        getKey: getLojaKey,
+      }),
+    [lojas],
+  );
+
+  const clusters = useMemo(
+    () => mapReady
+      ? clusterIndex.getClusters({
+          region: visibleRegion,
+          viewportWidth: width,
+          viewportHeight: height,
+        })
+      : [],
+    [
+      clusterIndex,
+      height,
+      mapReady,
+      visibleRegion,
+      width,
+    ],
+  );
+
+  const focusCluster = useCallback(
+    (clusterId: number, coordinate: LojaMapa['coordinate']): void => {
+      mapRef.current?.animateCamera(
+        {
+          center: coordinate,
+          zoom:
+            clusterIndex.getClusterExpansionZoom(
+              clusterId,
+            ),
+        },
+        {duration: 350},
+      );
+    },
+    [clusterIndex, mapRef],
   );
 
   const markers = useMemo(
     () =>
       clusters.map(cluster => {
-        if (cluster.items.length === 1) {
-          const {filial, coordinate, address} =
-            cluster.items[0];
+        if (cluster.item) {
+          const {filial, coordinate, address} = cluster.item;
 
           return (
             <Marker
@@ -82,16 +108,23 @@ export default function MapaFiliaisScreen(): React.JSX.Element {
           <ClusterMarker
             key={cluster.id}
             coordinate={cluster.coordinate}
-            count={cluster.items.length}
+            count={cluster.count}
             backgroundColor={theme.colors.primary}
             textColor={theme.colors.onPrimary}
-            onPress={() => focusLojas(cluster.items)}
+            onPress={() => {
+              if (cluster.clusterId === null) return;
+
+              focusCluster(
+                cluster.clusterId,
+                cluster.coordinate,
+              );
+            }}
           />
         );
       }),
     [
       clusters,
-      focusLojas,
+      focusCluster,
       theme.colors.onPrimary,
       theme.colors.primary,
     ],

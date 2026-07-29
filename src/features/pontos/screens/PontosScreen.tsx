@@ -37,8 +37,9 @@ import {
   getCoordinates,
 } from '../../../shared/maps/coordinates';
 import {
+  areClusterRegionsClose,
   areRegionsClose,
-  clusterMapItems,
+  MapClusterIndex,
 } from '../../../shared/maps/clustering';
 import PontoForm from '../components/PontoForm';
 import {iniciarRotaPonto} from '../useCases/iniciarRotaPonto';
@@ -121,7 +122,7 @@ export default function PontosScreen(): React.JSX.Element {
   const handleRegionChangeComplete = useCallback(
     (region: Region): void => {
       setVisibleRegion(current =>
-        areRegionsClose(current, region)
+        areClusterRegionsClose(current, region)
           ? current
           : region,
       );
@@ -151,63 +152,48 @@ export default function PontosScreen(): React.JSX.Element {
     mapRef.current?.animateToRegion(mapRegion, 400);
   }, [mapReady, mapRegion]);
 
-  const clusters = useMemo(
+  const clusterIndex = useMemo(
     () =>
-      mapReady
-        ? clusterMapItems({
-            items: pontosValidos,
-            region: visibleRegion,
-            viewportWidth: width,
-            viewportHeight: height,
-            getCoordinate: getPontoCoordinate,
-            getKey: getPontoKey,
-          })
-        : [],
+      new MapClusterIndex({
+        items: pontosValidos,
+        getCoordinate: getPontoCoordinate,
+        getKey: getPontoKey,
+      }),
+    [pontosValidos],
+  );
+
+  const clusters = useMemo(
+    () => mapReady
+      ? clusterIndex.getClusters({
+          region: visibleRegion,
+          viewportWidth: width,
+          viewportHeight: height,
+        })
+      : [],
     [
+      clusterIndex,
       height,
       mapReady,
-      pontosValidos,
       visibleRegion,
       width,
     ],
   );
 
-  const focusPontos = useCallback(
-    (pointsToFocus: readonly PontoMapa[]): void => {
-      if (pointsToFocus.length === 0) return;
-
+  const focusCluster = useCallback(
+    (clusterId: number, coordinate: LatLng): void => {
       setNavigationPoint(null);
-
-      if (pointsToFocus.length === 1) {
-        const {latitude, longitude} =
-          pointsToFocus[0].coordinate;
-
-        mapRef.current?.animateToRegion(
-          {
-            latitude,
-            longitude,
-            latitudeDelta: 0.03,
-            longitudeDelta: 0.03,
-          },
-          350,
-        );
-        return;
-      }
-
-      mapRef.current?.fitToCoordinates(
-        pointsToFocus.map(point => point.coordinate),
+      mapRef.current?.animateCamera(
         {
-          animated: true,
-          edgePadding: {
-            top: 80,
-            right: 48,
-            bottom: 120,
-            left: 48,
-          },
+          center: coordinate,
+          zoom:
+            clusterIndex.getClusterExpansionZoom(
+              clusterId,
+            ),
         },
+        {duration: 350},
       );
     },
-    [],
+    [clusterIndex],
   );
 
   const selectNavigationPoint = useCallback(
@@ -222,8 +208,8 @@ export default function PontosScreen(): React.JSX.Element {
   const pointMarkers = useMemo(
     () =>
       clusters.map(cluster => {
-        if (cluster.items.length === 1) {
-          const point = cluster.items[0];
+        if (cluster.item) {
+          const point = cluster.item;
 
           return (
             <Marker
@@ -251,16 +237,23 @@ export default function PontosScreen(): React.JSX.Element {
           <ClusterMarker
             key={cluster.id}
             coordinate={cluster.coordinate}
-            count={cluster.items.length}
+            count={cluster.count}
             backgroundColor={theme.colors.primary}
             textColor={theme.colors.onPrimary}
-            onPress={() => focusPontos(cluster.items)}
+            onPress={() => {
+              if (cluster.clusterId === null) return;
+
+              focusCluster(
+                cluster.clusterId,
+                cluster.coordinate,
+              );
+            }}
           />
         );
       }),
     [
       clusters,
-      focusPontos,
+      focusCluster,
       selectNavigationPoint,
       theme.colors.onPrimary,
       theme.colors.primary,

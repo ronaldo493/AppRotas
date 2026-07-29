@@ -10,7 +10,10 @@ import type MapView from 'react-native-maps';
 import type {Region} from 'react-native-maps';
 
 import {useMapLocation} from '../../../core/location/useLocation';
-import {areRegionsClose} from '../../../shared/maps/clustering';
+import {
+  areClusterRegionsClose,
+  areRegionsClose,
+} from '../../../shared/maps/clustering';
 import useFiliais from './useFiliais';
 import {
   DEFAULT_REGION,
@@ -116,37 +119,12 @@ export default function useMapaFiliais() {
   const handleRegionChangeComplete = useCallback(
     (region: Region): void => {
       setVisibleRegion(current =>
-        areRegionsClose(current, region)
+        areClusterRegionsClose(current, region)
           ? current
           : region,
       );
     },
     [],
-  );
-
-  const focusLojas = useCallback(
-    (lojasToFocus: readonly LojaMapa[]): void => {
-      if (lojasToFocus.length === 0) return;
-
-      if (lojasToFocus.length === 1) {
-        focusLoja(lojasToFocus[0]);
-        return;
-      }
-
-      mapRef.current?.fitToCoordinates(
-        lojasToFocus.map(loja => loja.coordinate),
-        {
-          animated: true,
-          edgePadding: {
-            top: 110,
-            right: 48,
-            bottom: 80,
-            left: 48,
-          },
-        },
-      );
-    },
-    [focusLoja],
   );
 
   /*
@@ -277,7 +255,6 @@ export default function useMapaFiliais() {
     visibleRegion: visibleRegion ?? initialRegion,
     onMapReady: handleMapReady,
     onRegionChangeComplete: handleRegionChangeComplete,
-    focusLojas,
 
     loading: loadingFiliais,
     feedback,
