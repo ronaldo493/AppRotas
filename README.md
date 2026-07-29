@@ -145,6 +145,10 @@ feature/
 5. Registra a sessão em `/sessoes`.
 
 Uma falha no monitoramento da sessão não bloqueia o login.
+Os acessos do menu são sincronizados silenciosamente quando uma sessão salva é
+restaurada, quando o aplicativo volta ao primeiro plano e a cada cinco minutos
+de uso ativo. Se o Strapi estiver indisponível, os últimos acessos válidos são
+preservados.
 
 ### Verificação de versão
 

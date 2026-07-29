@@ -1,6 +1,5 @@
 import React, {useMemo, useState} from 'react';
 import {
-  ActivityIndicator,
   StyleSheet,
   Text,
   View,
@@ -76,9 +75,8 @@ export default function BottomTabNavigator({
   if (totalMenus === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background || '#232730', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={theme.colors.iconActive || '#CA484A'} />
         <Text style={{ color: theme.colors.onBackground || '#F5F6F6', marginTop: 12, fontWeight: '500' }}>
-          Carregando menus...
+          Nenhum menu disponível para o seu acesso.
         </Text>
       </View>
     );

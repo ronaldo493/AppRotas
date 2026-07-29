@@ -8,6 +8,7 @@ import {
 import BottomTabNavigator from './BottomTabNavigator';
 import AboutScreen from '../../features/configuracoes/AboutScreen';
 import ProfileScreen from '../../features/configuracoes/ProfileScreen';
+import useMenuAccessSync from '../../features/auth/hooks/useMenuAccessSync';
 import PatrimonioScreen from '../../features/preventiva/PatrimonioScreen';
 import RotasScreen from '../../features/rotas/screens/RotasScreen';
 import HeaderMenu from '../../shared/components/HeaderMenu';
@@ -62,6 +63,8 @@ function DrawerLayout() {
 }
 
 export default function MainStackNavigator() {
+  useMenuAccessSync();
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen 
