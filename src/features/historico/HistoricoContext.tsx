@@ -4,10 +4,12 @@ import React, {
   type PropsWithChildren,
   type SetStateAction,
   useContext,
+  useCallback,
   useMemo,
   useState,
 } from 'react';
 
+import useResetOnUserChange from '../../shared/hooks/useResetOnUserChange';
 import type {HistoricoVisita} from './models/Historico';
 
 interface HistoricoContextValue {
@@ -28,6 +30,13 @@ export function HistoricoProvider({
     historicosRotas,
     setHistoricosRotas,
   ] = useState<HistoricoVisita[]>([]);
+  const limparHistoricos = useCallback(
+    (): void => setHistoricosRotas([]),
+    [],
+  );
+
+  useResetOnUserChange(limparHistoricos);
+
   const value = useMemo(
     () => ({
       historicosRotas,

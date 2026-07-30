@@ -20,7 +20,7 @@ export interface LocationContextValue {
   loading: boolean;
   canAskAgain: boolean;
   ensureLocation: () => Promise<void>;
-  getLocation: (showErrorToast?: boolean,) => Promise<boolean>;
+  getLocation: (showErrorToast?: boolean) => Promise<LatLng | null>;
   resolveCurrentCity: () => Promise<string | null>;
   openLocationSettings: () => Promise<void>;
 }
@@ -244,8 +244,8 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
   );
 
   const getLocation = useCallback(
-    async (showErrorToast = true): Promise<boolean> => {
-      if (requestingRef.current) return false;
+    async (showErrorToast = true): Promise<LatLng | null> => {
+      if (requestingRef.current) return null;
 
       requestingRef.current = true;
       requestedAutomaticallyRef.current = true;
@@ -260,11 +260,10 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
           );
 
         if (!hasPermission) {
-          return false;
+          return null;
         }
 
-        await updateCurrentLocation();
-        return true;
+        return updateCurrentLocation();
       } catch (err: unknown) {
         const message = getErrorMessage(err);
 
@@ -280,7 +279,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
           });
         }
 
-        return false;
+        return null;
       } finally {
         requestingRef.current = false;
         setLoading(false);

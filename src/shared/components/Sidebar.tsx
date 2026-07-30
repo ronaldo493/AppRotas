@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {useAuthContext} from '../../core/auth/AuthContext';
+import {useAssistentePreferences} from '../../core/preferences/AssistentePreferencesContext';
 import {useThemeContext} from '../../core/theme/ThemeContext';
 import {useAppTheme} from '../../core/theme/appTheme';
 
@@ -18,6 +19,11 @@ function Sidebar({
   state,
 }: DrawerContentComponentProps): React.JSX.Element {
   const { isDarkMode, toggleTheme } = useThemeContext();
+  const {
+    respostasFaladasAtivas,
+    preferenciasCarregadas,
+    alternarRespostasFaladas,
+  } = useAssistentePreferences();
   const { clearToken, user } = useAuthContext();
 
   const theme = useAppTheme();
@@ -32,6 +38,12 @@ function Sidebar({
 
   const handleToggleTheme = (): void => {
     void toggleTheme();
+  };
+
+  const handleToggleAssistantVoice = (): void => {
+    if (!preferenciasCarregadas) return;
+
+    void alternarRespostasFaladas();
   };
 
   const handleLogout = (): void => {
@@ -181,6 +193,67 @@ function Sidebar({
 
       <View style={[styles.footer,{ borderTopColor: theme.colors.outline }]}>
         <TouchableOpacity
+          onPress={handleToggleAssistantVoice}
+          activeOpacity={0.7}
+          disabled={!preferenciasCarregadas}
+          accessibilityRole="switch"
+          accessibilityLabel="Respostas faladas da assistente"
+          accessibilityHint="Ativa ou desativa somente a voz das respostas"
+          accessibilityState={{
+            checked: respostasFaladasAtivas,
+            disabled: !preferenciasCarregadas,
+          }}
+          style={[
+            styles.themeButton,
+            {
+              backgroundColor: theme.colors.surfaceVariant,
+              opacity: preferenciasCarregadas ? 1 : 0.6,
+            },
+          ]}
+        >
+          <View style={styles.themeButtonLeft}>
+            <MaterialIcons
+              name={
+                respostasFaladasAtivas
+                  ? 'record-voice-over'
+                  : 'voice-over-off'
+              }
+              size={21}
+              color={theme.colors.iconDefault}
+            />
+
+            <View>
+              <Text
+                style={[
+                  styles.themeText,
+                  {color: theme.colors.onSurface},
+                ]}
+              >
+                Voz da assistente
+              </Text>
+              <Text
+                style={[
+                  styles.preferenceDescription,
+                  {color: theme.colors.onSurfaceVariant},
+                ]}
+              >
+                {respostasFaladasAtivas ? 'Ativada' : 'Desativada'}
+              </Text>
+            </View>
+          </View>
+
+          <MaterialIcons
+            name={respostasFaladasAtivas ? 'toggle-on' : 'toggle-off'}
+            size={38}
+            color={
+              respostasFaladasAtivas
+                ? theme.colors.primary
+                : theme.colors.iconDefault
+            }
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
           onPress={handleToggleTheme}
           activeOpacity={0.7}
           accessibilityRole="switch"
@@ -319,6 +392,12 @@ const styles = StyleSheet.create({
   themeText: {
     fontSize: 15,
     fontWeight: '600',
+  },
+
+  preferenceDescription: {
+    marginTop: 1,
+    fontSize: 11,
+    lineHeight: 14,
   },
 
   buttonLogoff: {

@@ -15,6 +15,8 @@ seus componentes, hooks, modelos, telas, serviços e casos de uso.
 - Menus dinâmicos por cargo e setor, carregados do Strapi.
 - Registro de sessão com usuário, setor e cidade de origem.
 - Busca, ordenação e navegação por rotas entre filiais.
+- Assistente global por voz com interpretação local, memória de conversa e
+  ações integradas aos módulos permitidos para o usuário.
 - Abertura de rotas no Google Maps e no Waze.
 - Mapa de filiais e pontos de interesse com agrupamento de marcadores.
 - Cadastro de restaurantes e postos com identificação do usuário criador.
@@ -25,7 +27,7 @@ seus componentes, hooks, modelos, telas, serviços e casos de uso.
 - Checklist de preventiva e relatório de patrimônio compartilhável.
 - Envio de sugestões, melhorias e problemas.
 - Tema claro/escuro e componentes do React Native Paper.
-- Perfil com e-mail secundário e alteração autenticada de senha.
+- Perfil com e-mail Drogal e alteração autenticada de senha.
 
 ## Tecnologias principais
 
@@ -55,6 +57,7 @@ src/
 │   └── theme/            # tema e preferências visuais
 ├── features/
 │   ├── admin/
+│   ├── assistente/         # voz, árvore de intenções e capacidades globais
 │   ├── atualizacao/
 │   ├── auth/
 │   ├── chamados/
@@ -154,6 +157,47 @@ restaurada, quando o aplicativo volta ao primeiro plano e a cada cinco minutos
 de uso ativo. Se o Strapi estiver indisponível, os últimos acessos válidos são
 preservados.
 
+### Assistente global
+
+O assistente fica disponível em todas as telas autenticadas por uma ação
+flutuante. O processamento de linguagem é local: a transcrição não é enviada
+para um serviço de IA. A árvore de intenções prioriza pedidos específicos antes
+de ações genéricas e encaminha cada ramo para o caso de uso do domínio correto.
+
+```text
+fala
+├── confirmação ou cancelamento
+├── continuação da conversa
+│   ├── último ponto encontrado
+│   └── refinamento de contato
+├── orientação de uso
+├── consultas
+│   ├── pontos próximos
+│   ├── contatos
+│   ├── histórico
+│   └── chamados
+├── perfil, versão e tema
+├── sugestão
+├── navegação entre telas
+└── comandos avançados de rota
+```
+
+Exemplos: `traçar rota para as filiais 25, 35 e 48`, `coloque a 35
+antes da 25`, `restaurante mais próximo`, `me leve até ele`, `qual o ramal da
+Ana`, `quantos chamados eu tenho`, `modo escuro`, `o que você pode fazer` e
+`como alterar minha senha`.
+
+O assistente respeita os menus dinâmicos recebidos do Strapi. Uma ação de
+domínio não é executada se o usuário não tiver acesso ao menu correspondente.
+Rotas e memórias transitórias são eliminadas quando a identidade autenticada
+muda. Distâncias de pontos próximos são estimativas em linha reta calculadas
+localmente; essa consulta não utiliza a Routes API.
+
+As respostas faladas podem ser desativadas pela opção `Voz da assistente` na
+barra lateral ou pelo comando `desativar a voz da assistente`. A preferência é
+mantida no aparelho. Desativar as respostas não remove a bolinha, o texto nem o
+reconhecimento pelo microfone.
+
 ### Menus dinâmicos
 
 O campo `rota` do Strapi é o identificador técnico usado pela navegação. O
@@ -188,12 +232,11 @@ dispensar o aviso.
 
 ### Rota para ponto de interesse
 
-O cadastro de um ponto **não cria histórico**. O histórico só é criado quando:
+O cadastro de um ponto **não cria histórico**. O histórico só é criado depois
+que um aplicativo de navegação confirma a abertura da rota. Isso pode ocorrer:
 
-1. o usuário abre o menu de pontos;
-2. seleciona um marcador;
-3. toca no botão `Traçar rota`;
-4. o Google Maps é aberto com sucesso.
+1. ao abrir o menu de pontos, selecionar um marcador e tocar em `Traçar rota`;
+2. ao pedir um restaurante ou posto ao assistente e confirmar a navegação.
 
 O tipo registrado é `restaurante` ou `posto_combustivel`. Se o envio falhar,
 o mesmo mecanismo de fila offline é utilizado.
@@ -352,6 +395,9 @@ yarn web
 
 # validação estática
 yarn typecheck
+
+# testes da árvore e dos casos de uso do assistente
+yarn test:assistant
 ```
 
 Quando houver problema de cache:

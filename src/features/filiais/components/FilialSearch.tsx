@@ -102,7 +102,6 @@ export default function SearchBar({
           </TouchableOpacity>
         )}
       </View>
-
       {loadingFiliais && (
         <View style={SearchBarStyles.feedbackContainer}>
 

@@ -7,6 +7,7 @@ import {useAuthContext} from '../../core/auth/AuthContext';
 
 import AuthNavigator from './AuthNavigator';
 import MainStackNavigator from './MainStackNavigator';
+import {navigationRef} from './navigationService';
 import {useAppTheme} from '../../core/theme/appTheme';
 
 export default function AppNavigation() {
@@ -30,7 +31,7 @@ export default function AppNavigation() {
         backgroundColor={theme.colors.tabBarBackground}
       />
 
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         {isLoggedIn()
           ? <MainStackNavigator />
           : <AuthNavigator />

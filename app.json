@@ -46,6 +46,19 @@
           "recordAudioAndroid": false
         }
       ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Permitir que o Suporte Drogal use o microfone no assistente do aplicativo.",
+          "speechRecognitionPermission": "Permitir que o Suporte Drogal reconheça seus comandos no assistente do aplicativo.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.as",
+            "com.google.android.tts",
+            "com.samsung.android.bixby.agent"
+          ]
+        }
+      ],
       "@react-native-community/datetimepicker",
       "expo-mail-composer"
     ],

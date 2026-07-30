@@ -24,6 +24,7 @@ import useHistoricoOffline from '../../historico/hooks/useHistoricoOffline';
 import useHistoricoRotas from '../../historico/hooks/useHistoricoRotas';
 import MapService from '../../rotas/services/mapService';
 import usePontos from '../hooks/usePontos';
+import {usePontosContext} from '../PontosContext';
 import type {
   CategoriaPonto,
   NovoPontoInput,
@@ -58,6 +59,7 @@ export default function PontosScreen(): React.JSX.Element {
   const mapRef = useRef<MapView | null>(null);
 
   const { pontos, loading, error, postPontos } = usePontos();
+  const {pontoDestacado, setPontoDestacado} = usePontosContext();
   const {postHistoricoRota} = useHistoricoRotas({
     loadOnMount: false,
   });
@@ -115,6 +117,40 @@ export default function PontosScreen(): React.JSX.Element {
 
     return Array.from(pontosUnicos.values());
   }, [pontos]);
+
+  /**
+   * Centraliza e seleciona o ponto solicitado pelo assistente global.
+   */
+  useEffect(() => {
+    if (!mapReady || !pontoDestacado) return;
+
+    const ponto = pontosValidos.find(item =>
+      pontoDestacado.documentId
+        ? item.documentId === pontoDestacado.documentId
+        : pontoDestacado.id !== undefined
+          ? item.id === pontoDestacado.id
+          : item.descricao === pontoDestacado.descricao,
+    );
+
+    setPontoDestacado(null);
+    if (!ponto) return;
+
+    setIsAddMode(false);
+    setNavigationPoint(ponto);
+    mapRef.current?.animateToRegion(
+      {
+        ...ponto.coordinate,
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.015,
+      },
+      500,
+    );
+  }, [
+    mapReady,
+    pontoDestacado,
+    pontosValidos,
+    setPontoDestacado,
+  ]);
 
   const handleMapReady = useCallback((): void => {
     setMapReady(true);

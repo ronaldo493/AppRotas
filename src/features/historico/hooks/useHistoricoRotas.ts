@@ -25,6 +25,11 @@ interface UseHistoricoRotasOptions {
   loadOnMount?: boolean;
 }
 
+export interface ResultadoConsultaHistorico {
+  historicos: HistoricoVisita[];
+  total: number;
+}
+
 const getErrorMessage = (err: unknown): string => {
   const strapiError = err as StrapiRequestError;
 
@@ -74,10 +79,10 @@ const useHistoricoRotas = (
   } = usePagination(1);
 
   const getHistoricoRotas = useCallback(
-    async (): Promise<boolean> => {
+    async (): Promise<ResultadoConsultaHistorico | null> => {
       if (!user?.username) {
         setError('Usuário não identificado.');
-        return false;
+        return null;
       }
 
       setLoading(true);
@@ -134,7 +139,10 @@ const useHistoricoRotas = (
           return Array.from(historicosMap.values());
         });
 
-        return true;
+        return {
+          historicos: data,
+          total: meta.pagination.total,
+        };
       } catch (err: unknown) {
         const strapiError = err as StrapiRequestError;
 
@@ -154,7 +162,7 @@ const useHistoricoRotas = (
               : errorMessage,
         });
 
-        return false;
+        return null;
       } finally {
         setLoading(false);
       }

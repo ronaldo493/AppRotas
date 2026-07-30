@@ -4,10 +4,12 @@ import React, {
   type PropsWithChildren,
   type SetStateAction,
   useContext,
+  useCallback,
   useMemo,
   useState,
 } from 'react';
 
+import useResetOnUserChange from '../../shared/hooks/useResetOnUserChange';
 import type {Chamado} from './models/Chamado';
 
 interface ChamadosContextValue {
@@ -26,6 +28,13 @@ export function ChamadosProvider({
 }: PropsWithChildren): React.JSX.Element {
   const [chamados, setChamados] =
     useState<Chamado[]>([]);
+  const limparChamados = useCallback(
+    (): void => setChamados([]),
+    [],
+  );
+
+  useResetOnUserChange(limparChamados);
+
   const value = useMemo(
     () => ({chamados, setChamados}),
     [chamados],

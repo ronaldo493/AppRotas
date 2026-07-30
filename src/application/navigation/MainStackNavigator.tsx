@@ -8,6 +8,7 @@ import {
 import BottomTabNavigator from './BottomTabNavigator';
 import AboutScreen from '../../features/configuracoes/AboutScreen';
 import ProfileScreen from '../../features/configuracoes/ProfileScreen';
+import AssistenteGlobal from '../../features/assistente/components/AssistenteGlobal';
 import useMenuAccessSync from '../../features/menus/hooks/useMenuAccessSync';
 import PatrimonioScreen from '../../features/preventiva/PatrimonioScreen';
 import HeaderMenu from '../../shared/components/HeaderMenu';
@@ -64,20 +65,24 @@ export default function MainStackNavigator() {
   useMenuAccessSync();
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen 
-        name="MainDrawer" 
-        component={DrawerLayout} 
-      />
+    <>
+      <Stack.Navigator screenOptions={{headerShown: false}}>
+        <Stack.Screen
+          name="MainDrawer"
+          component={DrawerLayout}
+        />
 
-      <Stack.Screen
-        name="Patrimonio"
-        component={PatrimonioScreen}
-        options={{
-          headerShown: true,
-          title: 'Registro de patrimônio',
-        }}
-      />
-    </Stack.Navigator>
+        <Stack.Screen
+          name="Patrimonio"
+          component={PatrimonioScreen}
+          options={{
+            headerShown: true,
+            title: 'Registro de patrimônio',
+          }}
+        />
+      </Stack.Navigator>
+
+      <AssistenteGlobal />
+    </>
   );
 }

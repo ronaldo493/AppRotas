@@ -16,10 +16,15 @@ import type {
 
 const PAGE_SIZE = 100;
 
+interface UsePontosOptions {
+  loadOnMount?: boolean;
+}
+
 interface UsePontosReturn {
   pontos: PontoInteresse[];
   error: string | null;
   loading: boolean;
+  getPontos: () => Promise<PontoInteresse[] | null>;
   postPontos: (novoPonto: NovoPontoInput) => Promise<PontoInteresse>;
 }
 
@@ -33,7 +38,10 @@ const getErrorMessage = (error: unknown): string => {
   );
 };
 
-export default function usePontos(): UsePontosReturn {
+export default function usePontos(
+  options: UsePontosOptions = {},
+): UsePontosReturn {
+  const {loadOnMount = true} = options;
   const conexao = useStrapiClient();
   const {user} = useAuthContext();
   const {pontos, setPontos} = usePontosContext();
@@ -47,8 +55,8 @@ export default function usePontos(): UsePontosReturn {
    * recebe uma única atualização, em vez de remontar marcadores
    * depois de cada resposta da API.
    */
-  const getPontos = useCallback(async (): Promise<boolean> => {
-    if (requestingRef.current) return false;
+  const getPontos = useCallback(async (): Promise<PontoInteresse[] | null> => {
+    if (requestingRef.current) return null;
 
     requestingRef.current = true;
     setLoading(true);
@@ -81,10 +89,10 @@ export default function usePontos(): UsePontosReturn {
       } while (currentPage <= totalPages);
 
       setPontos(allPontos);
-      return true;
+      return allPontos;
     } catch (requestError: unknown) {
       setError(getErrorMessage(requestError));
-      return false;
+      return null;
     } finally {
       requestingRef.current = false;
       setLoading(false);
@@ -134,15 +142,16 @@ export default function usePontos(): UsePontosReturn {
   );
 
   useEffect(() => {
-    if (pontos.length > 0) return;
+    if (!loadOnMount || pontos.length > 0) return;
 
     void getPontos();
-  }, [getPontos, pontos.length]);
+  }, [getPontos, loadOnMount, pontos.length]);
 
   return {
     pontos,
     error,
     loading,
+    getPontos,
     postPontos,
   };
 }

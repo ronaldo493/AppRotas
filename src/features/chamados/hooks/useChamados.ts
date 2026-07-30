@@ -8,11 +8,15 @@ import type {Chamado} from '../models/Chamado';
 
 const PAGE_SIZE = 100;
 
+interface UseChamadosOptions {
+  loadOnMount?: boolean;
+}
+
 interface UseChamadosReturn {
   chamados: Chamado[];
   error: string | null;
   loading: boolean;
-  reload: () => Promise<boolean>;
+  reload: () => Promise<Chamado[] | null>;
 }
 
 const getErrorMessage = (error: unknown): string =>
@@ -20,7 +24,10 @@ const getErrorMessage = (error: unknown): string =>
     ? error.message
     : 'Não foi possível carregar os chamados.';
 
-export default function useChamados(): UseChamadosReturn {
+export default function useChamados(
+  options: UseChamadosOptions = {},
+): UseChamadosReturn {
+  const {loadOnMount = true} = options;
   const client = useStrapiClient();
   const {user} = useAuthContext();
   const {chamados, setChamados} = useChamadosContext();
@@ -29,12 +36,12 @@ export default function useChamados(): UseChamadosReturn {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const reload = useCallback(async (): Promise<boolean> => {
+  const reload = useCallback(async (): Promise<Chamado[] | null> => {
     if (
       requestingRef.current ||
       !user?.username
     ) {
-      return false;
+      return null;
     }
 
     requestingRef.current = true;
@@ -109,14 +116,15 @@ export default function useChamados(): UseChamadosReturn {
         uniqueTickets.set(key, ticket);
       });
 
-      setChamados(
-        Array.from(uniqueTickets.values()),
-      );
+      const chamadosCarregados =
+        Array.from(uniqueTickets.values());
 
-      return true;
+      setChamados(chamadosCarregados);
+
+      return chamadosCarregados;
     } catch (requestError: unknown) {
       setError(getErrorMessage(requestError));
-      return false;
+      return null;
     } finally {
       requestingRef.current = false;
       setLoading(false);
@@ -129,8 +137,10 @@ export default function useChamados(): UseChamadosReturn {
   ]);
 
   useEffect(() => {
+    if (!loadOnMount) return;
+
     void reload();
-  }, [reload]);
+  }, [loadOnMount, reload]);
 
   return {
     chamados,

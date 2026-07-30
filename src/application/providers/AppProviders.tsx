@@ -3,6 +3,7 @@ import {PaperProvider} from 'react-native-paper';
 
 import {AuthProvider} from '../../core/auth/AuthContext';
 import {LocationProvider} from '../../core/location/LocationContext';
+import {AssistentePreferencesProvider} from '../../core/preferences/AssistentePreferencesContext';
 import {
   ThemeProvider,
   useThemeContext,
@@ -38,7 +39,9 @@ export default function AppProviders() {
     <AuthProvider>
       <AppDataProviders>
         <ThemeProvider>
-          <AppWithTheme />
+          <AssistentePreferencesProvider>
+            <AppWithTheme />
+          </AssistentePreferencesProvider>
         </ThemeProvider>
       </AppDataProviders>
     </AuthProvider>

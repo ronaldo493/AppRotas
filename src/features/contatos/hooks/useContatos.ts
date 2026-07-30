@@ -6,11 +6,15 @@ import type {Contato} from '../models/Contato';
 
 const PAGE_SIZE = 100;
 
+interface UseContatosOptions {
+  loadOnMount?: boolean;
+}
+
 interface UseContatosReturn {
   contatos: Contato[];
   loading: boolean;
   error: string | null;
-  recarregar: () => Promise<boolean>;
+  recarregar: () => Promise<Contato[] | null>;
 }
 
 const obterMensagemErro = (error: unknown): string => {
@@ -29,15 +33,18 @@ const ordenarContatos = (first: Contato, second: Contato): number => {
     : first.colaboradores.localeCompare(second.colaboradores, 'pt-BR');
 };
 
-export default function useContatos(): UseContatosReturn {
+export default function useContatos(
+  options: UseContatosOptions = {},
+): UseContatosReturn {
+  const {loadOnMount = true} = options;
   const client = useStrapiClient();
   const requestingRef = useRef(false);
   const [contatos, setContatos] = useState<Contato[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const recarregar = useCallback(async (): Promise<boolean> => {
-    if (requestingRef.current) return false;
+  const recarregar = useCallback(async (): Promise<Contato[] | null> => {
+    if (requestingRef.current) return null;
 
     requestingRef.current = true;
     setLoading(true);
@@ -71,12 +78,15 @@ export default function useContatos(): UseContatosReturn {
         contatosUnicos.set(key, contato);
       });
 
-      setContatos(Array.from(contatosUnicos.values()).sort(ordenarContatos));
-      return true;
+      const contatosOrdenados =
+        Array.from(contatosUnicos.values()).sort(ordenarContatos);
+
+      setContatos(contatosOrdenados);
+      return contatosOrdenados;
       
     } catch (requestError: unknown) {
       setError(obterMensagemErro(requestError));
-      return false;
+      return null;
 
     } finally {
       requestingRef.current = false;
@@ -85,8 +95,10 @@ export default function useContatos(): UseContatosReturn {
   }, [client]);
 
   useEffect(() => {
+    if (!loadOnMount) return;
+
     void recarregar();
-  }, [recarregar]);
+  }, [loadOnMount, recarregar]);
 
   return {contatos, loading, error, recarregar};
 }

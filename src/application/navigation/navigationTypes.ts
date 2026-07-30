@@ -5,7 +5,9 @@ import type {MenuRouteName} from './menuRegistry';
 export type BottomTabParamList = {[Route in MenuRouteName]: undefined} & {Mais: undefined};
 
 export type RootStackParamList = {
-  MainDrawer: undefined;
+  MainDrawer:
+    | NavigatorScreenParams<DrawerParamList>
+    | undefined;
   Patrimonio: {
     filial: string;
     option: TipoServico;

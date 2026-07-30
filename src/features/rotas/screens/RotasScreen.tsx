@@ -12,8 +12,8 @@ import useHistoricoRotas from '../../historico/hooks/useHistoricoRotas';
 import {TIPO_HISTORICO} from '../../historico/models/Historico';
 import {registrarHistoricoRota} from '../../historico/useCases/registrarHistoricoRota';
 import useHistoricoOffline from '../../historico/hooks/useHistoricoOffline';
-import SugestaoFab from '../../sugestoes/components/SugestaoFab';
 import RouteList from '../components/RouteList';
+import {useRotasContext} from '../RotasContext';
 import MapService from '../services/mapService';
 import HomeStyles from './rotasScreen.styles';
 
@@ -39,7 +39,7 @@ export default function RotasScreen(): React.JSX.Element {
     currentLocation
   } = useLocation();
 
-  const [routes, setRoutes] = useState<Filial[]>([]);
+  const {rotas: routes, setRotas: setRoutes} = useRotasContext();
   const [hasSearchResult, setHasSearchResult] = useState(false);
   const [navigatorDialogVisible, setNavigatorDialogVisible] = useState(false);
 
@@ -119,6 +119,17 @@ export default function RotasScreen(): React.JSX.Element {
     );
   };
 
+  const openNavigatorDialog = useCallback((): void => {
+    if (savingHistory) return;
+    setNavigatorDialogVisible(true);
+  }, [savingHistory]);
+
+  const handleTraceRoute = useCallback((): void => {
+    if (!hasRoutes) return;
+
+    openNavigatorDialog();
+  }, [hasRoutes, openNavigatorDialog]);
+
   const openNavigator = async (navigator: NavigatorType): Promise<void> => {
     setNavigatorDialogVisible(false);
 
@@ -154,12 +165,6 @@ export default function RotasScreen(): React.JSX.Element {
     await MapService.openWazeRoute(routes);
   };
 
-  const handleTraceRoute = (): void => {
-    if (!hasRoutes || savingHistory) return;
-
-    setNavigatorDialogVisible(true);
-  };
-
   return (
     <View style={[ HomeStyles.container, { backgroundColor: theme.colors.background }]}>
       <FilialSearch
@@ -177,7 +182,7 @@ export default function RotasScreen(): React.JSX.Element {
               </Text>
 
               <Text style={[ HomeStyles.emptyDescription, {color: theme.colors.onSurfaceVariant }]} >
-                Digite o código da filial acima para iniciar sua rota.
+                Digite o código da filial ou use o assistente.
               </Text>
             </View>
           ) : (
@@ -294,8 +299,6 @@ export default function RotasScreen(): React.JSX.Element {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-
-      <SugestaoFab />
     </View>
   );
 }
