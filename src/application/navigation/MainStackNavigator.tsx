@@ -9,7 +9,7 @@ import BottomTabNavigator from './BottomTabNavigator';
 import AboutScreen from '../../features/configuracoes/AboutScreen';
 import ProfileScreen from '../../features/configuracoes/ProfileScreen';
 import useMenuAccessSync from '../../features/menus/hooks/useMenuAccessSync';
-import PatrimonioScreen from '../../features/preventiva/PatrimonioScreen';
+import PatrimonioFormScreen from '../../features/patrimonio/screens/PatrimonioFormScreen';
 import HeaderMenu from '../../shared/components/HeaderMenu';
 import Sidebar from '../../shared/components/Sidebar';
 import type {
@@ -72,7 +72,7 @@ export default function MainStackNavigator() {
 
       <Stack.Screen
         name="Patrimonio"
-        component={PatrimonioScreen}
+        component={PatrimonioFormScreen}
         options={{
           headerShown: true,
           title: 'Registro de patrimônio',

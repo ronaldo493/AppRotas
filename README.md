@@ -25,7 +25,8 @@ seus componentes, hooks, modelos, telas, serviços e casos de uso.
 - Fila local para históricos que não puderam ser enviados ao Strapi.
 - Consulta de chamados atribuídos e não atribuídos.
 - Lista de contatos com filtros por texto e departamento.
-- Checklist de preventiva e relatório de patrimônio compartilhável.
+- Registro de patrimônio por serviço, com checklist específico de preventiva
+  e relatório compartilhável.
 - Envio de sugestões, melhorias e problemas.
 - Tema claro/escuro e componentes do React Native Paper.
 - Perfil com e-mail secundário e alteração autenticada de senha.
@@ -69,7 +70,7 @@ src/
 │   ├── historico/
 │   ├── menus/            # acesso, sincronização e interface dos menus
 │   ├── pontos/
-│   ├── preventiva/
+│   ├── patrimonio/       # equipamentos, posições e relatório por serviço
 │   ├── rotas/
 │   └── sugestoes/
 └── shared/
@@ -172,7 +173,10 @@ registrados no navegador. As regras de cargo e setor ficam no caso de uso
 da interface.
 
 As rotas atualmente aceitas no Strapi são: `Home`, `MapaLojas`, `Historico`,
-`Pontos`, `Preventiva`, `Chamados`, `Contatos` e `Admin`.
+`Pontos`, `Patrimonio`, `Chamados`, `Contatos` e `Admin`.
+
+Para abrir o registro de patrimônio, o menu deve usar `Patrimonio` no campo
+`rota`. O texto exibido ao usuário é definido separadamente no campo `titulo`.
 
 ### Verificação de versão
 

@@ -1,3 +1,4 @@
+/** Tipos compartilhados pelo fluxo de registro de patrimônio. */
 export type TipoServico =
   | 'PREVENTIVA'
   | 'MONTAGEM'
@@ -24,8 +25,7 @@ export interface Equipamento {
   requiresSelection: boolean;
 }
 
-export interface EquipamentoSelecionado
-  extends Equipamento {
+export interface EquipamentoSelecionado extends Equipamento {
   section: string;
 }
 
@@ -34,11 +34,15 @@ export interface SecaoPatrimonio {
   items: Equipamento[];
 }
 
+export interface CampoPatrimonio {
+  patrimonio: string;
+  option: string | null;
+}
+
+export type CamposPorSecao = Record<string, Record<string, CampoPatrimonio>>;
+
 export interface RelatorioPatrimonio {
   categoria: TipoServico;
   filial: string;
-  secoes: Record<
-    string,
-    Record<string, string>
-  >;
+  secoes: Record<string, Record<string, string>>;
 }

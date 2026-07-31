@@ -4,6 +4,7 @@
   "main": "expo/AppEntry.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test:patrimonio": "tsx --test tests/patrimonio-report.test.ts",
     "test:route-execution": "tsx --test tests/execucao-rota.test.ts",
     "test:route-preview": "tsx --test tests/route-preview.test.ts",
     "build-android": "npx eas-cli@latest build --platform android --profile preview_android",
@@ -33,7 +34,6 @@
     "@expo/vector-icons": "15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
-    "@react-native-picker/picker": "2.11.1",
     "@react-navigation/bottom-tabs": "^7.18.3",
     "@react-navigation/drawer": "^7.12.3",
     "@react-navigation/native": "^7.3.4",

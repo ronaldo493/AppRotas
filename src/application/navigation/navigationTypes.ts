@@ -1,5 +1,5 @@
 import type {NavigatorScreenParams} from '@react-navigation/native';
-import type {TipoServico} from '../../features/preventiva/models';
+import type {TipoServico} from '../../features/patrimonio/models/Patrimonio';
 import type {MenuRouteName} from './menuRegistry';
 
 export type BottomTabParamList = {[Route in MenuRouteName]: undefined} & {Mais: undefined};

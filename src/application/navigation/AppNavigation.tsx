@@ -1,7 +1,11 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {ActivityIndicator, StatusBar, View} from 'react-native';
 
-import {NavigationContainer} from '@react-navigation/native';
+import {
+  DarkTheme as NavigationDarkTheme,
+  DefaultTheme as NavigationLightTheme,
+  NavigationContainer,
+} from '@react-navigation/native';
 
 import {useAuthContext} from '../../core/auth/AuthContext';
 
@@ -14,6 +18,24 @@ export default function AppNavigation() {
   
   const theme = useAppTheme();
   const isDarkMode = theme.custom.isDarkMode;
+  const navigationTheme = useMemo(() => {
+    const baseTheme = isDarkMode
+      ? NavigationDarkTheme
+      : NavigationLightTheme;
+
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        primary: theme.colors.primary,
+        background: theme.colors.background,
+        card: theme.colors.tabBarBackground,
+        text: theme.colors.onSurface,
+        border: theme.colors.outline,
+        notification: theme.colors.primary,
+      },
+    };
+  }, [isDarkMode, theme]);
 
   if (loading) {
     return (
@@ -30,7 +52,7 @@ export default function AppNavigation() {
         backgroundColor={theme.colors.tabBarBackground}
       />
 
-      <NavigationContainer>
+      <NavigationContainer theme={navigationTheme}>
         {isLoggedIn()
           ? <MainStackNavigator />
           : <AuthNavigator />

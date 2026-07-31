@@ -7,7 +7,7 @@ import ContatosScreen from '../../features/contatos/screens/ContatosScreen';
 import MapaFiliaisScreen from '../../features/filiais/screens/MapaFiliaisScreen';
 import HistoricoScreen from '../../features/historico/screens/HistoricoScreen';
 import PontosScreen from '../../features/pontos/screens/PontosScreen';
-import PreventivaScreen from '../../features/preventiva/PreventivaScreen';
+import PatrimonioEntryScreen from '../../features/patrimonio/screens/PatrimonioEntryScreen';
 import RotasScreen from '../../features/rotas/screens/RotasScreen';
 
 /**
@@ -19,7 +19,7 @@ export const menuScreenRegistry = {
   MapaLojas: MapaFiliaisScreen,
   Historico: HistoricoScreen,
   Pontos: PontosScreen,
-  Preventiva: PreventivaScreen,
+  Patrimonio: PatrimonioEntryScreen,
   Chamados: ChamadosScreen,
   Contatos: ContatosScreen,
   Admin: AdminScreen,
