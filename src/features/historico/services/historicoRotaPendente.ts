@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type {AuthUser} from '../../../core/auth/AuthContext';
+import {appLogger} from '../../../shared/logging/appLogger';
 import type {Filial} from '../../filiais/models/Filial';
 import {
   TIPO_HISTORICO,
@@ -186,7 +187,7 @@ const migrateLegacyItems = async (
          * Uma fila legada corrompida é preservada para não apagar dados que
          * possam ser recuperados manualmente, mas não bloqueia a nova fila.
          */
-        console.warn(
+        appLogger.warn(
           'A fila legada de histórico não pôde ser migrada:',
           error instanceof Error
             ? error.message
@@ -344,7 +345,7 @@ export async function sincronizarHistoricosPendentes(
             continue;
           }
         } catch (error: unknown) {
-          console.error(
+          appLogger.error(
             `Erro ao sincronizar histórico pendente ${item.id}:`,
             error instanceof Error
               ? error.message

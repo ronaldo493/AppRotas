@@ -15,6 +15,7 @@ import React, {
 import { AppState, type AppStateStatus} from 'react-native';
 import Toast from 'react-native-toast-message';
 
+import {appLogger} from '../../shared/logging/appLogger';
 import type {MenuItem} from '../menu/Menu';
 
 const TOKEN_STORAGE_KEY = 'userToken';
@@ -95,7 +96,7 @@ const decodeToken = (token: string): JwtPayload | null => {
   try {
     return jwtDecode<JwtPayload>(token);
   } catch (error: unknown) {
-    console.error( 'Erro ao decodificar token:', error);
+    appLogger.error( 'Erro ao decodificar token:', error);
 
     return null;
   }
@@ -138,7 +139,7 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
 
         setTokenState(newToken);
       } catch (error: unknown) {
-        console.error('Erro ao salvar token:', error);
+        appLogger.error('Erro ao salvar token:', error);
 
         throw error;
       }
@@ -165,7 +166,7 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
 
         setUserState(newUser);
       } catch (error: unknown) {
-        console.error('Erro ao salvar dados do usuário:', error);
+        appLogger.error('Erro ao salvar dados do usuário:', error);
 
         throw error;
       }
@@ -186,7 +187,7 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
             USER_STORAGE_KEY,
         ]);
         } catch (error: unknown) {
-            console.error('Erro ao remover dados da sessão:', error,
+            appLogger.error('Erro ao remover dados da sessão:', error,
         );
         } finally {
             setTokenState(null);
@@ -248,7 +249,7 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
 
         setUserState(parsedUser);
       } catch (error: unknown) {
-        console.error('Erro ao restaurar sessão:', error);
+        appLogger.error('Erro ao restaurar sessão:', error);
 
         await AsyncStorage.multiRemove([
           TOKEN_STORAGE_KEY,

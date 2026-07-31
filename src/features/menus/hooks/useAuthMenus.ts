@@ -3,6 +3,7 @@ import {useCallback} from 'react';
 import useStrapiClient from '../../../core/api/strapiClient';
 import {type AuthUser} from '../../../core/auth/AuthContext';
 import type {MenuItem} from '../../../core/menu/Menu';
+import {appLogger} from '../../../shared/logging/appLogger';
 import {markMenuAccessLoaded} from '../services/menuAccessCache';
 import {buscarMenus} from '../services/menuService';
 import {filtrarMenusPermitidos} from '../useCases/filtrarMenusPermitidos';
@@ -36,7 +37,7 @@ export default function useAuthMenus() {
         menus,
       };
     } catch (error: unknown) {
-      console.error('Erro ao carregar menus:', error instanceof Error ? error.message : 'erro desconhecido');
+      appLogger.error('Erro ao carregar menus:', error instanceof Error ? error.message : 'erro desconhecido');
 
       return {
         ...user,

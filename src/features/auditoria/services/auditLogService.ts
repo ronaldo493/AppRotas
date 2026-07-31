@@ -1,5 +1,6 @@
 import axios, {type AxiosInstance} from 'axios';
 
+import {appLogger} from '../../../shared/logging/appLogger';
 import type {NewAuditLog} from '../models/AuditLog';
 
 export const createAuditLog = async (
@@ -17,12 +18,10 @@ export const createAuditLog = async (
       ? error.response?.status
       : undefined;
 
-    if (__DEV__) {
-      console.warn(
-        `[AuditLog] Não foi possível registrar ${auditLog.acao}.`,
-        status ? `HTTP ${status}` : 'Erro de conexão.',
-      );
-    }
+    appLogger.warn(
+      `[AuditLog] Não foi possível registrar ${auditLog.acao}.`,
+      status ? `HTTP ${status}` : 'Erro de conexão.',
+    );
 
     return false;
   }

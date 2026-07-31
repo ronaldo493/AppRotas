@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import {Platform} from 'react-native';
 
+import {appLogger} from '../../../shared/logging/appLogger';
 import type {NovoPontoRastreamento} from '../models/ExecucaoRota';
 import {registrarPontosExecucaoRota} from '../useCases/registrarPontosExecucaoRota';
 
@@ -136,7 +137,7 @@ if (!TaskManager.isTaskDefined(ROUTE_LOCATION_TASK)) {
     ROUTE_LOCATION_TASK,
     async ({data, error}) => {
       if (error) {
-        console.error(
+        appLogger.error(
           'Erro na tarefa de monitoramento da rota:',
           error.message,
         );
@@ -163,7 +164,7 @@ if (!TaskManager.isTaskDefined(ROUTE_LOCATION_TASK)) {
           await pararRastreamentoLocalizacao();
         }
       } catch (storageError: unknown) {
-        console.error(
+        appLogger.error(
           'Erro ao armazenar pontos da rota:',
           storageError,
         );

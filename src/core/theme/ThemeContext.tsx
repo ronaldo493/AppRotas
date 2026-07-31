@@ -8,6 +8,8 @@ import React, {
   useState,
 } from 'react';
 
+import {appLogger} from '../../shared/logging/appLogger';
+
 interface ThemeContextData {
   isDarkMode: boolean;
   isThemeLoaded: boolean;
@@ -35,7 +37,7 @@ export function ThemeProvider({children}: PropsWithChildren) {
           setIsDarkMode(false);
         }
       } catch (error) {
-        console.error('Erro ao carregar o tema:', error);
+        appLogger.error('Erro ao carregar o tema:', error);
       } finally {
         setIsThemeLoaded(true);
       }
@@ -55,7 +57,7 @@ export function ThemeProvider({children}: PropsWithChildren) {
       // Volta ao tema anterior caso não consiga salvar.
       setIsDarkMode(!newTheme);
 
-      console.error('Erro ao salvar o tema:', error);
+      appLogger.error('Erro ao salvar o tema:', error);
     }
   }, [isDarkMode]);
 

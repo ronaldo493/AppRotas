@@ -2,6 +2,7 @@ import {useCallback, useRef, useState} from 'react';
 import Toast from 'react-native-toast-message';
 
 import useStrapiClient from '../../../core/api/strapiClient';
+import {appLogger} from '../../../shared/logging/appLogger';
 import type {Filial} from '../../filiais/models/Filial';
 import MapService from '../../rotas/services/mapService';
 import {
@@ -81,7 +82,7 @@ export default function useNavegacaoMonitorada() {
           );
 
         if (!result.obtidoDoServidor) {
-          console.warn(
+          appLogger.warn(
             'Configuração de monitoramento indisponível; a rota será aberta sem registro.',
           );
         }

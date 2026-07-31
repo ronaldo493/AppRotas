@@ -18,6 +18,7 @@ import {
 
 import useStrapiClient from '../../core/api/strapiClient';
 import {useAuthContext} from '../../core/auth/AuthContext';
+import {appLogger} from '../../shared/logging/appLogger';
 import type {Filial} from '../filiais/models/Filial';
 import {
   MOTIVO_FINALIZACAO_ROTA,
@@ -313,7 +314,7 @@ export function ExecucaoRotaProvider({
            */
           } while (state.requested);
         } catch (error: unknown) {
-          console.warn(
+          appLogger.warn(
             'A sincronização das execuções será tentada novamente:',
             error instanceof Error
               ? error.message
@@ -364,7 +365,7 @@ export function ExecucaoRotaProvider({
       try {
         await pararRastreamentoLocalizacao();
       } catch (error: unknown) {
-        console.warn(
+        appLogger.warn(
           'Não foi possível encerrar imediatamente o serviço de localização:',
           error,
         );
@@ -486,7 +487,7 @@ export function ExecucaoRotaProvider({
         try {
           await iniciarRastreamentoLocalizacao();
         } catch (error: unknown) {
-          console.warn(
+          appLogger.warn(
             'Não foi possível restaurar o registro do percurso:',
             error,
           );
@@ -554,7 +555,7 @@ export function ExecucaoRotaProvider({
           scheduleSynchronization(owner);
         }
       } catch (error: unknown) {
-        console.error(
+        appLogger.error(
           'Erro ao restaurar monitoramento de rota:',
           error,
         );

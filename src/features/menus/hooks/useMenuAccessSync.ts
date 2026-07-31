@@ -3,6 +3,7 @@ import {AppState, type AppStateStatus} from 'react-native';
 
 import {useAuthContext} from '../../../core/auth/AuthContext';
 import type {MenuItem} from '../../../core/menu/Menu';
+import {appLogger} from '../../../shared/logging/appLogger';
 import {getMenuAccessUserKey, wasMenuAccessLoadedRecently} from '../services/menuAccessCache';
 import useAuthMenus from './useAuthMenus';
 
@@ -102,7 +103,7 @@ export default function useMenuAccessSync(): void {
         menus: refreshedMenus,
       });
     } catch (error: unknown) {
-      console.warn('Não foi possível atualizar os acessos do menu:', error instanceof Error ? error.message : 'erro desconhecido',);
+      appLogger.warn('Não foi possível atualizar os acessos do menu:', error instanceof Error ? error.message : 'erro desconhecido',);
     } finally {
       refreshInProgressRef.current = false;
     }

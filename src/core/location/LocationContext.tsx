@@ -12,6 +12,8 @@ import {AppState,  Linking, type AppStateStatus} from 'react-native';
 import Toast from 'react-native-toast-message';
 import type { LatLng, Region,} from 'react-native-maps';
 
+import {appLogger} from '../../shared/logging/appLogger';
+
 export interface LocationContextValue {
   currentLocation: LatLng | null;
   currentCity: string | null;
@@ -117,7 +119,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
 
           return city;
         } catch (geocodeError: unknown) {
-          console.error('Erro ao identificar cidade atual:', geocodeError);
+          appLogger.error('Erro ao identificar cidade atual:', geocodeError);
 
           setCurrentCity(null);
           return null;
@@ -269,7 +271,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
       } catch (err: unknown) {
         const message = getErrorMessage(err);
 
-        console.error('Erro ao obter localização:', err);
+        appLogger.error('Erro ao obter localização:', err);
 
         setError(message);
 
@@ -324,7 +326,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
 
         return updateCurrentCity(coordinates);
       } catch (locationError: unknown) {
-        console.error('Erro ao obter cidade para monitorar sessão:', locationError);
+        appLogger.error('Erro ao obter cidade para monitorar sessão:', locationError);
 
         return null;
       } finally {
@@ -359,7 +361,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
 
         await Linking.openSettings();
       } catch (err: unknown) {
-        console.error('Erro ao abrir configurações:', err);
+        appLogger.error('Erro ao abrir configurações:', err);
 
         Toast.show({
           type: 'error',

@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Linking from 'expo-linking';
 import {Platform} from 'react-native';
 
+import {appLogger} from '../../../shared/logging/appLogger';
 import type {RelatorioPatrimonio} from '../models/Patrimonio';
 
 let pendingSave: Promise<void> = Promise.resolve();
@@ -31,7 +32,7 @@ export const schedulePatrimonioReportSave = (
   saveTimer = setTimeout(() => {
     saveTimer = null;
     void flushPatrimonioReportSave().catch(error => {
-      console.error('Erro ao salvar relatório de patrimônio:', error);
+      appLogger.error('Erro ao salvar relatório de patrimônio:', error);
     });
   }, SAVE_DELAY_MS);
 };

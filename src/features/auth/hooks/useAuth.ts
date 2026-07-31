@@ -3,6 +3,7 @@ import {useCallback, useState} from 'react';
 import {type AuthUser, useAuthContext} from '../../../core/auth/AuthContext';
 import useStrapiClient from '../../../core/api/strapiClient';
 import useLocation from '../../../core/location/useLocation';
+import {appLogger} from '../../../shared/logging/appLogger';
 import useAuthMenus from '../../menus/hooks/useAuthMenus';
 
 interface LoginResponse {
@@ -50,7 +51,7 @@ export default function useAuth():
       jwt: string,
     ): Promise<void> => {
       if (!userData.username) {
-        console.warn(
+        appLogger.warn(
           'Usuário sem username. Monitoramento não realizado.',
         );
 
@@ -82,7 +83,7 @@ export default function useAuth():
           },
         );
       } catch (requestError: unknown) {
-        console.error(
+        appLogger.error(
           'Erro ao monitorar sessão:',
           axios.isAxiosError(requestError)
             ? requestError.response?.data
@@ -168,7 +169,7 @@ export default function useAuth():
 
         return true;
       } catch (requestError: unknown) {
-        console.error(
+        appLogger.error(
           'Erro ao realizar login:',
           axios.isAxiosError(requestError)
             ? requestError.response?.data

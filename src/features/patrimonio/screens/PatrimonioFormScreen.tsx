@@ -8,6 +8,7 @@ import {Button, Dialog, Portal} from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 
 import {useAppTheme} from '../../../core/theme/appTheme';
+import {appLogger} from '../../../shared/logging/appLogger';
 import AddSectionSheet from '../components/AddSectionSheet';
 import EquipmentSection from '../components/EquipmentSection';
 import PatrimonioScannerModal from '../components/PatrimonioScannerModal';
@@ -181,7 +182,7 @@ export default function PatrimonioFormScreen(): React.JSX.Element {
         });
       }
     } catch (error: unknown) {
-      console.error('Erro ao compartilhar patrimônio:', error);
+      appLogger.error('Erro ao compartilhar patrimônio:', error);
       Toast.show({
         type: 'error',
         text1: 'Não foi possível enviar',

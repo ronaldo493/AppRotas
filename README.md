@@ -8,6 +8,9 @@ O projeto utiliza React Native, Expo e TypeScript estrito. A organização é
 orientada a funcionalidades (`feature-first`): cada domínio mantém próximos
 seus componentes, hooks, modelos, telas, serviços e casos de uso.
 
+> Este é o projeto móvel. Para iniciar a solução completa e consultar a
+> documentação do backend, veja o [README da raiz](../README.md).
+
 ## Funcionalidades
 
 - Autenticação com JWT, restauração e expiração automática da sessão.
@@ -438,6 +441,9 @@ yarn test:route-execution
 
 # testes da prévia de rota
 yarn test:route-preview
+
+# testes do relatório de patrimônio
+yarn test:patrimonio
 ```
 
 Quando houver problema de cache:
@@ -445,6 +451,13 @@ Quando houver problema de cache:
 ```bash
 npx expo start --clear
 ```
+
+### Builds Android
+
+`yarn build-android` usa o perfil `preview_android` definido no `eas.json`.
+Ele serve para distribuição e validação interna; antes de publicar uma versão
+em produção, confira o perfil correspondente no EAS, a URL HTTPS do Strapi e
+as restrições da chave do Google Maps.
 
 ## Segurança
 

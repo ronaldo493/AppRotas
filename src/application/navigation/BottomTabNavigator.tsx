@@ -8,6 +8,7 @@ import {useAuthContext} from '../../core/auth/AuthContext';
 import {useAppTheme} from '../../core/theme/appTheme';
 import MoreMenuModal from '../../features/menus/components/MoreMenuModal';
 import {obterNomeIconeMaterial} from '../../shared/icons/materialIcon';
+import {appLogger} from '../../shared/logging/appLogger';
 import styles from './bottomTabNavigator.styles';
 import {isMenuRouteName, menuScreenRegistry, resolveMenuNavigation, type MenuRouteName} from './menuRegistry';
 import type { BottomTabParamList, DrawerParamList} from './navigationTypes';
@@ -40,8 +41,8 @@ export default function BottomTabNavigator({navigation}: BottomTabNavigatorProps
   );
 
   useEffect(() => {
-    if (__DEV__ && unsupportedRoutes.length > 0) {
-      console.warn('Rotas de menu não registradas no aplicativo:', unsupportedRoutes.join(', '));
+    if (unsupportedRoutes.length > 0) {
+      appLogger.warn('Rotas de menu não registradas no aplicativo:', unsupportedRoutes.join(', '));
     }
   }, [unsupportedRoutes]);
 

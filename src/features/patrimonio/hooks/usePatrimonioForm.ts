@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
+import {appLogger} from '../../../shared/logging/appLogger';
 import {
   EQUIPMENT_BY_SECTION,
   INITIAL_SECTIONS,
@@ -73,7 +74,7 @@ export default function usePatrimonioForm(
 
     return () => {
       void flushPatrimonioReportSave().catch(error => {
-        console.error('Erro ao finalizar relatório de patrimônio:', error);
+        appLogger.error('Erro ao finalizar relatório de patrimônio:', error);
       });
     };
   }, [persist]);

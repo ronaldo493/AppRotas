@@ -27,6 +27,7 @@ import Toast from 'react-native-toast-message';
 import {useMapLocation} from '../../../core/location/useLocation';
 import {useAppTheme} from '../../../core/theme/appTheme';
 import ClusterMarker from '../../../shared/components/maps/ClusterMarker';
+import {appLogger} from '../../../shared/logging/appLogger';
 import useNavegacaoMonitorada from '../../execucaoRota/hooks/useNavegacaoMonitorada';
 import type {
   NavegadorRota,
@@ -426,7 +427,7 @@ export default function PontosScreen(): React.JSX.Element {
 
       resetAddPoint();
     } catch (requestError: unknown) {
-      console.error('Erro ao salvar ponto:', requestError);
+      appLogger.error('Erro ao salvar ponto:', requestError);
 
       Toast.show({
         type: 'error',

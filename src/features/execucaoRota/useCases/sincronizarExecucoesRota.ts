@@ -2,6 +2,7 @@ import {
   STATUS_EXECUCAO_ROTA,
   type ExecucaoRota,
 } from '../models/ExecucaoRota';
+import {appLogger} from '../../../shared/logging/appLogger';
 import type {ExecucaoRotaApi} from '../services/execucaoRotaApi';
 import {
   atualizarPlanejamentoExecucaoRota,
@@ -175,7 +176,7 @@ export function sincronizarExecucoesRota(
       } catch (error: unknown) {
         result.falhas += 1;
 
-        console.warn(
+        appLogger.warn(
           `Execução ${execution.codigoSessao} permanece pendente para sincronização:`,
           error instanceof Error
             ? error.message

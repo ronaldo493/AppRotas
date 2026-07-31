@@ -1,6 +1,7 @@
 import {useCallback, useEffect} from 'react';
 import {AppState, type AppStateStatus} from 'react-native';
 
+import {appLogger} from '../../../shared/logging/appLogger';
 import useHistoricoOffline from '../hooks/useHistoricoOffline';
 import useHistoricoRotas from '../hooks/useHistoricoRotas';
 
@@ -22,7 +23,7 @@ export default function HistoricoOfflineSynchronizer(): null {
           postHistoricoRota,
         );
       } catch (error: unknown) {
-        console.warn(
+        appLogger.warn(
           'A fila legada de histórico permanece pendente:',
           error instanceof Error
             ? error.message

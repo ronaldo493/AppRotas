@@ -1,6 +1,7 @@
 import { Linking } from 'react-native';
 import Toast from 'react-native-toast-message';
 
+import {appLogger} from '../../../shared/logging/appLogger';
 import type {Filial} from '../../filiais/models/Filial';
 import { LatLng } from 'react-native-maps';
 import {getCoordinates} from '../../../shared/maps/coordinates';
@@ -106,7 +107,7 @@ const openGoogleMapsRoute = async (routes: readonly Filial[]): Promise<boolean> 
 
     return true;
   } catch (error: unknown) {
-    console.error('Erro ao abrir Google Maps:', error,);
+    appLogger.error('Erro ao abrir Google Maps:', error,);
 
     showNavigationErrorToast('Google Maps',);
 
@@ -151,7 +152,7 @@ const openWazeRoute = async (routes: readonly Filial[]): Promise<boolean> => {
 
     return true;
   } catch (error: unknown) {
-    console.error('Erro ao abrir Waze:', error);
+    appLogger.error('Erro ao abrir Waze:', error);
 
     Toast.show({
       type: 'error',
