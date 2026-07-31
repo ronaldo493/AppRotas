@@ -6,11 +6,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {
+  Button,
+  Dialog,
+  Portal,
+} from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 
+import useLocation from '../../core/location/useLocation';
 import {useAppTheme} from '../../core/theme/appTheme';
+import useNavegacaoMonitorada from '../execucaoRota/hooks/useNavegacaoMonitorada';
+import type {NavegadorRota} from '../execucaoRota/models/ExecucaoRota';
 import useFiliais from '../filiais/hooks/useFiliais';
-import MapService from '../rotas/services/mapService';
+import type {Filial} from '../filiais/models/Filial';
 import useChamados from './hooks/useChamados';
 import type {Chamado} from './models/Chamado';
 import styles from './chamadosScreen.styles';
@@ -33,6 +41,13 @@ const sortByOpeningDate = (
 export default function ChamadosScreen(): React.JSX.Element {
   const theme = useAppTheme();
   const {filiais} = useFiliais();
+  const {currentCity} = useLocation();
+  const {
+    execucaoAtiva,
+    processando,
+    iniciarNavegacao,
+    verificarMonitoramento,
+  } = useNavegacaoMonitorada();
   const {chamados, error, loading, reload} =
     useChamados();
 
@@ -40,6 +55,16 @@ export default function ChamadosScreen(): React.JSX.Element {
     useState<TicketGroup>('atribuido');
   const [selectedTicket, setSelectedTicket] =
     useState<Chamado | null>(null);
+  const [pendingStore, setPendingStore] =
+    useState<Filial | null>(null);
+  const [
+    navigatorDialogVisible,
+    setNavigatorDialogVisible,
+  ] = useState(false);
+  const [
+    monitoringEnabledForFlow,
+    setMonitoringEnabledForFlow,
+  ] = useState(false);
 
   const assignedTickets = useMemo(
     () =>
@@ -62,7 +87,7 @@ export default function ChamadosScreen(): React.JSX.Element {
       ? assignedTickets
       : unassignedTickets;
 
-  const traceRoute = async (
+  const requestRoute = async (
     ticket: Chamado,
   ): Promise<void> => {
     const store = filiais.find(
@@ -81,9 +106,30 @@ export default function ChamadosScreen(): React.JSX.Element {
       return;
     }
 
-    await MapService.openGoogleMapsRoute([
-      store,
-    ]);
+    const monitoringEnabled =
+      await verificarMonitoramento();
+
+    setPendingStore(store);
+    setMonitoringEnabledForFlow(
+      monitoringEnabled,
+    );
+    setNavigatorDialogVisible(true);
+  };
+
+  const traceRoute = async (
+    navegador: NavegadorRota,
+  ): Promise<void> => {
+    if (!pendingStore || processando) return;
+
+    setNavigatorDialogVisible(false);
+
+    await iniciarNavegacao({
+      rotas: [pendingStore],
+      navegador,
+      cidadeOrigem: currentCity,
+      tipoDestino: 'loja',
+      monitorar: monitoringEnabledForFlow,
+    });
   };
 
   const renderTicket = ({
@@ -167,16 +213,24 @@ export default function ChamadosScreen(): React.JSX.Element {
           </View>
 
           <TouchableOpacity
+            disabled={
+              processando ||
+              Boolean(execucaoAtiva)
+            }
             style={[
               styles.routeButton,
               {
                 backgroundColor:
                   theme.colors
                     .actionBackground,
+                opacity:
+                  processando || execucaoAtiva
+                    ? 0.55
+                    : 1,
               },
             ]}
             onPress={() => {
-              void traceRoute(item);
+              void requestRoute(item);
             }}
           >
             <Text
@@ -357,6 +411,81 @@ export default function ChamadosScreen(): React.JSX.Element {
       >
         TOTAL: {visibleTickets.length}
       </Text>
+
+      <Portal>
+        <Dialog
+          visible={navigatorDialogVisible}
+          dismissable={!processando}
+          onDismiss={() =>
+            setNavigatorDialogVisible(false)
+          }
+          style={{
+            backgroundColor: theme.colors.surface,
+          }}
+        >
+          <Dialog.Title>
+            Escolha o navegador
+          </Dialog.Title>
+
+          <Dialog.Content>
+            {monitoringEnabledForFlow ? (
+              <Text
+              style={{
+                color:
+                  theme.colors.onSurfaceVariant,
+              }}
+            >
+              Para registrar e concluir o percurso, o
+              aplicativo utiliza sua localização
+              enquanto o Google Maps estiver aberto.
+              A execução será concluída
+              automaticamente após a confirmação da
+              filial.
+              </Text>
+            ) : (
+              <Text
+                style={{
+                  color:
+                    theme.colors.onSurfaceVariant,
+                }}
+              >
+                A rota será aberta no navegador
+                escolhido.
+              </Text>
+            )}
+          </Dialog.Content>
+
+          <Dialog.Actions>
+            <Button
+              disabled={processando}
+              onPress={() =>
+                setNavigatorDialogVisible(false)
+              }
+            >
+              Cancelar
+            </Button>
+
+            <Button
+              disabled={processando}
+              onPress={() =>
+                void traceRoute('waze')
+              }
+            >
+              Waze
+            </Button>
+
+            <Button
+              loading={processando}
+              disabled={processando}
+              onPress={() =>
+                void traceRoute('google')
+              }
+            >
+              Google Maps
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }

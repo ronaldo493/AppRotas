@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import type { LatLng } from 'react-native-maps';
 
 import type {Filial} from '../models/Filial';
 import {useAppTheme} from '../../../core/theme/appTheme';
@@ -17,7 +16,6 @@ import useSearchFilial from '../hooks/useFilialSearch';
 import SearchBarStyles from './filialSearch.styles';
 
 interface SearchBarProps {
-  currentLocation: LatLng | null;
   onAddRoute: (filial: Filial) => void;
   onResultChange?: (
     hasSearch: boolean,
@@ -25,7 +23,6 @@ interface SearchBarProps {
 }
 
 export default function SearchBar({
-  currentLocation,
   onAddRoute,
   onResultChange,
 }: SearchBarProps): React.JSX.Element {
@@ -43,11 +40,7 @@ export default function SearchBar({
     loadingFiliais,
     filiaisError,
 
-    estimate,
-    loadingEstimate,
-    estimateError,
   } = useSearchFilial({
-    currentLocation,
     onAddRoute,
     onResultChange,
   });
@@ -178,10 +171,6 @@ export default function SearchBar({
       {selectedFilial && (
         <FilialResultCard
           filial={selectedFilial}
-          estimate={estimate}
-          loadingEstimate={loadingEstimate}
-          estimateError={estimateError}
-          hasLocation={currentLocation !== null}
           onAdd={addSelectedFilial}
         />
       )}

@@ -49,7 +49,10 @@ export default function AboutScreen({ navigation }: AboutProps): React.JSX.Eleme
         </Text>
 
         <Text style={[AboutStyles.text, AboutStyles.spacedText, {color: theme.colors.onSurfaceVariant}]}>
-          O aplicativo também registra o histórico das rotas, funciona com uma fila offline e permite navegar até restaurantes e postos cadastrados como pontos de interesse.
+          As viagens iniciadas pelo aplicativo registram duração, trajeto e
+          chegadas durante o uso do navegador, com conclusão automática e
+          sincronização offline. Também é possível navegar até restaurantes e
+          postos cadastrados como pontos de interesse.
         </Text>
 
         <Text style={[AboutStyles.text, AboutStyles.spacedText, {color: theme.colors.onSurfaceVariant}]}>

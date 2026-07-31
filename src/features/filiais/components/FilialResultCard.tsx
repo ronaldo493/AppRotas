@@ -1,18 +1,17 @@
-import { MaterialIcons } from '@expo/vector-icons';
-import React, { useMemo } from 'react';
-import {ActivityIndicator,Text, TouchableOpacity,View} from 'react-native';
+import {MaterialIcons} from '@expo/vector-icons';
+import React, {useMemo} from 'react';
+import {
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-import type {RouteEstimate} from '../hooks/useRouteEstimate';
-import type {Filial} from '../models/Filial';
 import {useAppTheme} from '../../../core/theme/appTheme';
+import type {Filial} from '../models/Filial';
 import SearchBarStyles from './filialSearch.styles';
 
 interface FilialResultCardProps {
   filial: Filial;
-  estimate: RouteEstimate | null;
-  loadingEstimate: boolean;
-  estimateError: string | null;
-  hasLocation: boolean;
   onAdd: () => void;
 }
 
@@ -23,32 +22,44 @@ interface FilialDetail {
   complement?: string;
 }
 
+/**
+ * Exibe os dados cadastrais da filial encontrada. A estimativa não é
+ * consultada durante a busca; ela pertence exclusivamente à prévia da rota.
+ */
 export default function FilialResultCard({
   filial,
-  estimate,
-  loadingEstimate,
-  estimateError,
-  hasLocation,
   onAdd,
 }: FilialResultCardProps): React.JSX.Element {
   const theme = useAppTheme();
-
   const filialDetails =
     useMemo<FilialDetail[]>(() => {
-      const address = [filial.endereco, filial.numero].filter(Boolean).join(', ');
+      const address = [
+        filial.endereco,
+        filial.numero,
+      ]
+        .filter(Boolean)
+        .join(', ');
 
       return [
         {
           key: 'endereco',
           icon: 'location-on',
-          value: address ? `Endereço: ${address}` : 'Endereço não informado',
-          complement: filial.bairro ? `Bairro: ${filial.bairro}` : undefined,
+          value: address
+            ? `Endereço: ${address}`
+            : 'Endereço não informado',
+          complement: filial.bairro
+            ? `Bairro: ${filial.bairro}`
+            : undefined,
         },
         {
           key: 'telefone',
           icon: 'phone',
-          value: filial.telefone ? `Telefone: ${filial.telefone}` : 'Telefone não informado',
-          complement: filial.cnpj ? `CNPJ: ${filial.cnpj}` : undefined,
+          value: filial.telefone
+            ? `Telefone: ${filial.telefone}`
+            : 'Telefone não informado',
+          complement: filial.cnpj
+            ? `CNPJ: ${filial.cnpj}`
+            : undefined,
         },
       ];
     }, [filial]);
@@ -66,111 +77,99 @@ export default function FilialResultCard({
     >
       <Text
         numberOfLines={2}
-        style={[ SearchBarStyles.cardTitle, {color: theme.colors.onSurface}
+        style={[
+          SearchBarStyles.cardTitle,
+          {color: theme.colors.onSurface},
         ]}
       >
-        {filial.codigofilial} -{' '}
-        {filial.nomefilial}
+        {filial.codigofilial} - {filial.nomefilial}
       </Text>
 
-      {filial.nomecidade && (
-        <Text style={[SearchBarStyles.cardSubtitle, {color: theme.colors.onSurfaceVariant}]}>
+      {filial.nomecidade ? (
+        <Text
+          style={[
+            SearchBarStyles.cardSubtitle,
+            {
+              color:
+                theme.colors.onSurfaceVariant,
+            },
+          ]}
+        >
           {filial.nomecidade}
         </Text>
-      )}
+      ) : null}
 
-      <View style={[ SearchBarStyles.divider, {backgroundColor: theme.colors.outline}]}/>
+      <View
+        style={[
+          SearchBarStyles.divider,
+          {backgroundColor: theme.colors.outline},
+        ]}
+      />
 
       {filialDetails.map(detail => (
-        <View key={detail.key} style={SearchBarStyles.detailRow}>
+        <View
+          key={detail.key}
+          style={SearchBarStyles.detailRow}
+        >
           <MaterialIcons
             name={detail.icon}
             size={19}
             color={theme.colors.iconDefault}
           />
 
-          <View
-            style={
-              SearchBarStyles.detailContent
-            }
-          >
-            <Text style={[SearchBarStyles.detailValue,{color: theme.colors.onSurface}]}>
+          <View style={SearchBarStyles.detailContent}>
+            <Text
+              style={[
+                SearchBarStyles.detailValue,
+                {color: theme.colors.onSurface},
+              ]}
+            >
               {detail.value}
             </Text>
 
-            {detail.complement && (
-              <Text style={[SearchBarStyles.detailComplement, {color: theme.colors.onSurfaceVariant}]}>
+            {detail.complement ? (
+              <Text
+                style={[
+                  SearchBarStyles.detailComplement,
+                  {
+                    color:
+                      theme.colors
+                        .onSurfaceVariant,
+                  },
+                ]}
+              >
                 {detail.complement}
               </Text>
-            )}
+            ) : null}
           </View>
         </View>
       ))}
-
-      <View style={[SearchBarStyles.estimateDivider, {backgroundColor: theme.colors.outline} ]}/>
-
-      {loadingEstimate && (
-        <View style={SearchBarStyles.estimateContainer}>
-            <ActivityIndicator size="small" color={theme.colors.primary}/>
-
-            <Text style={[SearchBarStyles.estimateText, {color: theme.colors.onSurfaceVariant}]}>
-                Calculando distância...
-            </Text>
-        </View>
-        )}
-
-        {!loadingEstimate && estimate && (
-            <View style={SearchBarStyles.estimateContainer}>
-                <View style={[SearchBarStyles.estimateIconContainer, { backgroundColor: theme.colors.primarySoft}]}>
-
-                <MaterialIcons name="directions-car" size={21} color={theme.colors.primary}/>
-
-                </View>
-
-                <View style={SearchBarStyles.estimateContent}>
-                <Text style={[ SearchBarStyles.estimateTitle, { color: theme.colors.onSurface}]}>
-                    {estimate.durationText}
-                </Text>
-
-                <Text style={[SearchBarStyles.estimateDescription, { color: theme.colors.onSurfaceVariant}]} >
-                    {estimate.distanceText} da sua localização
-                </Text>
-                </View>
-            </View>
-        )}
-
-        {!loadingEstimate &&
-        hasLocation &&
-        estimateError && (
-            <View style={SearchBarStyles.estimateContainer}>
-            <MaterialIcons name="route" size={20} color={theme.colors.error}/>
-
-            <Text style={[ SearchBarStyles.estimateError, { color: theme.colors.error}]}>
-                {estimateError}
-            </Text>
-            </View>
-        )}
-
-        {!loadingEstimate && !hasLocation && (
-            <View style={SearchBarStyles.estimateContainer}>
-                <MaterialIcons name="location-off" size={20} color={theme.colors.iconDefault}/>
-
-                <Text style={[ SearchBarStyles.estimateDescription,{color: theme.colors.onSurfaceVariant}]}>
-                    Ative a localização para visualizar a estimativa.
-                </Text>
-            </View>
-        )}
 
       <TouchableOpacity
         onPress={onAdd}
         activeOpacity={0.8}
         accessibilityRole="button"
         accessibilityLabel={`Adicionar filial ${filial.codigofilial}`}
-        style={[SearchBarStyles.addButton, {backgroundColor: theme.colors.primarySoft} ]}
+        style={[
+          SearchBarStyles.addButton,
+          {
+            backgroundColor:
+              theme.colors.primarySoft,
+          },
+        ]}
       >
-        <MaterialIcons name="add" size={20} color={theme.colors.primary}/>
+        <MaterialIcons
+          name="add"
+          size={20}
+          color={theme.colors.primary}
+        />
 
-        <Text style={[SearchBarStyles.addButtonText, {color: theme.colors.primary}]}>
+        <Text
+          style={[
+            SearchBarStyles.addButtonText,
+            {color: theme.colors.primary},
+          ]}
+        >
           Adicionar à rota
         </Text>
       </TouchableOpacity>

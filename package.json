@@ -4,6 +4,8 @@
   "main": "expo/AppEntry.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test:route-execution": "tsx --test tests/execucao-rota.test.ts",
+    "test:route-preview": "tsx --test tests/route-preview.test.ts",
     "build-android": "npx eas-cli@latest build --platform android --profile preview_android",
     "start": "npx expo start",
     "start-lan": "npx expo start --lan --clear",
@@ -47,7 +49,9 @@
     "expo-linking": "~8.0.12",
     "expo-location": "~19.0.8",
     "expo-mail-composer": "~15.0.8",
+    "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
+    "expo-task-manager": "~14.0.9",
     "jwt-decode": "4.0.0",
     "lodash.debounce": "^4.0.8",
     "react": "19.1.0",
@@ -70,6 +74,7 @@
     "@types/lodash.debounce": "^4.0.9",
     "@types/react": "~19.1.10",
     "@types/supercluster": "7.1.3",
+    "tsx": "4.20.6",
     "typescript": "~5.9.2"
   },
   "private": true,

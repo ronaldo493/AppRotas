@@ -13,6 +13,7 @@ import AppVersionChecker from '../../features/atualizacao/components/AppVersionC
 import AppNavigation from '../navigation/AppNavigation';
 import {createAppTheme} from '../../core/theme/appTheme';
 import AppDataProviders from './AppDataProviders';
+import LocalizacaoRotaGuard from '../../features/execucaoRota/components/LocalizacaoRotaGuard';
 
 function AppWithTheme() {
   const { isDarkMode } = useThemeContext();
@@ -27,6 +28,7 @@ function AppWithTheme() {
       <LocationProvider>
         <AppVersionChecker />
         <AppNavigation />
+        <LocalizacaoRotaGuard />
         <AppToast />
       </LocationProvider>
     </PaperProvider>

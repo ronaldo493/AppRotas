@@ -16,6 +16,9 @@ seus componentes, hooks, modelos, telas, serviços e casos de uso.
 - Registro de sessão com usuário, setor e cidade de origem.
 - Busca, ordenação e navegação por rotas entre filiais.
 - Abertura de rotas no Google Maps e no Waze.
+- Registro de percursos iniciados pelo usuário, com GPS em segundo plano,
+  conclusão automática, execução parcial, fila SQLite por colaborador,
+  duração, distância, chegadas e desvios.
 - Mapa de filiais e pontos de interesse com agrupamento de marcadores.
 - Cadastro de restaurantes e postos com identificação do usuário criador.
 - Histórico por usuário, período, cidade de origem e tipo de destino.
@@ -37,6 +40,7 @@ seus componentes, hooks, modelos, telas, serviços e casos de uso.
 - React Native Maps
 - Axios
 - AsyncStorage
+- Expo SQLite e Expo Task Manager
 - Strapi
 
 ## Arquitetura
@@ -60,6 +64,7 @@ src/
 │   ├── chamados/
 │   ├── contatos/
 │   ├── configuracoes/
+│   ├── execucaoRota/     # execução, GPS, fila local e sincronização
 │   ├── filiais/
 │   ├── historico/
 │   ├── menus/            # acesso, sincronização e interface dos menus
@@ -181,22 +186,51 @@ dispensar o aviso.
 ### Rota entre filiais
 
 1. O usuário pesquisa e adiciona uma ou mais filiais.
-2. Escolhe Google Maps ou Waze.
-3. O caso de uso tenta registrar o histórico.
-4. Se o Strapi estiver indisponível, o histórico entra na fila local.
-5. A navegação externa continua mesmo se o histórico não puder ser persistido.
+2. `Traçar rota` abre uma prévia dentro do aplicativo com o caminho, distância
+   e tempo estimado, sem criar execução ou histórico.
+3. Se a intenção era somente consultar, o usuário fecha a prévia.
+4. `Iniciar percurso` abre a escolha entre Google Maps e Waze.
+5. Somente depois dessa confirmação o aplicativo cria a execução local,
+   inicia o GPS e abre o navegador externo.
+6. Os pontos ficam no SQLite e são sincronizados em lotes idempotentes.
+7. Cada destino exige três leituras consecutivas próximas para ser confirmado.
+8. A rota é concluída automaticamente quando todos os destinos são
+   confirmados.
+9. Se apenas parte for realizada, os destinos visitados permanecem registrados
+   como execução parcial.
+10. O usuário só precisa interromper manualmente quando abandonar a rota.
+
+O cálculo da prévia só ocorre ao tocar em `Traçar rota`; pesquisar uma filial
+não consulta a Routes API. Se a prévia for fechada, ela permanece em memória e
+é reaproveitada enquanto a lista e a ordem dos destinos não mudarem. Ao iniciar
+o percurso, o mesmo planejamento é enviado à execução, evitando uma segunda
+consulta ao Google.
 
 ### Rota para ponto de interesse
 
-O cadastro de um ponto **não cria histórico**. O histórico só é criado quando:
+O cadastro de um ponto **não cria histórico**. Ao tocar em `Traçar rota`, a
+prévia interna mostra o caminho e a estimativa sem iniciar uma viagem. O mesmo
+registro das filiais começa para o restaurante ou posto somente depois de
+`Iniciar percurso`. Abrir a prévia, isoladamente, não comprova uma visita.
 
-1. o usuário abre o menu de pontos;
-2. seleciona um marcador;
-3. toca no botão `Traçar rota`;
-4. o Google Maps é aberto com sucesso.
+O tipo registrado é `restaurante` ou `posto_combustivel`. Se o Strapi estiver
+indisponível, a execução e seus pontos permanecem na fila SQLite exclusiva do
+usuário.
 
-O tipo registrado é `restaurante` ou `posto_combustivel`. Se o envio falhar,
-o mesmo mecanismo de fila offline é utilizado.
+### Localização durante a rota
+
+Antes de abrir Maps ou Waze, o aplicativo exige localização precisa e acesso
+em segundo plano. Durante uma execução ativa, essas condições são verificadas
+quando o app volta ao primeiro plano e a cada 15 segundos enquanto permanece
+aberto. Se GPS ou permissão forem desativados, a continuidade fica bloqueada
+até a correção e a ocorrência é anexada ao resumo da execução.
+
+### Retenção do SQLite
+
+Pontos pendentes nunca são apagados. Depois que o servidor confirma todos os
+lotes e a finalização, os pontos detalhados permanecem por sete dias e os
+resumos locais por trinta dias. Após esses períodos, a limpeza ocorre
+automaticamente; o Strapi permanece como fonte definitiva.
 
 ### Agrupamento dos mapas
 
@@ -219,6 +253,19 @@ antes de novos registros de lojas. A chave global usada pelas versões
 anteriores é migrada para o usuário autenticado somente depois que a nova fila
 é gravada com sucesso. Registros antigos sem os campos mais recentes continuam
 compatíveis na leitura.
+
+### Execução monitorada de rotas
+
+O módulo `features/execucaoRota` é independente da interface e do navegador.
+Ele mantém uma única viagem ativa no aparelho, registra pontos em segundo
+plano, restaura a sessão ao reabrir o aplicativo e interrompe o rastreamento
+ao trocar de usuário. Maps, Waze e uma futura navegação interna utilizam o
+mesmo contrato.
+
+O resumo do aparelho é provisório. O backend deve recalcular os indicadores a
+partir dos segmentos antes de disponibilizá-los ao gestor. O contrato completo
+está em
+[`docs/STRAPI_MONITORAMENTO_ROTAS.md`](docs/STRAPI_MONITORAMENTO_ROTAS.md).
 
 ## Integração com o Strapi
 
@@ -244,6 +291,12 @@ feature.
 | `cidadeOrigem` | Texto curto | Cidade de início |
 | `tipoHistorico` | Enumeration | `loja`, `restaurante` ou `posto_combustivel` |
 | `rotas` | JSON | Destinos e ordem da rota |
+| `codigoSessao` | Texto curto, único e opcional | Liga novos históricos a uma execução confirmada |
+| `situacaoExecucao` | Enumeration opcional | `concluida` ou `concluida_parcial` |
+| `destinosPlanejados` | Integer opcional | Quantidade planejada |
+| `destinosVisitados` | Integer opcional | Quantidade confirmada |
+| `rotaConfirmadaPorGps` | Boolean opcional | Informa se não houve interrupção da localização |
+| `detalhesDestinosVisitados` | JSON opcional | Ordem e horário das confirmações |
 
 Exemplo de `rotas`:
 
@@ -257,6 +310,29 @@ Exemplo de `rotas`:
   }
 ]
 ```
+
+### `configuracao-app`
+
+Single type com o campo Boolean obrigatório `monitoramentoRotasAtivo`. Quando
+está `true`, o aplicativo exibe a prévia e pode iniciar a execução monitorada.
+Quando está `false`, nenhuma prévia é calculada, o SQLite/GPS não é iniciado e
+o usuário apenas escolhe entre Maps e Waze. Se a configuração não puder ser
+lida, o aplicativo adota esse modo externo para proteger a cota da Routes API.
+
+No papel `Authenticated`, libere apenas a ação `find` desse single type.
+
+### `execucoes-rotas` e `segmentos-execucao-rota`
+
+As collections, relações, enums e endpoints customizados do registro
+estão especificados em
+[`docs/STRAPI_MONITORAMENTO_ROTAS.md`](docs/STRAPI_MONITORAMENTO_ROTAS.md).
+
+### `POST /estimativa-rota/calcular`
+
+Endpoint somente de consulta usado pela prévia interna. Aceita a localização
+atual em `origin` e os destinos ordenados em `destinations`. A resposta contém
+distância, duração e `encodedPolyline`. Ele não cria execução, segmento ou
+histórico. O campo singular `destination` continua aceito para versões antigas.
 
 ### `pontos-interesses`
 
@@ -352,6 +428,12 @@ yarn web
 
 # validação estática
 yarn typecheck
+
+# testes das regras de execução de rota
+yarn test:route-execution
+
+# testes da prévia de rota
+yarn test:route-preview
 ```
 
 Quando houver problema de cache:

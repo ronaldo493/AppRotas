@@ -6,86 +6,66 @@ import Toast from 'react-native-toast-message';
 
 import {useAppTheme} from '../../../core/theme/appTheme';
 import useLocation from '../../../core/location/useLocation';
+import useNavegacaoMonitorada from '../../execucaoRota/hooks/useNavegacaoMonitorada';
 import FilialSearch from '../../filiais/components/FilialSearch';
 import type {Filial} from '../../filiais/models/Filial';
-import useHistoricoRotas from '../../historico/hooks/useHistoricoRotas';
-import {TIPO_HISTORICO} from '../../historico/models/Historico';
-import {registrarHistoricoRota} from '../../historico/useCases/registrarHistoricoRota';
-import useHistoricoOffline from '../../historico/hooks/useHistoricoOffline';
 import SugestaoFab from '../../sugestoes/components/SugestaoFab';
+import type {PlanejamentoExecucaoRota} from '../../execucaoRota/models/ExecucaoRota';
 import RouteList from '../components/RouteList';
-import MapService from '../services/mapService';
+import RoutePreviewModal from '../components/RoutePreviewModal';
+import type {RoutePreview} from '../models/RoutePreview';
 import HomeStyles from './rotasScreen.styles';
 
 type NavigatorType = 'google' | 'waze';
 
 export default function RotasScreen(): React.JSX.Element {
   const theme = useAppTheme();
-
-  const { postHistoricoRota,  loading: savingHistory } = useHistoricoRotas();
   const {
-    adicionarHistoricoPendente,
-    sincronizarHistoricosPendentes,
-  } = useHistoricoOffline();
+    execucaoAtiva,
+    processando,
+    iniciarNavegacao,
+    interromperNavegacao,
+    verificarMonitoramento,
+  } = useNavegacaoMonitorada();
 
   const {
     currentCity,
     error: locationError,
     loading: loadingLocation,
-    canAskAgain,
     ensureLocation,
-    getLocation,
     openLocationSettings,
     currentLocation
   } = useLocation();
 
   const [routes, setRoutes] = useState<Filial[]>([]);
   const [hasSearchResult, setHasSearchResult] = useState(false);
+  const [routePreviewVisible, setRoutePreviewVisible] =
+    useState(false);
   const [navigatorDialogVisible, setNavigatorDialogVisible] = useState(false);
+  const [
+    monitoringEnabledForFlow,
+    setMonitoringEnabledForFlow,
+  ] = useState(false);
+  const [
+    selectedPlanning,
+    setSelectedPlanning,
+  ] = useState<PlanejamentoExecucaoRota | undefined>(
+    undefined,
+  );
+  const [interruptionDialogVisible, setInterruptionDialogVisible] =
+    useState(false);
 
   const hasRoutes = routes.length > 0;
-
-  const synchronizePending = useCallback(
-    async (): Promise<void> => {
-      try {
-        await sincronizarHistoricosPendentes(
-          postHistoricoRota,
-        );
-      } catch (error: unknown) {
-        console.error(
-          'Erro ao acessar o histórico offline:',
-          error instanceof Error
-            ? error.message
-            : 'erro desconhecido',
-        );
-      }
-    },
-    [
-      postHistoricoRota,
-      sincronizarHistoricosPendentes,
-    ],
-  );
 
   useEffect(() => {
     void ensureLocation();
   }, [ensureLocation]);
 
-  useEffect(() => {
-    void synchronizePending();
-  }, [synchronizePending]);
-
   const handleLocationAction = useCallback((): void => {
     if (loadingLocation) return;
 
-    if (canAskAgain) {
-      void getLocation(false);
-      return;
-    }
-
     void openLocationSettings();
   }, [
-    canAskAgain,
-    getLocation,
     loadingLocation,
     openLocationSettings,
   ]);
@@ -119,51 +99,92 @@ export default function RotasScreen(): React.JSX.Element {
     );
   };
 
-  const openNavigator = async (navigator: NavigatorType): Promise<void> => {
+  /**
+   * A escolha do navegador confirma o início. A prévia já foi exibida antes,
+   * portanto não é necessário outro diálogo intermediário.
+   */
+  const startNavigation = async (
+    navigator: NavigatorType,
+  ): Promise<void> => {
+    if (processando) return;
+
     setNavigatorDialogVisible(false);
 
-    const resultadoHistorico =
-      await registrarHistoricoRota(
-        {
-          rotas: routes,
-          cidadeOrigem: currentCity,
-          tipoHistorico:
-            TIPO_HISTORICO.LOJA,
-        },
-        {
-          enviar: postHistoricoRota,
-          sincronizar:
-            sincronizarHistoricosPendentes,
-          adicionarPendente:
-            adicionarHistoricoPendente,
-        },
-      );
+    await iniciarNavegacao({
+      rotas: routes,
+      navegador: navigator,
+      cidadeOrigem: currentCity,
+      tipoDestino: 'loja',
+      monitorar: monitoringEnabledForFlow,
+      planejamento: selectedPlanning,
+    });
+  };
 
-    if (resultadoHistorico.status === 'falha') {
-      console.error(
-        'Erro ao guardar histórico da rota:',
-        resultadoHistorico.erro,
-      );
-    }
+  const handleTraceRoute = async (): Promise<void> => {
+    if (processando) return;
 
-    if (navigator === 'google') {
-      await MapService.openGoogleMapsRoute(routes);
+    if (execucaoAtiva) {
+      setInterruptionDialogVisible(true);
       return;
     }
 
-    await MapService.openWazeRoute(routes);
-  };
+    if (!hasRoutes) return;
 
-  const handleTraceRoute = (): void => {
-    if (!hasRoutes || savingHistory) return;
+    const monitoringEnabled =
+      await verificarMonitoramento();
+
+    setMonitoringEnabledForFlow(
+      monitoringEnabled,
+    );
+    setSelectedPlanning(undefined);
+
+    if (monitoringEnabled) {
+      setRoutePreviewVisible(true);
+      return;
+    }
 
     setNavigatorDialogVisible(true);
   };
 
+  /**
+   * A prévia é somente consulta. A escolha do navegador acontece depois que
+   * o usuário confirma explicitamente que deseja iniciar o percurso.
+   */
+  const handleStartPreviewedRoute = (
+    preview: RoutePreview,
+  ): void => {
+    setSelectedPlanning({
+      servidorDocumentId: null,
+      trajetoPlanejado:
+        preview.encodedPolyline,
+      distanciaPlanejadaMetros:
+        preview.distanceMeters,
+      duracaoPlanejadaSegundos:
+        preview.durationSeconds,
+    });
+    setRoutePreviewVisible(false);
+    setNavigatorDialogVisible(true);
+  };
+
+  const handleInterruptRoute =
+    async (): Promise<void> => {
+      if (processando || !execucaoAtiva) return;
+
+      await interromperNavegacao();
+      setInterruptionDialogVisible(false);
+
+      Toast.show({
+        type: 'info',
+        text1: 'Percurso interrompido',
+        text2:
+          'Os destinos confirmados e o trajeto realizado foram preservados.',
+        position: 'bottom',
+      });
+    };
+
   return (
     <View style={[ HomeStyles.container, { backgroundColor: theme.colors.background }]}>
       <FilialSearch
-        currentLocation={currentLocation}
         onAddRoute={handleAddRoute}
         onResultChange={setHasSearchResult}
       />
@@ -211,40 +232,46 @@ export default function RotasScreen(): React.JSX.Element {
               onPress={handleLocationAction}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={
-                canAskAgain
-                  ? 'Tentar acessar localização novamente'
-                  : 'Abrir configurações do aplicativo'
-              }
+              accessibilityLabel="Abrir configurações do aplicativo"
             >
               <Text style={[HomeStyles.locationActionText, { color: theme.colors.primary}]}>
-                {canAskAgain
-                  ? 'Tentar novamente'
-                  : 'Abrir configurações'}
+                Abrir configurações
               </Text>
             </TouchableOpacity>
           </View>
         )}
 
         <TouchableOpacity
-          onPress={handleTraceRoute}
-          disabled={!hasRoutes || savingHistory}
+          onPress={() => {
+            void handleTraceRoute();
+          }}
+          disabled={
+            processando ||
+            (!hasRoutes && !execucaoAtiva)
+          }
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityState={{
-            disabled: !hasRoutes || savingHistory,
+            disabled:
+              processando ||
+              (!hasRoutes && !execucaoAtiva),
           }}
           style={[
             HomeStyles.traceButton,
             {
-              backgroundColor: hasRoutes
+              backgroundColor:
+                hasRoutes || execucaoAtiva
                 ? theme.colors.actionBackground
                 : theme.colors.buttonBackground,
-              borderColor: hasRoutes
+              borderColor:
+                hasRoutes || execucaoAtiva
                 ? theme.colors.actionBackground
                 : theme.colors.outline,
               opacity:
-                hasRoutes && !savingHistory ? 1 : 0.7,
+                !processando &&
+                (hasRoutes || execucaoAtiva)
+                  ? 1
+                  : 0.7,
             },
           ]}
         >
@@ -252,13 +279,18 @@ export default function RotasScreen(): React.JSX.Element {
             style={[
               HomeStyles.traceButtonText,
               {
-                color: hasRoutes
+                color:
+                  hasRoutes || execucaoAtiva
                   ? theme.colors.actionForeground
                   : theme.colors.onSurfaceVariant,
               },
             ]}
           >
-            {savingHistory  ? 'Preparando rota...' : 'Traçar rota'}
+            {processando
+              ? 'Iniciando viagem...'
+              : execucaoAtiva
+                ? 'Rota em andamento'
+                : 'Traçar rota'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -266,34 +298,116 @@ export default function RotasScreen(): React.JSX.Element {
       <Portal>
         <Dialog
           visible={navigatorDialogVisible}
+          dismissable={!processando}
           onDismiss={() => setNavigatorDialogVisible(false)}
           style={{ backgroundColor: theme.colors.surface,}}
         >
           <Dialog.Title>
-            Escolha o navegador
+            Iniciar percurso
           </Dialog.Title>
 
           <Dialog.Content>
+            {monitoringEnabledForFlow ? (
             <Text style={{color: theme.colors.onSurfaceVariant }}>
-              Em qual aplicativo deseja abrir a rota?
+              Escolha o navegador. A partir desta confirmação, o percurso será
+              registrado até a chegada aos destinos ou sua interrupção.
             </Text>
+            ) : (
+              <Text
+                style={{
+                  color:
+                    theme.colors.onSurfaceVariant,
+                }}
+              >
+                Escolha onde deseja abrir a rota.
+              </Text>
+            )}
           </Dialog.Content>
 
           <Dialog.Actions>
-            <Button onPress={() => setNavigatorDialogVisible(false) }>
+            <Button
+              disabled={processando}
+              onPress={() => setNavigatorDialogVisible(false)}
+            >
               Cancelar
             </Button>
 
-            <Button onPress={() => void openNavigator('waze') }>
+            <Button
+              disabled={processando}
+              onPress={() =>
+                void startNavigation('waze')
+              }
+            >
               Waze
             </Button>
 
-            <Button onPress={() => void openNavigator('google') }>
+            <Button
+              disabled={processando}
+              onPress={() =>
+                void startNavigation('google')
+              }
+            >
               Google Maps
             </Button>
           </Dialog.Actions>
         </Dialog>
+
+        <Dialog
+          visible={interruptionDialogVisible}
+          dismissable={!processando}
+          onDismiss={() => {
+            if (!processando) {
+              setInterruptionDialogVisible(false);
+            }
+          }}
+          style={{backgroundColor: theme.colors.surface}}
+        >
+          <Dialog.Title>Rota em andamento</Dialog.Title>
+
+          <Dialog.Content>
+            <Text
+              style={{
+                color: theme.colors.onSurfaceVariant,
+              }}
+            >
+              A rota será concluída automaticamente quando todos os destinos
+              forem confirmados. Interrompa somente se o percurso não for mais
+              realizado.
+            </Text>
+          </Dialog.Content>
+
+          <Dialog.Actions>
+            <Button
+              disabled={processando}
+              onPress={() =>
+                setInterruptionDialogVisible(false)
+              }
+            >
+              Manter rota
+            </Button>
+
+            <Button
+              loading={processando}
+              disabled={processando}
+              onPress={() => void handleInterruptRoute()}
+            >
+              Interromper
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
       </Portal>
+
+      <RoutePreviewModal
+        visible={routePreviewVisible}
+        origin={currentLocation}
+        routes={routes}
+        starting={processando}
+        onClose={() =>
+          setRoutePreviewVisible(false)
+        }
+        onStart={handleStartPreviewedRoute}
+        onRequestLocation={handleLocationAction}
+      />
 
       <SugestaoFab />
     </View>

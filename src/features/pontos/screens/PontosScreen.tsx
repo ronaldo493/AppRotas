@@ -14,15 +14,28 @@ import MapView, {
   type Region,
 } from 'react-native-maps';
 import { MaterialIcons } from '@expo/vector-icons';
-import { ActivityIndicator, FAB, Surface } from 'react-native-paper';
+import {
+  ActivityIndicator,
+  Button,
+  Dialog,
+  FAB,
+  Portal,
+  Surface,
+} from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 
 import {useMapLocation} from '../../../core/location/useLocation';
 import {useAppTheme} from '../../../core/theme/appTheme';
 import ClusterMarker from '../../../shared/components/maps/ClusterMarker';
-import useHistoricoOffline from '../../historico/hooks/useHistoricoOffline';
-import useHistoricoRotas from '../../historico/hooks/useHistoricoRotas';
-import MapService from '../../rotas/services/mapService';
+import useNavegacaoMonitorada from '../../execucaoRota/hooks/useNavegacaoMonitorada';
+import type {
+  NavegadorRota,
+  PlanejamentoExecucaoRota,
+} from '../../execucaoRota/models/ExecucaoRota';
+import type {Filial} from '../../filiais/models/Filial';
+import NavigationAppDialog from '../../rotas/components/NavigationAppDialog';
+import RoutePreviewModal from '../../rotas/components/RoutePreviewModal';
+import type {RoutePreview} from '../../rotas/models/RoutePreview';
 import usePontos from '../hooks/usePontos';
 import type {
   CategoriaPonto,
@@ -39,7 +52,6 @@ import {
   MapClusterIndex,
 } from '../../../shared/maps/clustering';
 import PontoForm from '../components/PontoForm';
-import {iniciarRotaPonto} from '../useCases/iniciarRotaPonto';
 import AddPointStyles from './pontosScreen.styles';
 
 interface PontoMapa extends PontoInteresse {
@@ -58,17 +70,17 @@ export default function PontosScreen(): React.JSX.Element {
   const mapRef = useRef<MapView | null>(null);
 
   const { pontos, loading, error, postPontos } = usePontos();
-  const {postHistoricoRota} = useHistoricoRotas({
-    loadOnMount: false,
-  });
   const {
-    adicionarHistoricoPendente,
-    sincronizarHistoricosPendentes,
-  } = useHistoricoOffline();
+    execucaoAtiva,
+    processando,
+    iniciarNavegacao,
+    verificarMonitoramento,
+  } = useNavegacaoMonitorada();
   const {
     currentLocation,
     currentCity,
     mapRegion,
+    openLocationSettings,
   } = useMapLocation();
   const initialRegionRef = useRef<Region>(
     mapRegion ?? DEFAULT_REGION,
@@ -80,17 +92,54 @@ export default function PontosScreen(): React.JSX.Element {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [categoryDialogVisible, setCategoryDialogVisible] = useState(false);
+  const [
+    locationDialogVisible,
+    setLocationDialogVisible,
+  ] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [navigationPoint, setNavigationPoint] =
     useState<PontoMapa | null>(null);
-  const [openingRoute, setOpeningRoute] =
-    useState(false);
+  const [
+    routePreviewVisible,
+    setRoutePreviewVisible,
+  ] = useState(false);
+  const [
+    navigatorDialogVisible,
+    setNavigatorDialogVisible,
+  ] = useState(false);
+  const [
+    monitoringEnabledForFlow,
+    setMonitoringEnabledForFlow,
+  ] = useState(false);
+  const [
+    selectedPlanning,
+    setSelectedPlanning,
+  ] = useState<PlanejamentoExecucaoRota | undefined>(
+    undefined,
+  );
   const [visibleRegion, setVisibleRegion] =
     useState<Region>(initialRegionRef.current);
 
   const currentCoordinate = useMemo<LatLng | null>(() => {
     return currentLocation ? getCoordinates(currentLocation) : null;
   }, [currentLocation]);
+  const previewPointRoute = useMemo<Filial[]>(
+    () =>
+      navigationPoint
+        ? [{
+            codigofilial:
+              navigationPoint.id ?? 0,
+            nomefilial:
+              navigationPoint.descricao,
+            nomecidade:
+              currentCity ??
+              'Não informado',
+            latitude: navigationPoint.latitude,
+            longitude: navigationPoint.longitude,
+          }]
+        : [],
+    [currentCity, navigationPoint],
+  );
 
   const pontosValidos = useMemo<PontoMapa[]>(() => {
     const pontosUnicos = new Map<string, PontoMapa>();
@@ -307,13 +356,7 @@ export default function PontosScreen(): React.JSX.Element {
     Keyboard.dismiss();
 
     if (!currentCoordinate) {
-      Toast.show({
-        type: 'info',
-        text1: 'Localização indisponível',
-        text2: 'Aguarde alguns segundos ou toque em um local no mapa.',
-        position: 'top',
-      });
-
+      setLocationDialogVisible(true);
       return;
     }
 
@@ -396,41 +439,76 @@ export default function PontosScreen(): React.JSX.Element {
     }
   };
 
-  const handleOpenPointRoute = async (): Promise<void> => {
-    if (!navigationPoint || openingRoute) return;
-
-    setOpeningRoute(true);
-
-    try {
-      const resultado = await iniciarRotaPonto(
-        {
-          ponto: navigationPoint,
-          cidadeOrigem: currentCity,
-        },
-        {
-          abrirRota:
-            MapService.openGoogleMapsRoute,
-          enviarHistorico:
-            postHistoricoRota,
-          sincronizarHistoricos:
-            sincronizarHistoricosPendentes,
-          adicionarHistoricoPendente:
-            adicionarHistoricoPendente,
-        },
-      );
-
-      if (
-        resultado.status === 'rota_aberta' &&
-        resultado.historico.status === 'falha'
-      ) {
-        console.error(
-          'Erro ao guardar histórico da rota do ponto:',
-          resultado.historico.erro,
-        );
-      }
-    } finally {
-      setOpeningRoute(false);
+  const handleOpenPointRoute = async (
+    navegador: NavegadorRota,
+  ): Promise<void> => {
+    if (
+      !navigationPoint ||
+      previewPointRoute.length === 0 ||
+      processando ||
+      execucaoAtiva
+    ) {
+      return;
     }
+
+    await iniciarNavegacao({
+      rotas: previewPointRoute,
+      navegador,
+      cidadeOrigem: currentCity,
+      tipoDestino:
+        navigationPoint.categoria ===
+        'Restaurante'
+          ? 'restaurante'
+          : 'posto_combustivel',
+      monitorar: monitoringEnabledForFlow,
+      planejamento: selectedPlanning,
+    });
+  };
+
+  /**
+   * Só solicita a prévia quando o registro estiver habilitado. No modo
+   * externo, segue diretamente para a escolha entre Maps e Waze.
+   */
+  const handleTracePointRoute =
+    async (): Promise<void> => {
+      if (
+        previewPointRoute.length === 0 ||
+        processando ||
+        execucaoAtiva
+      ) {
+        return;
+      }
+
+      const monitoringEnabled =
+        await verificarMonitoramento();
+
+      setMonitoringEnabledForFlow(
+        monitoringEnabled,
+      );
+      setSelectedPlanning(undefined);
+
+      if (monitoringEnabled) {
+        setRoutePreviewVisible(true);
+        return;
+      }
+
+      setNavigatorDialogVisible(true);
+    };
+
+  const handleStartPreviewedRoute = (
+    preview: RoutePreview,
+  ): void => {
+    setSelectedPlanning({
+      servidorDocumentId: null,
+      trajetoPlanejado:
+        preview.encodedPolyline,
+      distanciaPlanejadaMetros:
+        preview.distanceMeters,
+      duracaoPlanejadaSegundos:
+        preview.durationSeconds,
+    });
+    setRoutePreviewVisible(false);
+    setNavigatorDialogVisible(true);
   };
 
   return (
@@ -528,6 +606,7 @@ export default function PontosScreen(): React.JSX.Element {
           ]}
           onPress={() => {
             setNavigationPoint(null);
+            setRoutePreviewVisible(false);
             setIsAddMode(true);
           }}
         />
@@ -537,8 +616,11 @@ export default function PontosScreen(): React.JSX.Element {
         <FAB
           icon="directions"
           label="Traçar rota"
-          loading={openingRoute}
-          disabled={openingRoute}
+          loading={processando}
+          disabled={
+            processando ||
+            Boolean(execucaoAtiva)
+          }
           color={theme.colors.actionForeground}
           accessibilityLabel={`Traçar rota até ${navigationPoint.descricao}`}
           style={[
@@ -549,7 +631,7 @@ export default function PontosScreen(): React.JSX.Element {
             },
           ]}
           onPress={() => {
-            void handleOpenPointRoute();
+            void handleTracePointRoute();
           }}
         />
       )}
@@ -568,6 +650,83 @@ export default function PontosScreen(): React.JSX.Element {
           onSaveCategory={savePoint}
         />
       )}
+
+      <RoutePreviewModal
+        visible={routePreviewVisible}
+        origin={currentCoordinate}
+        routes={previewPointRoute}
+        starting={processando}
+        onClose={() =>
+          setRoutePreviewVisible(false)
+        }
+        onStart={handleStartPreviewedRoute}
+        onRequestLocation={() => {
+          void openLocationSettings();
+        }}
+      />
+
+      <Portal>
+        <Dialog
+          visible={locationDialogVisible}
+          onDismiss={() =>
+            setLocationDialogVisible(false)
+          }
+          style={{
+            backgroundColor: theme.colors.surface,
+          }}
+        >
+          <Dialog.Title>
+            Localização necessária
+          </Dialog.Title>
+
+          <Dialog.Content>
+            <Text
+              style={{
+                color:
+                  theme.colors.onSurfaceVariant,
+              }}
+            >
+              Ative a localização e permita o acesso
+              nas configurações do aplicativo.
+            </Text>
+          </Dialog.Content>
+
+          <Dialog.Actions>
+            <Button
+              onPress={() =>
+                setLocationDialogVisible(false)
+              }
+            >
+              Agora não
+            </Button>
+
+            <Button
+              mode="contained"
+              onPress={() => {
+                setLocationDialogVisible(false);
+                void openLocationSettings();
+              }}
+            >
+              Abrir configurações
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      <NavigationAppDialog
+        visible={navigatorDialogVisible}
+        processing={processando}
+        monitoringEnabled={
+          monitoringEnabledForFlow
+        }
+        onDismiss={() =>
+          setNavigatorDialogVisible(false)
+        }
+        onSelect={navigator => {
+          setNavigatorDialogVisible(false);
+          void handleOpenPointRoute(navigator);
+        }}
+      />
     </View>
   );
 }

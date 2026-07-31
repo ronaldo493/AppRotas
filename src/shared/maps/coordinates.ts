@@ -30,7 +30,15 @@ export const normalizeText = (value: unknown): string =>
     .trim();
 
 const parseCoordinate = (value: unknown): number | null => {
-  const coordinate = Number(String(value ?? '').trim().replace(',', '.'));
+  const normalizedValue =
+    String(value ?? '')
+      .trim()
+      .replace(',', '.');
+
+  if (!normalizedValue) return null;
+
+  const coordinate = Number(normalizedValue);
+
   return Number.isFinite(coordinate) ? coordinate : null;
 };
 

@@ -5,23 +5,18 @@ import {
   useMemo,
   useState,
 } from 'react';
-import type { LatLng } from 'react-native-maps';
 
 import useFiliais from './useFiliais';
-import useRouteEstimate from './useRouteEstimate';
 import type {Filial} from '../models/Filial';
 
 interface UseSearchFilialProps {
-  currentLocation: LatLng | null;
   onAddRoute: (filial: Filial) => void;
   onResultChange?: (hasSearch: boolean) => void;
 }
 
 const SEARCH_DEBOUNCE_MS = 400;
-const ESTIMATE_DEBOUNCE_MS = 500;
 
 export default function useSearchFilial({
-  currentLocation,
   onAddRoute,
   onResultChange,
 }: UseSearchFilialProps) {
@@ -31,14 +26,6 @@ export default function useSearchFilial({
   const [searchFinished, setSearchFinished] = useState(false);
 
   const {filiais = [], error: filiaisError, loading: loadingFiliais,} = useFiliais();
-
-  const {
-    estimate,
-    loading: loadingEstimate,
-    error: estimateError,
-    getEstimate,
-    clearEstimate,
-  } = useRouteEstimate();
 
   const debouncedSearch = useMemo(
     () =>
@@ -83,31 +70,6 @@ export default function useSearchFilial({
     searchTerm,
   ]);
 
-  /*
-   * Depois que a filial for encontrada,
-   * aguarda mais 500 ms antes de consultar
-   * o Strapi/Google.
-   */
-  useEffect(() => {
-    if (!selectedFilial || !currentLocation) {
-      clearEstimate();
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      void getEstimate(currentLocation, selectedFilial);
-    }, ESTIMATE_DEBOUNCE_MS);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [
-    clearEstimate,
-    currentLocation,
-    getEstimate,
-    selectedFilial,
-  ]);
-
   useEffect(() => {
     onResultChange?.(
       searchTerm.trim().length > 0,
@@ -120,9 +82,8 @@ export default function useSearchFilial({
       setSelectedFilial(null);
       setSearchFinished(false);
 
-      clearEstimate();
     },
-    [clearEstimate],
+    [],
   );
 
   const clearSearch = useCallback((): void => {
@@ -132,11 +93,7 @@ export default function useSearchFilial({
     setSelectedFilial(null);
     setSearchFinished(false);
 
-    clearEstimate();
-  }, [
-    clearEstimate,
-    debouncedSearch,
-  ]);
+  }, [debouncedSearch]);
 
   const addSelectedFilial =
     useCallback((): void => {
@@ -169,8 +126,5 @@ export default function useSearchFilial({
     loadingFiliais,
     filiaisError,
 
-    estimate,
-    loadingEstimate,
-    estimateError,
   };
 }

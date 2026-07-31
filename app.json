@@ -46,6 +46,16 @@
           "recordAudioAndroid": false
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permitir que o Suporte Drogal use sua localização durante a viagem.",
+          "locationAlwaysAndWhenInUsePermission": "Permitir que o Suporte Drogal registre sua localização durante percursos iniciados por você, inclusive com outro navegador aberto.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
       "@react-native-community/datetimepicker",
       "expo-mail-composer"
     ],

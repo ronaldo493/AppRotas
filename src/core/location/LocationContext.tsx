@@ -30,6 +30,7 @@ export interface MapLocationContextValue {
   currentCity: string | null;
   mapRegion: Region | null;
   loading: boolean;
+  openLocationSettings: () => Promise<void>;
 }
 
 interface LocationProviderProps {
@@ -349,7 +350,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
 
       requestedAutomaticallyRef.current = true;
 
-      await getLocation();
+      await getLocation(false);
     }, [currentLocation, getLocation]);
 
   const openLocationSettings = useCallback(async (): Promise<void> => {
@@ -444,12 +445,14 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
       currentCity,
       mapRegion,
       loading,
+      openLocationSettings,
     }),
     [
       currentLocation,
       currentCity,
       mapRegion,
       loading,
+      openLocationSettings,
     ],
   );
 
