@@ -22,7 +22,7 @@ export interface LocationContextValue {
   loading: boolean;
   canAskAgain: boolean;
   ensureLocation: () => Promise<void>;
-  getLocation: (showErrorToast?: boolean,) => Promise<boolean>;
+  getLocation: (showErrorToast?: boolean) => Promise<LatLng | null>;
   resolveCurrentCity: () => Promise<string | null>;
   openLocationSettings: () => Promise<void>;
 }
@@ -65,6 +65,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
   const [canAskAgain, setCanAskAgain] = useState(true);
 
   const requestingRef = useRef(false);
+  const locationRequestRef = useRef<Promise<LatLng | null> | null>(null);
   const requestedAutomaticallyRef = useRef(false);
   const settingsOpenedRef = useRef(false);
   const lastGeocodedLocationRef = useRef<string | null>(null);
@@ -247,8 +248,8 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
   );
 
   const getLocation = useCallback(
-    async (showErrorToast = true): Promise<boolean> => {
-      if (requestingRef.current) return false;
+    async (showErrorToast = true): Promise<LatLng | null> => {
+      if (locationRequestRef.current) return locationRequestRef.current;
 
       requestingRef.current = true;
       requestedAutomaticallyRef.current = true;
@@ -256,35 +257,42 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
       setLoading(true);
       setError(null);
 
+      const request = (async (): Promise<LatLng | null> => {
+        try {
+          const hasPermission =
+            await ensureForegroundPermission(
+              showErrorToast,
+            );
+
+          if (!hasPermission) return null;
+
+          return updateCurrentLocation();
+        } catch (err: unknown) {
+          const message = getErrorMessage(err);
+
+          appLogger.error('Erro ao obter localização:', err);
+          setError(message);
+
+          if (showErrorToast) {
+            Toast.show({
+              type: 'error',
+              text1: 'Erro de localização',
+              text2: message,
+            });
+          }
+
+          return null;
+        }
+      })();
+
+      locationRequestRef.current = request;
+
       try {
-        const hasPermission =
-          await ensureForegroundPermission(
-            showErrorToast,
-          );
-
-        if (!hasPermission) {
-          return false;
-        }
-
-        await updateCurrentLocation();
-        return true;
-      } catch (err: unknown) {
-        const message = getErrorMessage(err);
-
-        appLogger.error('Erro ao obter localização:', err);
-
-        setError(message);
-
-        if (showErrorToast) {
-          Toast.show({
-            type: 'error',
-            text1: 'Erro de localização',
-            text2: message,
-          });
-        }
-
-        return false;
+        return await request;
       } finally {
+        if (locationRequestRef.current === request) {
+          locationRequestRef.current = null;
+        }
         requestingRef.current = false;
         setLoading(false);
       }
@@ -310,7 +318,10 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
         );
       }
 
-      if (requestingRef.current) return null;
+      if (locationRequestRef.current) {
+        const coordinates = await locationRequestRef.current;
+        return coordinates ? updateCurrentCity(coordinates) : null;
+      }
 
       requestingRef.current = true;
       requestedAutomaticallyRef.current = true;

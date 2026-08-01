@@ -4,7 +4,9 @@ import React, {
   type PropsWithChildren,
   type SetStateAction,
   useContext,
+  useCallback,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -15,6 +17,18 @@ interface PontosContextValue {
   setPontos: Dispatch<
     SetStateAction<PontoInteresse[]>
   >;
+  solicitacaoNavegacao: SolicitacaoNavegacaoPonto | null;
+  solicitarNavegacao: (
+    ponto: PontoInteresse,
+    iniciarFluxo: boolean,
+  ) => void;
+  consumirSolicitacaoNavegacao: (id: number) => void;
+}
+
+export interface SolicitacaoNavegacaoPonto {
+  id: number;
+  ponto: PontoInteresse;
+  iniciarFluxo: boolean;
 }
 
 const PontosContext = createContext<
@@ -26,9 +40,42 @@ export function PontosProvider({
 }: PropsWithChildren): React.JSX.Element {
   const [pontos, setPontos] =
     useState<PontoInteresse[]>([]);
+  const [solicitacaoNavegacao, setSolicitacaoNavegacao] =
+    useState<SolicitacaoNavegacaoPonto | null>(null);
+  const sequenciaRef = useRef(0);
+
+  const solicitarNavegacao = useCallback(
+    (ponto: PontoInteresse, iniciarFluxo: boolean): void => {
+      sequenciaRef.current += 1;
+      setSolicitacaoNavegacao({
+        id: sequenciaRef.current,
+        ponto,
+        iniciarFluxo,
+      });
+    },
+    [],
+  );
+
+  const consumirSolicitacaoNavegacao = useCallback((id: number): void => {
+    setSolicitacaoNavegacao(current =>
+      current?.id === id ? null : current,
+    );
+  }, []);
+
   const value = useMemo(
-    () => ({pontos, setPontos}),
-    [pontos],
+    () => ({
+      pontos,
+      setPontos,
+      solicitacaoNavegacao,
+      solicitarNavegacao,
+      consumirSolicitacaoNavegacao,
+    }),
+    [
+      consumirSolicitacaoNavegacao,
+      pontos,
+      solicitacaoNavegacao,
+      solicitarNavegacao,
+    ],
   );
 
   return (

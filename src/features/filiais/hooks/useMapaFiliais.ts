@@ -15,6 +15,7 @@ import {
   areRegionsClose,
 } from '../../../shared/maps/clustering';
 import useFiliais from './useFiliais';
+import {useFiliaisContext} from '../FiliaisContext';
 import {
   DEFAULT_REGION,
   getRegion,
@@ -42,6 +43,10 @@ export default function useMapaFiliais() {
   const [visibleRegion, setVisibleRegion] =
     useState<Region | null>(null);
   const deferredSearch = useDeferredValue(search);
+  const {
+    solicitacaoPesquisaMapa,
+    consumirPesquisaMapa,
+  } = useFiliaisContext();
 
   const {
     filiais,
@@ -110,6 +115,14 @@ export default function useMapaFiliais() {
     },
     [focusRegion],
   );
+
+  /* Recebe pesquisas externas sem expor detalhes do mapa a outros módulos. */
+  useEffect(() => {
+    if (!solicitacaoPesquisaMapa) return;
+
+    setSearch(solicitacaoPesquisaMapa.termo);
+    consumirPesquisaMapa(solicitacaoPesquisaMapa.id);
+  }, [consumirPesquisaMapa, solicitacaoPesquisaMapa]);
 
   const handleMapReady = useCallback((): void => {
     setMapReady(true);

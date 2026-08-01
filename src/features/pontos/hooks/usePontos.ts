@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
+import type {AxiosInstance} from 'axios';
 
 import {useAuthContext} from '../../../core/auth/AuthContext';
 import {usePontosContext} from '../PontosContext';
@@ -16,10 +17,51 @@ import type {
 
 const PAGE_SIZE = 100;
 
+interface PendingPontosRequest {
+  token: string | null;
+  promise: Promise<PontoInteresse[]>;
+}
+
+let pendingPontosRequest: PendingPontosRequest | null = null;
+
+const fetchAllPontos = async (
+  conexao: AxiosInstance,
+): Promise<PontoInteresse[]> => {
+  const allPontos: PontoInteresse[] = [];
+  let currentPage = 1;
+  let totalPages = 1;
+
+  do {
+    const response = await conexao.get<StrapiListResponse<PontoInteresse>>(
+      '/pontos-interesses',
+      {
+        params: {
+          pagination: {
+            page: currentPage,
+            pageSize: PAGE_SIZE,
+          },
+        },
+      },
+    );
+    const {data, meta} = response.data;
+
+    allPontos.push(...data);
+    totalPages = meta.pagination.pageCount;
+    currentPage += 1;
+  } while (currentPage <= totalPages);
+
+  return allPontos;
+};
+
+interface UsePontosOptions {
+  loadOnMount?: boolean;
+}
+
 interface UsePontosReturn {
   pontos: PontoInteresse[];
   error: string | null;
   loading: boolean;
+  getPontos: () => Promise<PontoInteresse[] | null>;
   postPontos: (novoPonto: NovoPontoInput) => Promise<PontoInteresse>;
 }
 
@@ -33,9 +75,12 @@ const getErrorMessage = (error: unknown): string => {
   );
 };
 
-export default function usePontos(): UsePontosReturn {
+export default function usePontos(
+  options: UsePontosOptions = {},
+): UsePontosReturn {
+  const {loadOnMount = true} = options;
   const conexao = useStrapiClient();
-  const {user} = useAuthContext();
+  const {token, user} = useAuthContext();
   const {pontos, setPontos} = usePontosContext();
 
   const [error, setError] = useState<string | null>(null);
@@ -47,49 +92,54 @@ export default function usePontos(): UsePontosReturn {
    * recebe uma única atualização, em vez de remontar marcadores
    * depois de cada resposta da API.
    */
-  const getPontos = useCallback(async (): Promise<boolean> => {
-    if (requestingRef.current) return false;
+  const getPontos = useCallback(async (): Promise<PontoInteresse[] | null> => {
+    if (requestingRef.current) {
+      const requestEmAndamento = pendingPontosRequest;
+
+      if (requestEmAndamento?.token !== token) return null;
+
+      try {
+        return await requestEmAndamento.promise;
+      } catch {
+        return null;
+      }
+    }
 
     requestingRef.current = true;
     setLoading(true);
     setError(null);
 
-    const allPontos: PontoInteresse[] = [];
-    let currentPage = 1;
-    let totalPages = 1;
-
     try {
-      do {
-        const response =
-          await conexao.get<StrapiListResponse<PontoInteresse>>(
-            '/pontos-interesses',
-            {
-              params: {
-                pagination: {
-                  page: currentPage,
-                  pageSize: PAGE_SIZE,
-                },
-              },
-            },
-          );
+      if (!pendingPontosRequest || pendingPontosRequest.token !== token) {
+        const promise = fetchAllPontos(conexao);
+        const request = {token, promise};
 
-        const {data, meta} = response.data;
+        pendingPontosRequest = request;
+        void promise.then(
+          () => {
+            if (pendingPontosRequest === request) pendingPontosRequest = null;
+          },
+          () => {
+            if (pendingPontosRequest === request) pendingPontosRequest = null;
+          },
+        );
+      }
 
-        allPontos.push(...data);
-        totalPages = meta.pagination.pageCount;
-        currentPage += 1;
-      } while (currentPage <= totalPages);
+      const activeRequest = pendingPontosRequest;
+      if (!activeRequest) return null;
+
+      const allPontos = await activeRequest.promise;
 
       setPontos(allPontos);
-      return true;
+      return allPontos;
     } catch (requestError: unknown) {
       setError(getErrorMessage(requestError));
-      return false;
+      return null;
     } finally {
       requestingRef.current = false;
       setLoading(false);
     }
-  }, [conexao, setPontos]);
+  }, [conexao, setPontos, token]);
 
   const postPontos = useCallback(
     async (novoPontoInput: NovoPontoInput): Promise<PontoInteresse> => {
@@ -136,15 +186,16 @@ export default function usePontos(): UsePontosReturn {
   );
 
   useEffect(() => {
-    if (pontos.length > 0) return;
+    if (!loadOnMount || pontos.length > 0) return;
 
     void getPontos();
-  }, [getPontos, pontos.length]);
+  }, [getPontos, loadOnMount, pontos.length]);
 
   return {
     pontos,
     error,
     loading,
+    getPontos,
     postPontos,
   };
 }

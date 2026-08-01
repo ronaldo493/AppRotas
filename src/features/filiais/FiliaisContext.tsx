@@ -3,8 +3,10 @@ import React, {
   type Dispatch,
   type PropsWithChildren,
   type SetStateAction,
+  useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -15,6 +17,14 @@ interface FiliaisContextValue {
   setFiliais: Dispatch<
     SetStateAction<Filial[]>
   >;
+  solicitacaoPesquisaMapa: SolicitacaoPesquisaMapa | null;
+  solicitarPesquisaMapa: (termo: string) => void;
+  consumirPesquisaMapa: (id: number) => void;
+}
+
+export interface SolicitacaoPesquisaMapa {
+  id: number;
+  termo: string;
 }
 
 const FiliaisContext = createContext<
@@ -26,9 +36,36 @@ export function FiliaisProvider({
 }: PropsWithChildren): React.JSX.Element {
   const [filiais, setFiliais] =
     useState<Filial[]>([]);
+  const [solicitacaoPesquisaMapa, setSolicitacaoPesquisaMapa] =
+    useState<SolicitacaoPesquisaMapa | null>(null);
+  const sequenciaPesquisaRef = useRef(0);
+
+  const solicitarPesquisaMapa = useCallback((termo: string): void => {
+    sequenciaPesquisaRef.current += 1;
+    setSolicitacaoPesquisaMapa({
+      id: sequenciaPesquisaRef.current,
+      termo,
+    });
+  }, []);
+
+  const consumirPesquisaMapa = useCallback((id: number): void => {
+    setSolicitacaoPesquisaMapa(current => current?.id === id ? null : current);
+  }, []);
+
   const value = useMemo(
-    () => ({filiais, setFiliais}),
-    [filiais],
+    () => ({
+      filiais,
+      setFiliais,
+      solicitacaoPesquisaMapa,
+      solicitarPesquisaMapa,
+      consumirPesquisaMapa,
+    }),
+    [
+      consumirPesquisaMapa,
+      filiais,
+      solicitacaoPesquisaMapa,
+      solicitarPesquisaMapa,
+    ],
   );
 
   return (

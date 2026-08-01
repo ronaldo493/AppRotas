@@ -24,7 +24,7 @@ interface UseFiliaisReturn {
   filiais: Filial[];
   error: string | null;
   loading: boolean;
-  getFiliais: (showErrorToast?: boolean) => Promise<boolean>;
+  getFiliais: (showErrorToast?: boolean) => Promise<Filial[] | null>;
 }
 
 const getErrorMessage = (error: unknown): string => {
@@ -82,8 +82,18 @@ export default function useFiliais(): UseFiliaisReturn {
    */
   const requestingRef = useRef(false);
 
-  const getFiliais = useCallback(async (showErrorToast = true): Promise<boolean> => {
-      if (requestingRef.current)  return false;
+  const getFiliais = useCallback(async (showErrorToast = true): Promise<Filial[] | null> => {
+      if (requestingRef.current) {
+        const requestEmAndamento = pendingFiliaisRequest;
+
+        if (requestEmAndamento?.token !== token) return null;
+
+        try {
+          return await requestEmAndamento.promise;
+        } catch {
+          return null;
+        }
+      }
 
       requestingRef.current = true;
       setLoading(true);
@@ -112,13 +122,13 @@ export default function useFiliais(): UseFiliaisReturn {
 
         const activeRequest = pendingFiliaisRequest;
 
-        if (!activeRequest) return false;
+        if (!activeRequest) return null;
 
         const allFiliais = await activeRequest.promise;
 
         setFiliais(allFiliais);
 
-        return true;
+        return allFiliais;
       } catch (err: unknown) {
         const strapiError = err as StrapiRequestError;
 
@@ -139,7 +149,7 @@ export default function useFiliais(): UseFiliaisReturn {
           });
         }
 
-        return false;
+        return null;
       } finally {
         requestingRef.current = false;
         setLoading(false);

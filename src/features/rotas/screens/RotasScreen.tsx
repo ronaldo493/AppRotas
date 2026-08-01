@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState,} from 'react';
+import React, {useCallback, useEffect, useRef, useState,} from 'react';
 import { Text, TouchableOpacity, View,} from 'react-native';
 import { Button, Dialog, Portal,} from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -10,11 +10,11 @@ import useNavegacaoMonitorada from '../../execucaoRota/hooks/useNavegacaoMonitor
 import {definirFluxoMonitoramentoRota} from '../../execucaoRota/useCases/definirFluxoMonitoramentoRota';
 import FilialSearch from '../../filiais/components/FilialSearch';
 import type {Filial} from '../../filiais/models/Filial';
-import SugestaoFab from '../../sugestoes/components/SugestaoFab';
 import type {PlanejamentoExecucaoRota} from '../../execucaoRota/models/ExecucaoRota';
 import RouteList from '../components/RouteList';
 import RoutePreviewModal from '../components/RoutePreviewModal';
 import type {RoutePreview} from '../models/RoutePreview';
+import {useRotasContext} from '../RotasContext';
 import HomeStyles from './rotasScreen.styles';
 
 type NavigatorType = 'google' | 'waze';
@@ -38,7 +38,12 @@ export default function RotasScreen(): React.JSX.Element {
     currentLocation
   } = useLocation();
 
-  const [routes, setRoutes] = useState<Filial[]>([]);
+  const {
+    rotas: routes,
+    setRotas: setRoutes,
+    solicitacaoTracadoId,
+  } = useRotasContext();
+  const solicitacaoTratadaRef = useRef(0);
   const [hasSearchResult, setHasSearchResult] = useState(false);
   const [routePreviewVisible, setRoutePreviewVisible] =
     useState(false);
@@ -121,7 +126,7 @@ export default function RotasScreen(): React.JSX.Element {
     });
   };
 
-  const handleTraceRoute = async (): Promise<void> => {
+  const handleTraceRoute = useCallback(async (): Promise<void> => {
     if (processando) return;
 
     if (execucaoAtiva) {
@@ -151,7 +156,27 @@ export default function RotasScreen(): React.JSX.Element {
     }
 
     setNavigatorDialogVisible(true);
-  };
+  }, [
+    execucaoAtiva,
+    hasRoutes,
+    processando,
+    verificarMonitoramento,
+  ]);
+
+  useEffect(() => {
+    if (
+      solicitacaoTracadoId === 0 ||
+      solicitacaoTratadaRef.current >= solicitacaoTracadoId
+    ) {
+      return;
+    }
+
+    solicitacaoTratadaRef.current = solicitacaoTracadoId;
+
+    if (hasRoutes) {
+      void handleTraceRoute();
+    }
+  }, [handleTraceRoute, hasRoutes, solicitacaoTracadoId]);
 
   /**
    * A prévia é somente consulta. A escolha do navegador acontece depois que
@@ -435,8 +460,6 @@ export default function RotasScreen(): React.JSX.Element {
         onStartWithoutPreview={handleStartWithoutPreview}
         onRequestLocation={handleLocationAction}
       />
-
-      <SugestaoFab />
     </View>
   );
 }

@@ -15,6 +15,7 @@ Documentação técnica desta camada:
 
 - [Arquitetura e módulos](./docs/ARQUITETURA_E_MODULOS.md)
 - [Contrato detalhado do monitoramento](./docs/STRAPI_MONITORAMENTO_ROTAS.md)
+- [Módulo opcional da assistente](./src/features/assistente/README.md)
 - [Regras integradas do sistema](../docs/SISTEMA_E_REGRAS.md)
 
 ## Funcionalidades
@@ -24,6 +25,8 @@ Documentação técnica desta camada:
 - Menus dinâmicos por cargo e setor, carregados do Strapi.
 - Registro de sessão com usuário, setor e cidade de origem.
 - Busca, ordenação e navegação por rotas entre filiais.
+- Assistente global opcional, controlada pelo Strapi, com interpretação local
+  de comandos e fallback automático para a bolinha de sugestões.
 - Abertura de rotas no Google Maps e no Waze.
 - Registro de percursos iniciados pelo usuário, com GPS em segundo plano,
   conclusão automática, execução parcial, fila SQLite por colaborador,
@@ -366,7 +369,19 @@ o usuário apenas escolhe entre Maps e Waze. Se a configuração não puder ser
 lida, o aplicativo reutiliza a última decisão confirmada pelo servidor. Apenas
 uma instalação sem decisão anterior utiliza o modo externo como contingência.
 
-No papel `Authenticated`, libere apenas a ação `find` desse single type.
+O mesmo single type possui `assistenteVozAtivo`, Boolean obrigatório com padrão
+`false`. `true` mostra a assistente global; `false` ou ausência do campo mantém
+a bolinha de sugestões. A permissão do microfone só é solicitada quando o
+usuário tenta falar.
+
+O campo `assistenteIaAtiva`, também Boolean obrigatório e padrão `false`,
+habilita somente o fallback online para frases que a árvore local não
+reconhecer. Ele não tem efeito com `assistenteVozAtivo = false`. A chave do
+provedor permanece exclusivamente no Strapi e todo comando sugerido pela IA é
+validado novamente pelo executor local antes de qualquer ação.
+
+No papel `Authenticated`, libere `Configuracao-app > find`. Se usar o fallback
+online, libere também `Assistente-ia > interpretar`.
 
 ### `execucoes-rotas` e `segmentos-execucao-rota`
 

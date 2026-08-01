@@ -16,6 +16,7 @@ import type {
   DrawerParamList,
   RootStackParamList,
 } from './navigationTypes';
+import GlobalSupportAction from '../components/GlobalSupportAction';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -64,20 +65,24 @@ export default function MainStackNavigator() {
   useMenuAccessSync();
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen 
-        name="MainDrawer" 
-        component={DrawerLayout} 
-      />
+    <>
+      <Stack.Navigator screenOptions={{headerShown: false}}>
+        <Stack.Screen
+          name="MainDrawer"
+          component={DrawerLayout}
+        />
 
-      <Stack.Screen
-        name="PatrimonioRegistro"
-        component={PatrimonioFormScreen}
-        options={{
-          headerShown: true,
-          title: 'Registro de patrimônio',
-        }}
-      />
-    </Stack.Navigator>
+        <Stack.Screen
+          name="PatrimonioRegistro"
+          component={PatrimonioFormScreen}
+          options={{
+            headerShown: true,
+            title: 'Registro de patrimônio',
+          }}
+        />
+      </Stack.Navigator>
+
+      <GlobalSupportAction />
+    </>
   );
 }

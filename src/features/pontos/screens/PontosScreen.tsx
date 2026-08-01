@@ -39,6 +39,7 @@ import NavigationAppDialog from '../../rotas/components/NavigationAppDialog';
 import RoutePreviewModal from '../../rotas/components/RoutePreviewModal';
 import type {RoutePreview} from '../../rotas/models/RoutePreview';
 import usePontos from '../hooks/usePontos';
+import {usePontosContext} from '../PontosContext';
 import {identificarCidadePonto} from '../useCases/identificarCidadePonto';
 import type {
   CategoriaPonto,
@@ -67,12 +68,31 @@ const getPontoCoordinate = (ponto: PontoMapa): LatLng =>
 const getPontoKey = (ponto: PontoMapa): string =>
   ponto.uniqueKey;
 
+const criarRotaPonto = (
+  ponto: PontoInteresse | null,
+  cidadeAtual: string | null,
+): Filial[] =>
+  ponto
+    ? [{
+        codigofilial: ponto.id ?? 0,
+        nomefilial: ponto.descricao,
+        nomecidade:
+          ponto.cidadePonto ?? cidadeAtual ?? 'Não informado',
+        latitude: ponto.latitude,
+        longitude: ponto.longitude,
+      }]
+    : [];
+
 export default function PontosScreen(): React.JSX.Element {
   const theme = useAppTheme();
   const {width, height} = useWindowDimensions();
   const mapRef = useRef<MapView | null>(null);
 
   const { pontos, loading, error, postPontos } = usePontos();
+  const {
+    solicitacaoNavegacao,
+    consumirSolicitacaoNavegacao,
+  } = usePontosContext();
   const {
     execucaoAtiva,
     processando,
@@ -127,21 +147,7 @@ export default function PontosScreen(): React.JSX.Element {
     return currentLocation ? getCoordinates(currentLocation) : null;
   }, [currentLocation]);
   const previewPointRoute = useMemo<Filial[]>(
-    () =>
-      navigationPoint
-        ? [{
-            codigofilial:
-              navigationPoint.id ?? 0,
-            nomefilial:
-              navigationPoint.descricao,
-            nomecidade:
-              navigationPoint.cidadePonto ??
-              currentCity ??
-              'Não informado',
-            latitude: navigationPoint.latitude,
-            longitude: navigationPoint.longitude,
-          }]
-        : [],
+    () => criarRotaPonto(navigationPoint, currentCity),
     [currentCity, navigationPoint],
   );
 
@@ -476,10 +482,12 @@ export default function PontosScreen(): React.JSX.Element {
    * Só solicita a prévia quando o registro estiver habilitado. No modo
    * externo, segue diretamente para a escolha entre Maps e Waze.
    */
-  const handleTracePointRoute =
-    async (): Promise<void> => {
+  const handleTracePointRoute = useCallback(
+    async (ponto: PontoInteresse | null = navigationPoint): Promise<void> => {
+      const rotaSolicitada = criarRotaPonto(ponto, currentCity);
+
       if (
-        previewPointRoute.length === 0 ||
+        rotaSolicitada.length === 0 ||
         processando ||
         execucaoAtiva
       ) {
@@ -506,7 +514,52 @@ export default function PontosScreen(): React.JSX.Element {
       }
 
       setNavigatorDialogVisible(true);
-    };
+    },
+    [
+      currentCity,
+      execucaoAtiva,
+      navigationPoint,
+      processando,
+      verificarMonitoramento,
+    ],
+  );
+
+  useEffect(() => {
+    if (!solicitacaoNavegacao) return;
+
+    const pontoSolicitado = pontosValidos.find(ponto => {
+      const solicitado = solicitacaoNavegacao.ponto;
+
+      if (solicitado.documentId && ponto.documentId) {
+        return solicitado.documentId === ponto.documentId;
+      }
+
+      return solicitado.id !== undefined && solicitado.id === ponto.id;
+    });
+
+    consumirSolicitacaoNavegacao(solicitacaoNavegacao.id);
+
+    if (!pontoSolicitado) return;
+
+    setNavigationPoint(pontoSolicitado);
+    mapRef.current?.animateToRegion(
+      {
+        ...pontoSolicitado.coordinate,
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.015,
+      },
+      450,
+    );
+
+    if (solicitacaoNavegacao.iniciarFluxo) {
+      void handleTracePointRoute(pontoSolicitado);
+    }
+  }, [
+    consumirSolicitacaoNavegacao,
+    handleTracePointRoute,
+    pontosValidos,
+    solicitacaoNavegacao,
+  ]);
 
   const handleStartPreviewedRoute = (
     preview: RoutePreview,

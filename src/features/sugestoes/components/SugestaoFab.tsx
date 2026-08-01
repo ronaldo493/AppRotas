@@ -38,6 +38,12 @@ interface OpcaoButtonProps extends OpcaoSugestao {
   onPress: () => void;
 }
 
+interface SugestaoFabProps {
+  showButton?: boolean;
+  visible?: boolean;
+  onVisibleChange?: (visible: boolean) => void;
+}
+
 const opcoes: OpcaoSugestao[] = [
   {
     tipo: 'SUGESTAO',
@@ -98,7 +104,11 @@ const OpcaoButton = memo(function OpcaoButton({
   );
 });
 
-export default function SugestaoFab(): React.JSX.Element {
+export default function SugestaoFab({
+  showButton = true,
+  visible: controlledVisible,
+  onVisibleChange,
+}: SugestaoFabProps): React.JSX.Element {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
@@ -107,13 +117,22 @@ export default function SugestaoFab(): React.JSX.Element {
   const {panHandlers, transform} =
     usePosicaoSugestao(SUGESTAO_POSITION_KEY);
 
-  const [visible, setVisible] = useState(false);
+  const [internalVisible, setInternalVisible] = useState(false);
   const [tipo, setTipo] = useState<SugestaoTipo>('SUGESTAO');
   const [mensagem, setMensagem] = useState('');
 
+  const visible = controlledVisible ?? internalVisible;
   const mensagemValida = mensagem.trim().length >= 5;
 
   const envioDesabilitado = loading || !mensagemValida;
+
+  const setVisible = (nextVisible: boolean): void => {
+    if (controlledVisible === undefined) {
+      setInternalVisible(nextVisible);
+    }
+
+    onVisibleChange?.(nextVisible);
+  };
 
   const handleClose = (): void => {
     if (loading)   return;
@@ -154,30 +173,32 @@ export default function SugestaoFab(): React.JSX.Element {
 
   return (
     <>
-      <Animated.View
-        {...panHandlers}
-        style={[ styles.fabContainer, { bottom: 94 + insets.bottom, transform }]}
-      >
-        <TouchableOpacity
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Enviar sugestão"
-          onPress={() => setVisible(true)}
-          style={[
-            styles.fab,
-            {
-              backgroundColor: colors.buttonBackground,
-              shadowColor: colors.shadow,
-            },
-          ]}
+      {showButton ? (
+        <Animated.View
+          {...panHandlers}
+          style={[ styles.fabContainer, { bottom: 94 + insets.bottom, transform }]}
         >
-          <MaterialIcons
-            name="feedback"
-            size={23}
-            color={colors.buttonForeground}
-          />
-        </TouchableOpacity>
-      </Animated.View>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Enviar sugestão"
+            onPress={() => setVisible(true)}
+            style={[
+              styles.fab,
+              {
+                backgroundColor: colors.buttonBackground,
+                shadowColor: colors.shadow,
+              },
+            ]}
+          >
+            <MaterialIcons
+              name="feedback"
+              size={23}
+              color={colors.buttonForeground}
+            />
+          </TouchableOpacity>
+        </Animated.View>
+      ) : null}
 
       <Modal
         visible={visible}

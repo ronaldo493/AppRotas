@@ -1,0 +1,190 @@
+import {StyleSheet} from 'react-native';
+
+const styles = StyleSheet.create({
+  fabContainer: {
+    position: 'absolute',
+    right: 14,
+    top: '54%',
+    zIndex: 50,
+    elevation: 12,
+  },
+  fab: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 26,
+    borderWidth: 1,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.22,
+    shadowRadius: 7,
+    elevation: 8,
+  },
+  modalRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
+  },
+  panel: {
+    width: '100%',
+    maxHeight: '84%',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    overflow: 'hidden',
+  },
+  handle: {
+    width: 38,
+    height: 4,
+    alignSelf: 'center',
+    marginTop: 8,
+    borderRadius: 2,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
+  headerIcon: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 19,
+  },
+  headerText: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  title: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
+  subtitle: {
+    marginTop: 1,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  closeButton: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scroll: {
+    flexShrink: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+  },
+  heardLabel: {
+    marginBottom: 4,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  transcript: {
+    marginBottom: 10,
+    fontSize: 13,
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
+  responseCard: {
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  responseRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  responseText: {
+    flex: 1,
+    marginLeft: 9,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  sectionTitle: {
+    marginTop: 16,
+    marginBottom: 8,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  chipsScroll: {
+    marginHorizontal: -16,
+  },
+  chips: {
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  chip: {
+    flexShrink: 0,
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 11,
+    borderWidth: 1,
+    borderRadius: 19,
+  },
+  chipText: {
+    marginLeft: 6,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  voicePreference: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  voicePreferenceText: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  voicePreferenceTitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
+  voicePreferenceDescription: {
+    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  microphoneArea: {
+    alignItems: 'center',
+    paddingTop: 18,
+  },
+  microphoneButton: {
+    width: 64,
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 32,
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  microphoneHint: {
+    marginTop: 7,
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+});
+
+export default styles;

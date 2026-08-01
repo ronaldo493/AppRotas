@@ -313,6 +313,26 @@ registra ambientes e equipamentos, persiste `patrimonio.json` com debounce de
 300 ms e compartilha por WhatsApp. Não depende do Strapi e não entra em
 `AppDataProviders`.
 
+### 9.12 `assistente`
+
+Módulo opcional controlado por `configuracao-app.assistenteVozAtivo`. O
+componente `GlobalSupportAction` é o único ponto de composição: monta a
+assistente quando a flag é `true` e `SugestaoFab` nos demais casos.
+
+Reconhecimento, resposta falada, preferências e árvore de intenções ficam
+encapsulados na feature. A permissão do microfone é solicitada somente ao tocar
+no controle de voz. Rotas e pontos são delegados aos contratos públicos dos
+respectivos domínios e percorrem os mesmos handlers das telas.
+
+O coordenador distribui filiais, pontos/GPS, contatos, histórico e chamados
+para hooks em `features/assistente/handlers`. Nenhuma tela importa a feature.
+Quando `assistenteIaAtiva` está ligada, apenas frases não reconhecidas usam
+`assistenteIaApi`; a resposta canônica retorna à árvore local e não possui
+autoridade para navegar ou consultar dados diretamente.
+
+O procedimento de remoção está em
+[`src/features/assistente/README.md`](../src/features/assistente/README.md).
+
 ## 10. Tema e renderização
 
 Todas as telas devem usar `useAppTheme` e cores semânticas. Não fixe branco ou
