@@ -1,21 +1,41 @@
 import type {AxiosInstance} from 'axios';
 
-import type {MenuRecord} from '../models/MenuRecord';
+import type {MenuItem} from '../../../core/menu/Menu';
 
 interface MenuCollectionResponse {
   data?: unknown;
 }
 
-const isMenuRecord = (value: unknown): value is MenuRecord =>
-  typeof value === 'object' && value !== null;
+const isMenuItem = (value: unknown): value is MenuItem => {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const menu = value as Partial<MenuItem>;
+
+  return (
+    typeof menu.titulo === 'string'
+    && menu.titulo.trim().length > 0
+    && typeof menu.rota === 'string'
+    && menu.rota.trim().length > 0
+    && menu.ativo === true
+    && typeof menu.ordem === 'number'
+    && Number.isFinite(menu.ordem)
+    && (
+      menu.icone === null
+      || typeof menu.icone === 'string'
+    )
+  );
+};
 
 /**
- * Consulta no Strapi os menus e seus setores relacionados. Uma resposta fora
- * do contrato gera erro para que os acessos locais existentes sejam mantidos.
+ * Consulta os menus já autorizados pelo Strapi para o usuário do JWT. Uma
+ * resposta fora do contrato preserva os acessos locais existentes.
  */
-export async function buscarMenus(client: AxiosInstance, jwt: string): Promise<MenuRecord[]> {
+export async function buscarMenusPermitidos(
+  client: AxiosInstance,
+  jwt: string,
+): Promise<MenuItem[]> {
   const response = await client.get<MenuCollectionResponse>(
-    '/menus?populate=setors',
+    '/menus/me',
     {
       headers: {
         Authorization: `Bearer ${jwt}`,
@@ -27,5 +47,9 @@ export async function buscarMenus(client: AxiosInstance, jwt: string): Promise<M
     throw new Error('O Strapi retornou uma coleção de menus inválida.');
   }
 
-  return response.data.data.filter(isMenuRecord);
+  if (!response.data.data.every(isMenuItem)) {
+    throw new Error('O Strapi retornou menus fora do contrato esperado.');
+  }
+
+  return response.data.data;
 }

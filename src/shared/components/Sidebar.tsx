@@ -1,7 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { DrawerContentComponentProps } from '@react-navigation/drawer';
-import React from 'react';
+import React, {useState} from 'react';
 import {
+  ActivityIndicator,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -19,6 +20,7 @@ function Sidebar({
 }: DrawerContentComponentProps): React.JSX.Element {
   const { isDarkMode, toggleTheme } = useThemeContext();
   const { clearToken, user } = useAuthContext();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -34,8 +36,16 @@ function Sidebar({
     void toggleTheme();
   };
 
-  const handleLogout = (): void => {
-    void clearToken();
+  const handleLogout = async (): Promise<void> => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
+    try {
+      await clearToken();
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   const handleNavigate = (route: string): void => {
@@ -211,7 +221,10 @@ function Sidebar({
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={handleLogout}
+          onPress={() => {
+            void handleLogout();
+          }}
+          disabled={loggingOut}
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel="Sair do aplicativo"
@@ -223,14 +236,21 @@ function Sidebar({
             },
           ]}
         >
-          <MaterialIcons
-            name="logout"
-            size={21}
-            color={theme.colors.onSurfaceVariant}
-          />
+          {loggingOut ? (
+            <ActivityIndicator
+              size="small"
+              color={theme.colors.onSurfaceVariant}
+            />
+          ) : (
+            <MaterialIcons
+              name="logout"
+              size={21}
+              color={theme.colors.onSurfaceVariant}
+            />
+          )}
 
           <Text style={[ styles.logoffText,{ color: theme.colors.onSurfaceVariant }]}>
-            SAIR
+            {loggingOut ? 'SAINDO...' : 'SAIR'}
           </Text>
         </TouchableOpacity>
       </View>

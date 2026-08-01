@@ -6,7 +6,7 @@ export type BottomTabParamList = {[Route in MenuRouteName]: undefined} & {Mais: 
 
 export type RootStackParamList = {
   MainDrawer: undefined;
-  Patrimonio: {
+  PatrimonioRegistro: {
     filial: string;
     option: TipoServico;
   };

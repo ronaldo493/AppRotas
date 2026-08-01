@@ -514,6 +514,11 @@ segundo plano e apenas abre Maps ou Waze. A consulta da configuração ocorre no
 momento de traçar a rota, permitindo desligar o recurso sem publicar outra
 versão.
 
+A última decisão obtida com sucesso é persistida no aparelho. Se o Strapi ficar
+indisponível e a decisão conhecida for `true`, o aplicativo inicia o registro
+local sem exigir a prévia da Routes API. Uma instalação sem decisão anterior
+permanece no modo externo até conseguir consultar o servidor.
+
 A prévia válida também é enviada em `planejamento` para
 `POST /execucoes-rotas/iniciar`. O backend usa esses dados somente como
 planejamento; chegadas, duração real, distância percorrida e desvios continuam

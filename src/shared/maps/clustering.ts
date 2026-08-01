@@ -5,7 +5,7 @@ import type {LatLng, Region} from 'react-native-maps';
  * O raio é medido em pixels do tile. O índice deixa de agrupar no zoom 18
  * para permitir a seleção individual de pontos muito próximos.
  */
-const DEFAULT_CLUSTER_RADIUS = 32;
+const DEFAULT_CLUSTER_RADIUS = 0; //PARA MELHROAR DESEMPENHO DO MAPA, AUMENTE (POR ENQUANTO DEIXAREI 0 POIS NÃO ESTÁ LENTO)
 const DEFAULT_MAX_CLUSTER_ZOOM = 18;
 
 /*

@@ -14,6 +14,7 @@ import AppNavigation from '../navigation/AppNavigation';
 import {createAppTheme} from '../../core/theme/appTheme';
 import AppDataProviders from './AppDataProviders';
 import LocalizacaoRotaGuard from '../../features/execucaoRota/components/LocalizacaoRotaGuard';
+import ForcedPasswordChangeGate from '../../core/auth/forcedPasswordChange/components/ForcedPasswordChangeGate';
 
 function AppWithTheme() {
   const { isDarkMode } = useThemeContext();
@@ -25,12 +26,16 @@ function AppWithTheme() {
 
   return (
     <PaperProvider theme={theme}>
-      <LocationProvider>
-        <AppVersionChecker />
-        <AppNavigation />
-        <LocalizacaoRotaGuard />
-        <AppToast />
-      </LocationProvider>
+      <ForcedPasswordChangeGate>
+        <AppDataProviders>
+          <LocationProvider>
+            <AppVersionChecker />
+            <AppNavigation />
+            <LocalizacaoRotaGuard />
+          </LocationProvider>
+        </AppDataProviders>
+      </ForcedPasswordChangeGate>
+      <AppToast />
     </PaperProvider>
   );
 }
@@ -38,11 +43,9 @@ function AppWithTheme() {
 export default function AppProviders() {
   return (
     <AuthProvider>
-      <AppDataProviders>
-        <ThemeProvider>
-          <AppWithTheme />
-        </ThemeProvider>
-      </AppDataProviders>
+      <ThemeProvider>
+        <AppWithTheme />
+      </ThemeProvider>
     </AuthProvider>
   );
 }

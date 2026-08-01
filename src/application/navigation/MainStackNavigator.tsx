@@ -71,7 +71,7 @@ export default function MainStackNavigator() {
       />
 
       <Stack.Screen
-        name="Patrimonio"
+        name="PatrimonioRegistro"
         component={PatrimonioFormScreen}
         options={{
           headerShown: true,

@@ -5,6 +5,7 @@ import {
 import React, {useState} from 'react';
 import {
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ScrollView,
   Text,
@@ -13,6 +14,7 @@ import {
 } from 'react-native';
 import {Button, TextInput} from 'react-native-paper';
 
+import type {RootStackParamList} from '../../../application/navigation/navigationTypes';
 import {useAppTheme} from '../../../core/theme/appTheme';
 import PreventivaChecklist from '../components/PreventivaChecklist';
 import SelectField from '../components/SelectField';
@@ -21,13 +23,6 @@ import SelectionSheet, {
 } from '../components/SelectionSheet';
 import type {TipoServico} from '../models/Patrimonio';
 import styles from './patrimonioEntryScreen.styles';
-
-type PatrimonioNavigation = {
-  Patrimonio: {
-    filial: string;
-    option: TipoServico;
-  };
-};
 
 const SERVICE_OPTIONS: Array<SelectionOption & {value: TipoServico}> = [
   {value: 'PREVENTIVA', label: 'Preventiva'},
@@ -43,7 +38,7 @@ const SERVICE_OPTIONS: Array<SelectionOption & {value: TipoServico}> = [
  */
 export default function PatrimonioEntryScreen(): React.JSX.Element {
   const theme = useAppTheme();
-  const navigation = useNavigation<NavigationProp<PatrimonioNavigation>>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [filial, setFilial] = useState('');
   const [serviceType, setServiceType] = useState<TipoServico | null>(null);
   const [serviceSheetVisible, setServiceSheetVisible] = useState(false);
@@ -53,9 +48,14 @@ export default function PatrimonioEntryScreen(): React.JSX.Element {
 
   const selectedServiceLabel =
     SERVICE_OPTIONS.find(option => option.value === serviceType)?.label ?? null;
+  const normalizedStore = filial.trim();
+
+  const openServiceSelection = (): void => {
+    Keyboard.dismiss();
+    setServiceSheetVisible(true);
+  };
 
   const startRegistration = (): void => {
-    const normalizedStore = filial.trim();
     const missingStore = !normalizedStore;
     const missingService = !serviceType;
 
@@ -64,7 +64,8 @@ export default function PatrimonioEntryScreen(): React.JSX.Element {
 
     if (missingStore || missingService || !serviceType) return;
 
-    navigation.navigate('Patrimonio', {
+    Keyboard.dismiss();
+    navigation.navigate('PatrimonioRegistro', {
       filial: normalizedStore,
       option: serviceType,
     });
@@ -116,7 +117,7 @@ export default function PatrimonioEntryScreen(): React.JSX.Element {
               setFilial(value.replace(/\D/g, ''));
               setFilialError(null);
             }}
-            onSubmitEditing={() => setServiceSheetVisible(true)}
+            onSubmitEditing={openServiceSelection}
           />
 
           {filialError ? (
@@ -131,7 +132,7 @@ export default function PatrimonioEntryScreen(): React.JSX.Element {
               value={selectedServiceLabel}
               placeholder="Selecione o serviço realizado"
               error={Boolean(serviceError)}
-              onPress={() => setServiceSheetVisible(true)}
+              onPress={openServiceSelection}
             />
           </View>
 

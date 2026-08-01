@@ -17,21 +17,24 @@ export default StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   input: {
     flex: 1,
+    height: 50,
     backgroundColor: 'transparent',
   },
   scanButton: {
+    width: 72,
+    height: 42,
     borderRadius: 10,
   },
   scanButtonContent: {
-    minHeight: 47,
-    paddingHorizontal: 3,
+    height: 40,
+    paddingHorizontal: 0,
   },
   scanButtonLabel: {
-    marginHorizontal: 8,
-    fontSize: 11,
+    marginHorizontal: 0,
+    fontSize: 12,
   },
 });

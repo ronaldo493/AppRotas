@@ -16,6 +16,7 @@ import { AppState, type AppStateStatus} from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import {appLogger} from '../../shared/logging/appLogger';
+import {prepareSessionTermination} from './sessionTerminationCoordinator';
 import type {MenuItem} from '../menu/Menu';
 
 const TOKEN_STORAGE_KEY = 'userToken';
@@ -32,6 +33,7 @@ export interface AuthUser {
   username?: string;
   email?: string;
   emailSec?: string | null;
+  deveAlterarSenha?: boolean;
   confirmed?: boolean;
   blocked?: boolean;
   setor?: string | null;
@@ -182,6 +184,7 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
   const clearToken = useCallback(
     async (): Promise<void> => {
         try {
+        await prepareSessionTermination();
         await AsyncStorage.multiRemove([
             TOKEN_STORAGE_KEY,
             USER_STORAGE_KEY,

@@ -5,23 +5,21 @@ import {type AuthUser} from '../../../core/auth/AuthContext';
 import type {MenuItem} from '../../../core/menu/Menu';
 import {appLogger} from '../../../shared/logging/appLogger';
 import {markMenuAccessLoaded} from '../services/menuAccessCache';
-import {buscarMenus} from '../services/menuService';
-import {filtrarMenusPermitidos} from '../useCases/filtrarMenusPermitidos';
+import {buscarMenusPermitidos} from '../services/menuService';
 
 interface UserWithMenus extends AuthUser {
   menus: MenuItem[];
 }
 
 /**
- * Integra o fluxo de menus com React: consulta o Strapi, aplica as regras de
- * acesso e acrescenta os menus permitidos ao usuário autenticado.
+ * Integra o fluxo de menus com React: consulta no Strapi os acessos já
+ * autorizados e os acrescenta ao usuário autenticado.
  */
 export default function useAuthMenus() {
   const client = useStrapiClient();
 
   const loadAllowedMenus = useCallback(async (jwt: string, user: AuthUser): Promise<MenuItem[]> => {
-    const records = await buscarMenus(client, jwt);
-    const menus = filtrarMenusPermitidos(records, user);
+    const menus = await buscarMenusPermitidos(client, jwt);
 
     markMenuAccessLoaded(user);
 

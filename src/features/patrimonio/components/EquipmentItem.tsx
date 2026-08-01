@@ -89,13 +89,15 @@ function EquipmentItem({
         <Button
           compact
           mode="outlined"
+          hitSlop={4}
+          accessibilityLabel={`Ler patrimônio de ${label}`}
           textColor={theme.colors.primary}
           style={styles.scanButton}
           contentStyle={styles.scanButtonContent}
           labelStyle={styles.scanButtonLabel}
           onPress={() => onRequestScan(sectionTitle, item, normalizedField)}
         >
-          Ler etiqueta
+          Ler
         </Button>
       </View>
     </View>

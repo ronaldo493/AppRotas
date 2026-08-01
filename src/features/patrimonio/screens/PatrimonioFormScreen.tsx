@@ -8,6 +8,7 @@ import {Button, Dialog, Portal} from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 
 import {useAppTheme} from '../../../core/theme/appTheme';
+import type {RootStackParamList} from '../../../application/navigation/navigationTypes';
 import {appLogger} from '../../../shared/logging/appLogger';
 import AddSectionSheet from '../components/AddSectionSheet';
 import EquipmentSection from '../components/EquipmentSection';
@@ -32,13 +33,6 @@ import {
   sharePatrimonioReport,
 } from '../services/patrimonioReportService';
 import styles from './patrimonioFormScreen.styles';
-
-type PatrimonioRoutes = {
-  Patrimonio: {
-    filial: string;
-    option: TipoServico;
-  };
-};
 
 const SECTION_TYPES: TipoSecao[] = [
   'CAIXA',
@@ -77,7 +71,9 @@ const EMPTY_SECTION_FIELDS: Record<string, CampoPatrimonio> = {};
  */
 export default function PatrimonioFormScreen(): React.JSX.Element {
   const theme = useAppTheme();
-  const {params} = useRoute<RouteProp<PatrimonioRoutes, 'Patrimonio'>>();
+  const {params} = useRoute<
+    RouteProp<RootStackParamList, 'PatrimonioRegistro'>
+  >();
   const [equipmentSection, setEquipmentSection] = useState<string | null>(null);
   const [modelTarget, setModelTarget] = useState<FieldTarget | null>(null);
   const [scanTarget, setScanTarget] = useState<FieldTarget | null>(null);
@@ -225,9 +221,11 @@ export default function PatrimonioFormScreen(): React.JSX.Element {
         </View>
       </View>
 
-      <Text style={[styles.title, {color: theme.colors.onBackground}]}>Equipamentos</Text>
+      <Text style={[styles.title, {color: theme.colors.onBackground}]}>
+        Ambiente e equipamentos
+      </Text>
       <Text style={[styles.description, {color: theme.colors.onSurfaceVariant}]}>
-        Escolha o ambiente e informe o patrimônio de cada equipamento.
+        Selecione o ambiente e informe o patrimônio dos equipamentos instalados.
       </Text>
 
       <ScrollView

@@ -16,8 +16,10 @@ associados ao mesmo registro.
 
 ## Fluxo de dados
 
-1. `PatrimonioEntryScreen` recebe a filial e o tipo de serviço.
-2. `PatrimonioFormScreen` coordena a seleção do ambiente e os painéis de inclusão.
+1. O menu técnico `Patrimonio` abre `PatrimonioEntryScreen`, onde o usuário
+   informa a filial e o tipo de serviço.
+2. A rota interna `PatrimonioRegistro` abre `PatrimonioFormScreen`, que recebe
+   os dados selecionados e coordena os ambientes e equipamentos.
 3. `usePatrimonioForm` mantém todos os campos controlados e solicita a
    persistência após cada alteração.
 4. `createPatrimonioReport` converte o estado da tela no formato legado.

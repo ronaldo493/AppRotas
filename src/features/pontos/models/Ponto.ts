@@ -13,6 +13,8 @@ export interface PontoInteresse {
    * Opcional na leitura para aceitar registros antigos.
    */
   usernameCriador?: string;
+  cidadePonto?: string;
+  setorCriador?: string;
 }
 
 export interface NovoPonto {
@@ -21,7 +23,9 @@ export interface NovoPonto {
   descricao: string;
   categoria: CategoriaPonto;
   usernameCriador: string;
+  cidadePonto: string;
+  setorCriador: string;
 }
 
 export type NovoPontoInput =
-  Omit<NovoPonto, 'usernameCriador'>;
+  Omit<NovoPonto, 'usernameCriador' | 'setorCriador'>;

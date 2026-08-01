@@ -1,5 +1,3 @@
-import * as SQLite from 'expo-sqlite';
-
 import {
   STATUS_EXECUCAO_ROTA,
   type ExecucaoRota,
@@ -17,71 +15,20 @@ import {
   processarProgressoVisitasDestinos,
   type ProgressoVisitaDestinoRota,
 } from '../useCases/confirmarVisitasDestinos';
-
-const DATABASE_NAME = 'drogal-route-monitoring.db';
-const TRACKING_POINT_RETENTION_DAYS = 7;
-const EXECUTION_RETENTION_DAYS = 30;
-
-interface ExecucaoRotaRow {
-  session_id: string;
-  owner_key: string;
-  user_id: number | null;
-  user_document_id: string | null;
-  username: string;
-  sector: string;
-  status: string;
-  navigator: string;
-  started_at: string;
-  finished_at: string | null;
-  origin_city: string | null;
-  origin_latitude: number;
-  origin_longitude: number;
-  destinations_json: string;
-  planned_polyline: string | null;
-  planned_distance_meters: number | null;
-  planned_duration_seconds: number | null;
-  finish_reason: string | null;
-  last_location_at: string | null;
-  app_version: string | null;
-  server_document_id: string | null;
-  start_synced: number;
-  finish_synced: number;
-  summary_json: string | null;
-}
-
-interface PontoRastreamentoRow {
-  id: number;
-  session_id: string;
-  sequence_number: number;
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
-  speed: number | null;
-  heading: number | null;
-  recorded_at: string;
-  synced: number;
-}
-
-interface ProgressoDestinoRow {
-  destination_code: number;
-  destination_order: number;
-  consecutive_points: number;
-  first_point_at: string | null;
-  last_point_at: string | null;
-  confirmed_at: string | null;
-  visit_order: number | null;
-  confirmation_latitude: number | null;
-  confirmation_longitude: number | null;
-  confirmation_distance_meters: number | null;
-}
-
-interface OcorrenciaLocalizacaoRow {
-  id: number;
-  event_type: TipoOcorrenciaLocalizacao;
-  detected_at: string;
-  restored_at: string | null;
-  duration_seconds: number | null;
-}
+import {
+  EXECUTION_RETENTION_DAYS,
+  openRouteDatabase as openDatabase,
+  TRACKING_POINT_RETENTION_DAYS,
+} from './execucaoRotaDatabaseConnection';
+import {
+  mapExecutionRow,
+  mapPointRow,
+  type ExecucaoRotaRow,
+  type OcorrenciaLocalizacaoRow,
+  type PontoRastreamentoRow,
+  type ProgressoDestinoRow,
+} from './execucaoRotaDatabaseMappers';
+import {runRouteDatabaseWrite} from './execucaoRotaDatabaseWriteQueue';
 
 export interface ResultadoAdicaoPontosRastreamento {
   codigoSessao: string | null;
@@ -89,192 +36,6 @@ export interface ResultadoAdicaoPontosRastreamento {
   pontos: PontoRastreamento[];
 }
 
-let databasePromise:
-  | Promise<SQLite.SQLiteDatabase>
-  | null = null;
-
-const parseJson = <T>(
-  value: string | null,
-  fallback: T,
-): T => {
-  if (!value) return fallback;
-
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-};
-
-const mapExecutionRow = (
-  row: ExecucaoRotaRow,
-): ExecucaoRota => ({
-  codigoSessao: row.session_id,
-  ownerKey: row.owner_key,
-  usuarioId: row.user_id,
-  usuarioDocumentId: row.user_document_id,
-  username: row.username,
-  setor: row.sector,
-  status: row.status as ExecucaoRota['status'],
-  navegador: row.navigator as ExecucaoRota['navegador'],
-  iniciadaEm: row.started_at,
-  finalizadaEm: row.finished_at,
-  cidadeOrigem: row.origin_city,
-  origem: {
-    latitude: row.origin_latitude,
-    longitude: row.origin_longitude,
-  },
-  destinos: parseJson(row.destinations_json, []),
-  trajetoPlanejado: row.planned_polyline,
-  distanciaPlanejadaMetros:
-    row.planned_distance_meters,
-  duracaoPlanejadaSegundos:
-    row.planned_duration_seconds,
-  motivoFinalizacao:
-    row.finish_reason as
-      | ExecucaoRota['motivoFinalizacao']
-      | null,
-  ultimaLocalizacaoEm: row.last_location_at,
-  versaoAplicativo: row.app_version,
-  servidorDocumentId: row.server_document_id,
-  inicioSincronizado: row.start_synced === 1,
-  finalizacaoSincronizada:
-    row.finish_synced === 1,
-  resumo: parseJson<ResumoExecucaoRota | null>(
-    row.summary_json,
-    null,
-  ),
-});
-
-const mapPointRow = (
-  row: PontoRastreamentoRow,
-): PontoRastreamento => ({
-  id: row.id,
-  codigoSessao: row.session_id,
-  sequencia: row.sequence_number,
-  latitude: row.latitude,
-  longitude: row.longitude,
-  precisao: row.accuracy,
-  velocidade: row.speed,
-  direcao: row.heading,
-  registradoEm: row.recorded_at,
-  sincronizado: row.synced === 1,
-});
-
-async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (!databasePromise) {
-    databasePromise = (async () => {
-      const database = await SQLite.openDatabaseAsync(
-        DATABASE_NAME,
-      );
-
-      await database.execAsync(`
-        PRAGMA journal_mode = WAL;
-        PRAGMA foreign_keys = ON;
-
-        CREATE TABLE IF NOT EXISTS route_executions (
-          session_id TEXT PRIMARY KEY NOT NULL,
-          owner_key TEXT NOT NULL,
-          user_id INTEGER,
-          user_document_id TEXT,
-          username TEXT NOT NULL,
-          sector TEXT NOT NULL,
-          status TEXT NOT NULL,
-          navigator TEXT NOT NULL,
-          started_at TEXT NOT NULL,
-          finished_at TEXT,
-          origin_city TEXT,
-          origin_latitude REAL NOT NULL,
-          origin_longitude REAL NOT NULL,
-          destinations_json TEXT NOT NULL,
-          planned_polyline TEXT,
-          planned_distance_meters REAL,
-          planned_duration_seconds INTEGER,
-          finish_reason TEXT,
-          last_location_at TEXT,
-          app_version TEXT,
-          server_document_id TEXT,
-          start_synced INTEGER NOT NULL DEFAULT 0,
-          finish_synced INTEGER NOT NULL DEFAULT 0,
-          summary_json TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS route_tracking_points (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          session_id TEXT NOT NULL,
-          sequence_number INTEGER NOT NULL,
-          latitude REAL NOT NULL,
-          longitude REAL NOT NULL,
-          accuracy REAL,
-          speed REAL,
-          heading REAL,
-          recorded_at TEXT NOT NULL,
-          synced INTEGER NOT NULL DEFAULT 0,
-          FOREIGN KEY (session_id)
-            REFERENCES route_executions(session_id)
-            ON DELETE CASCADE,
-          UNIQUE(session_id, recorded_at, latitude, longitude)
-        );
-
-        CREATE TABLE IF NOT EXISTS route_destination_progress (
-          session_id TEXT NOT NULL,
-          destination_code INTEGER NOT NULL,
-          destination_order INTEGER NOT NULL,
-          consecutive_points INTEGER NOT NULL DEFAULT 0,
-          first_point_at TEXT,
-          last_point_at TEXT,
-          confirmed_at TEXT,
-          visit_order INTEGER,
-          confirmation_latitude REAL,
-          confirmation_longitude REAL,
-          confirmation_distance_meters REAL,
-          PRIMARY KEY (session_id, destination_order),
-          FOREIGN KEY (session_id)
-            REFERENCES route_executions(session_id)
-            ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS route_location_events (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          session_id TEXT NOT NULL,
-          event_type TEXT NOT NULL,
-          detected_at TEXT NOT NULL,
-          restored_at TEXT,
-          duration_seconds INTEGER,
-          FOREIGN KEY (session_id)
-            REFERENCES route_executions(session_id)
-            ON DELETE CASCADE
-        );
-
-        CREATE INDEX IF NOT EXISTS
-          idx_route_executions_owner_status
-          ON route_executions(owner_key, status);
-
-        CREATE UNIQUE INDEX IF NOT EXISTS
-          idx_route_executions_single_active
-          ON route_executions(status)
-          WHERE status = 'em_andamento';
-
-        CREATE INDEX IF NOT EXISTS
-          idx_route_tracking_points_pending
-          ON route_tracking_points(session_id, synced, sequence_number);
-
-        CREATE INDEX IF NOT EXISTS
-          idx_route_location_events_session
-          ON route_location_events(session_id, restored_at);
-
-        PRAGMA user_version = 2;
-      `);
-
-      return database;
-    })().catch((error: unknown) => {
-      databasePromise = null;
-      throw error;
-    });
-  }
-
-  return databasePromise;
-}
 
 /**
  * Inicializa o banco antecipadamente para que falhas sejam percebidas antes
@@ -294,8 +55,10 @@ export async function salvarExecucaoRota(
 ): Promise<void> {
   const database = await openDatabase();
 
-  await database.runAsync(
-    `
+  await runRouteDatabaseWrite(async () => {
+    await database.withExclusiveTransactionAsync(async transaction => {
+      await transaction.runAsync(
+        `
       INSERT INTO route_executions (
         session_id,
         owner_key,
@@ -347,50 +110,48 @@ export async function salvarExecucaoRota(
         $finishSynced,
         $summaryJson
       )
-    `,
-    {
-      $sessionId: execution.codigoSessao,
-      $ownerKey: execution.ownerKey,
-      $userId: execution.usuarioId,
-      $userDocumentId:
-        execution.usuarioDocumentId,
-      $username: execution.username,
-      $sector: execution.setor,
-      $status: execution.status,
-      $navigator: execution.navegador,
-      $startedAt: execution.iniciadaEm,
-      $finishedAt: execution.finalizadaEm,
-      $originCity: execution.cidadeOrigem,
-      $originLatitude: execution.origem.latitude,
-      $originLongitude: execution.origem.longitude,
-      $destinationsJson: JSON.stringify(
-        execution.destinos,
-      ),
-      $plannedPolyline:
-        execution.trajetoPlanejado,
-      $plannedDistanceMeters:
-        execution.distanciaPlanejadaMetros,
-      $plannedDurationSeconds:
-        execution.duracaoPlanejadaSegundos,
-      $finishReason:
-        execution.motivoFinalizacao,
-      $lastLocationAt:
-        execution.ultimaLocalizacaoEm,
-      $appVersion: execution.versaoAplicativo,
-      $serverDocumentId:
-        execution.servidorDocumentId,
-      $startSynced:
-        execution.inicioSincronizado ? 1 : 0,
-      $finishSynced:
-        execution.finalizacaoSincronizada ? 1 : 0,
-      $summaryJson: execution.resumo
-        ? JSON.stringify(execution.resumo)
-        : null,
-    },
-  );
+        `,
+        {
+          $sessionId: execution.codigoSessao,
+          $ownerKey: execution.ownerKey,
+          $userId: execution.usuarioId,
+          $userDocumentId:
+            execution.usuarioDocumentId,
+          $username: execution.username,
+          $sector: execution.setor,
+          $status: execution.status,
+          $navigator: execution.navegador,
+          $startedAt: execution.iniciadaEm,
+          $finishedAt: execution.finalizadaEm,
+          $originCity: execution.cidadeOrigem,
+          $originLatitude: execution.origem.latitude,
+          $originLongitude: execution.origem.longitude,
+          $destinationsJson: JSON.stringify(
+            execution.destinos,
+          ),
+          $plannedPolyline:
+            execution.trajetoPlanejado,
+          $plannedDistanceMeters:
+            execution.distanciaPlanejadaMetros,
+          $plannedDurationSeconds:
+            execution.duracaoPlanejadaSegundos,
+          $finishReason:
+            execution.motivoFinalizacao,
+          $lastLocationAt:
+            execution.ultimaLocalizacaoEm,
+          $appVersion: execution.versaoAplicativo,
+          $serverDocumentId:
+            execution.servidorDocumentId,
+          $startSynced:
+            execution.inicioSincronizado ? 1 : 0,
+          $finishSynced:
+            execution.finalizacaoSincronizada ? 1 : 0,
+          $summaryJson: execution.resumo
+            ? JSON.stringify(execution.resumo)
+            : null,
+        },
+      );
 
-  await database.withExclusiveTransactionAsync(
-    async transaction => {
       for (const destination of execution.destinos) {
         await transaction.runAsync(
           `
@@ -405,8 +166,8 @@ export async function salvarExecucaoRota(
           destination.ordem,
         );
       }
-    },
-  );
+    });
+  });
 }
 
 export async function obterExecucaoRota(
@@ -454,8 +215,9 @@ export async function atualizarPlanejamentoExecucaoRota(
 ): Promise<void> {
   const database = await openDatabase();
 
-  await database.runAsync(
-    `
+  await runRouteDatabaseWrite(() =>
+    database.runAsync(
+      `
       UPDATE route_executions
       SET
         server_document_id = ?,
@@ -464,12 +226,13 @@ export async function atualizarPlanejamentoExecucaoRota(
         planned_duration_seconds = ?,
         start_synced = 1
       WHERE session_id = ?
-    `,
-    planning.servidorDocumentId,
-    planning.trajetoPlanejado,
-    planning.distanciaPlanejadaMetros,
-    planning.duracaoPlanejadaSegundos,
-    codigoSessao,
+      `,
+      planning.servidorDocumentId,
+      planning.trajetoPlanejado,
+      planning.distanciaPlanejadaMetros,
+      planning.duracaoPlanejadaSegundos,
+      codigoSessao,
+    ),
   );
 }
 
@@ -493,8 +256,8 @@ export async function adicionarPontosRastreamento(
   let activeSessionId: string | null = null;
   const insertedPoints: PontoRastreamento[] = [];
 
-  await database.withExclusiveTransactionAsync(
-    async transaction => {
+  await runRouteDatabaseWrite(() =>
+    database.withExclusiveTransactionAsync(async transaction => {
       const activeExecution =
         await transaction.getFirstAsync<{
           session_id: string;
@@ -582,7 +345,7 @@ export async function adicionarPontosRastreamento(
           activeExecution.session_id,
         );
       }
-    },
+    }),
   );
 
   return {
@@ -646,8 +409,8 @@ export async function atualizarProgressoDestinos(
 
   let confirmedVisits: VisitaDestinoRota[] = [];
 
-  await database.withExclusiveTransactionAsync(
-    async transaction => {
+  await runRouteDatabaseWrite(() =>
+    database.withExclusiveTransactionAsync(async transaction => {
       for (const destination of execution.destinos) {
         await transaction.runAsync(
           `
@@ -729,7 +492,7 @@ export async function atualizarProgressoDestinos(
             first.ordemVisita -
             second.ordemVisita,
         );
-    },
+    }),
   );
 
   return confirmedVisits;
@@ -746,8 +509,8 @@ export async function registrarIndisponibilidadeLocalizacao(
 ): Promise<void> {
   const database = await openDatabase();
 
-  await database.withExclusiveTransactionAsync(
-    async transaction => {
+  await runRouteDatabaseWrite(() =>
+    database.withExclusiveTransactionAsync(async transaction => {
       const openEvent =
         await transaction.getFirstAsync<OcorrenciaLocalizacaoRow>(
           `
@@ -799,7 +562,7 @@ export async function registrarIndisponibilidadeLocalizacao(
         tipo,
         detectadaEm,
       );
-    },
+    }),
   );
 }
 
@@ -808,38 +571,43 @@ export async function normalizarLocalizacaoExecucao(
   normalizadaEm = new Date().toISOString(),
 ): Promise<void> {
   const database = await openDatabase();
-  const openEvents =
-    await database.getAllAsync<OcorrenciaLocalizacaoRow>(
-      `
-        SELECT *
-        FROM route_location_events
-        WHERE session_id = ?
-          AND restored_at IS NULL
-      `,
-      codigoSessao,
-    );
 
-  for (const event of openEvents) {
-    const durationSeconds = Math.max(
-      0,
-      Math.round(
-        (new Date(normalizadaEm).getTime() -
-          new Date(event.detected_at).getTime()) /
-          1_000,
-      ),
-    );
+  await runRouteDatabaseWrite(() =>
+    database.withExclusiveTransactionAsync(async transaction => {
+      const openEvents =
+        await transaction.getAllAsync<OcorrenciaLocalizacaoRow>(
+          `
+            SELECT *
+            FROM route_location_events
+            WHERE session_id = ?
+              AND restored_at IS NULL
+          `,
+          codigoSessao,
+        );
 
-    await database.runAsync(
-      `
-        UPDATE route_location_events
-        SET restored_at = ?, duration_seconds = ?
-        WHERE id = ?
-      `,
-      normalizadaEm,
-      durationSeconds,
-      event.id,
-    );
-  }
+      for (const event of openEvents) {
+        const durationSeconds = Math.max(
+          0,
+          Math.round(
+            (new Date(normalizadaEm).getTime() -
+              new Date(event.detected_at).getTime()) /
+              1_000,
+          ),
+        );
+
+        await transaction.runAsync(
+          `
+            UPDATE route_location_events
+            SET restored_at = ?, duration_seconds = ?
+            WHERE id = ?
+          `,
+          normalizadaEm,
+          durationSeconds,
+          event.id,
+        );
+      }
+    }),
+  );
 }
 
 export async function listarOcorrenciasLocalizacao(
@@ -904,13 +672,15 @@ export async function marcarPontosComoSincronizados(
   const database = await openDatabase();
   const placeholders = pointIds.map(() => '?').join(',');
 
-  await database.runAsync(
-    `
+  await runRouteDatabaseWrite(() =>
+    database.runAsync(
+      `
       UPDATE route_tracking_points
       SET synced = 1
       WHERE id IN (${placeholders})
-    `,
-    [...pointIds],
+      `,
+      [...pointIds],
+    ),
   );
 }
 
@@ -926,8 +696,9 @@ export async function finalizarExecucaoRotaLocal(
 ): Promise<void> {
   const database = await openDatabase();
 
-  await database.runAsync(
-    `
+  await runRouteDatabaseWrite(() =>
+    database.runAsync(
+      `
       UPDATE route_executions
       SET
         status = ?,
@@ -937,13 +708,14 @@ export async function finalizarExecucaoRotaLocal(
         finish_synced = 0
       WHERE session_id = ?
         AND status = ?
-    `,
-    status,
-    finalizadaEm,
-    motivo,
-    JSON.stringify(resumo),
-    codigoSessao,
-    STATUS_EXECUCAO_ROTA.EM_ANDAMENTO,
+      `,
+      status,
+      finalizadaEm,
+      motivo,
+      JSON.stringify(resumo),
+      codigoSessao,
+      STATUS_EXECUCAO_ROTA.EM_ANDAMENTO,
+    ),
   );
 }
 
@@ -953,14 +725,16 @@ export async function salvarResumoExecucaoRota(
 ): Promise<void> {
   const database = await openDatabase();
 
-  await database.runAsync(
-    `
+  await runRouteDatabaseWrite(() =>
+    database.runAsync(
+      `
       UPDATE route_executions
       SET summary_json = ?
       WHERE session_id = ?
-    `,
-    JSON.stringify(resumo),
-    codigoSessao,
+      `,
+      JSON.stringify(resumo),
+      codigoSessao,
+    ),
   );
 }
 
@@ -969,13 +743,15 @@ export async function marcarFinalizacaoSincronizada(
 ): Promise<void> {
   const database = await openDatabase();
 
-  await database.runAsync(
-    `
+  await runRouteDatabaseWrite(() =>
+    database.runAsync(
+      `
       UPDATE route_executions
       SET finish_synced = 1
       WHERE session_id = ?
-    `,
-    codigoSessao,
+      `,
+      codigoSessao,
+    ),
   );
 }
 
@@ -1040,8 +816,8 @@ export async function limparDadosSincronizadosExecucaoRota(
         1_000,
   ).toISOString();
 
-  await database.withExclusiveTransactionAsync(
-    async transaction => {
+  await runRouteDatabaseWrite(async () => {
+    await database.withExclusiveTransactionAsync(async transaction => {
       await transaction.runAsync(
         `
           DELETE FROM route_tracking_points
@@ -1082,8 +858,8 @@ export async function limparDadosSincronizadosExecucaoRota(
         STATUS_EXECUCAO_ROTA.EM_ANDAMENTO,
         executionCutoff,
       );
-    },
-  );
+    });
 
-  await database.execAsync('PRAGMA optimize;');
+    await database.execAsync('PRAGMA optimize;');
+  });
 }

@@ -57,6 +57,13 @@ function EquipmentSection({
     () => [...items, ...selectedItems],
     [items, selectedItems],
   );
+  const completedCount = useMemo(
+    () =>
+      equipment.filter(item =>
+        Boolean(fields[item.label]?.patrimonio.trim()),
+      ).length,
+    [equipment, fields],
+  );
 
   return (
     <View
@@ -69,7 +76,13 @@ function EquipmentSection({
         <View style={styles.headerText}>
           <Text style={[styles.title, {color: theme.colors.onSurface}]}>{title}</Text>
           <Text style={[styles.caption, {color: theme.colors.onSurfaceVariant}]}>
-            {equipment.length} {equipment.length === 1 ? 'equipamento' : 'equipamentos'}
+            {completedCount > 0
+              ? `${completedCount} de ${equipment.length} preenchidos`
+              : `${equipment.length} ${
+                  equipment.length === 1
+                    ? 'equipamento'
+                    : 'equipamentos'
+                }`}
           </Text>
         </View>
 

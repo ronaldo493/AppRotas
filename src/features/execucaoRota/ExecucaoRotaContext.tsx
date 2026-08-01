@@ -1,4 +1,3 @@
-import Constants from 'expo-constants';
 import React, {
   createContext,
   useCallback,
@@ -18,19 +17,20 @@ import {
 
 import useStrapiClient from '../../core/api/strapiClient';
 import {useAuthContext} from '../../core/auth/AuthContext';
+import {registerSessionTerminationPreparation} from '../../core/auth/sessionTerminationCoordinator';
 import {appLogger} from '../../shared/logging/appLogger';
-import type {Filial} from '../filiais/models/Filial';
 import {
   MOTIVO_FINALIZACAO_ROTA,
   STATUS_EXECUCAO_ROTA,
   type ExecucaoRota,
-  type DestinoExecucaoRota,
   type MotivoFinalizacaoRota,
-  type NavegadorRota,
-  type PlanejamentoExecucaoRota,
-  type TipoDestinoRota,
-  type TipoOcorrenciaLocalizacao,
 } from './models/ExecucaoRota';
+import type {
+  ExecucaoRotaContextValue,
+  IniciarExecucaoRotaInput,
+  PermissaoRastreamentoNegada,
+  ResultadoInicioExecucaoRota,
+} from './models/ExecucaoRotaContext';
 import {
   converterLocalizacaoEmPonto,
   iniciarRastreamentoLocalizacao,
@@ -38,9 +38,9 @@ import {
   pararRastreamentoLocalizacao,
   solicitarPermissoesRastreamento,
   verificarDisponibilidadeRastreamento,
-  type ResultadoPermissaoRastreamento,
 } from './services/backgroundLocationTask';
 import {criarExecucaoRotaApi} from './services/execucaoRotaApi';
+import {obterConfiguracaoMonitoramentoRota} from './services/configuracaoMonitoramentoRotaApi';
 import {
   adicionarPontosRastreamento,
   finalizarExecucaoRotaLocal,
@@ -61,143 +61,19 @@ import {calcularMetricasExecucaoRota} from './useCases/calcularMetricasExecucaoR
 import {converterFiliaisEmDestinos} from './useCases/converterDestinosRota';
 import {registrarPontosExecucaoRota} from './useCases/registrarPontosExecucaoRota';
 import {sincronizarExecucoesRota} from './useCases/sincronizarExecucoesRota';
+import {
+  criarExecucaoRotaLocal,
+  mapearMotivoPermissaoParaOcorrencia,
+  obterMensagemPermissaoRastreamento as obterMensagemPermissao,
+} from './useCases/prepararExecucaoRota';
 
-interface IniciarExecucaoRotaInput {
-  rotas: readonly Filial[];
-  navegador: NavegadorRota;
-  cidadeOrigem: string | null;
-  tipoDestino?: TipoDestinoRota;
-  planejamento?: PlanejamentoExecucaoRota;
-}
-
-export type ResultadoInicioExecucaoRota =
-  | {status: 'iniciada'; execucao: ExecucaoRota}
-  | {status: 'ja_existe'; execucao: ExecucaoRota}
-  | {
-      status: 'permissao_negada';
-      permissao: Exclude<
-        ResultadoPermissaoRastreamento,
-        {concedida: true}
-      >;
-    }
-  | {
-      status:
-        | 'usuario_nao_identificado'
-        | 'destino_invalido'
-        | 'erro';
-      mensagem: string;
-    };
-
-interface ExecucaoRotaContextValue {
-  execucaoAtiva: ExecucaoRota | null;
-  inicializando: boolean;
-  iniciando: boolean;
-  finalizando: boolean;
-  indisponibilidadeLocalizacao:
-    | Exclude<
-        ResultadoPermissaoRastreamento,
-        {concedida: true}
-      >
-    | null;
-  verificandoLocalizacao: boolean;
-  iniciarExecucao: (
-    input: IniciarExecucaoRotaInput,
-  ) => Promise<ResultadoInicioExecucaoRota>;
-  cancelarPorFalhaAoAbrirNavegador: (
-    codigoSessao: string,
-  ) => Promise<void>;
-  interromperExecucao: () => Promise<void>;
-  abrirConfiguracoesLocalizacao: () => Promise<void>;
-  verificarLocalizacao: () => Promise<void>;
-  sincronizar: () => Promise<void>;
-}
+export type {ResultadoInicioExecucaoRota} from './models/ExecucaoRotaContext';
 
 const ExecucaoRotaContext =
   createContext<ExecucaoRotaContextValue | null>(
     null,
   );
 
-const createSessionCode = (): string =>
-  [
-    'rota',
-    Date.now().toString(36),
-    Math.random().toString(36).slice(2, 10),
-  ].join('-');
-
-const getPermissionMessage = (
-  permission: Exclude<
-    ResultadoPermissaoRastreamento,
-    {concedida: true}
-  >,
-): string => {
-  switch (permission.motivo) {
-    case 'servico_indisponivel':
-      return 'O registro do percurso em segundo plano não está disponível nesta instalação. Use uma nova build do aplicativo.';
-    case 'localizacao_desativada':
-      return 'Ative a localização do aparelho antes de iniciar a viagem.';
-    case 'primeiro_plano_negado':
-      return 'Permita o acesso à localização para iniciar a viagem.';
-    case 'segundo_plano_negado':
-      return 'Permita a localização o tempo todo para registrar o percurso com Maps ou Waze aberto.';
-  }
-};
-
-const mapPermissionReasonToEvent = (
-  permission: Exclude<
-    ResultadoPermissaoRastreamento,
-    {concedida: true}
-  >,
-): TipoOcorrenciaLocalizacao | null => {
-  switch (permission.motivo) {
-    case 'localizacao_desativada':
-      return 'localizacao_desativada';
-    case 'primeiro_plano_negado':
-      return 'permissao_primeiro_plano_revogada';
-    case 'segundo_plano_negado':
-      return 'permissao_segundo_plano_revogada';
-    case 'servico_indisponivel':
-      return null;
-  }
-};
-
-const createExecution = (
-  input: IniciarExecucaoRotaInput,
-  owner: ExecucaoRotaOwner,
-  origin: {latitude: number; longitude: number},
-  destinations: DestinoExecucaoRota[],
-): ExecucaoRota => ({
-  codigoSessao: createSessionCode(),
-  ownerKey: owner.key,
-  usuarioId: owner.usuarioId,
-  usuarioDocumentId:
-    owner.usuarioDocumentId,
-  username: owner.username,
-  setor: owner.setor,
-  status: STATUS_EXECUCAO_ROTA.EM_ANDAMENTO,
-  navegador: input.navegador,
-  iniciadaEm: new Date().toISOString(),
-  finalizadaEm: null,
-  cidadeOrigem: input.cidadeOrigem,
-  origem: origin,
-  destinos: destinations,
-  trajetoPlanejado:
-    input.planejamento?.trajetoPlanejado ?? null,
-  distanciaPlanejadaMetros:
-    input.planejamento
-      ?.distanciaPlanejadaMetros ?? null,
-  duracaoPlanejadaSegundos:
-    input.planejamento
-      ?.duracaoPlanejadaSegundos ?? null,
-  motivoFinalizacao: null,
-  ultimaLocalizacaoEm: null,
-  versaoAplicativo:
-    Constants.expoConfig?.version ?? null,
-  servidorDocumentId:
-    input.planejamento?.servidorDocumentId ?? null,
-  inicioSincronizado: false,
-  finalizacaoSincronizada: false,
-  resumo: null,
-});
 
 export function ExecucaoRotaProvider({
   children,
@@ -228,13 +104,7 @@ export function ExecucaoRotaProvider({
   const [
     indisponibilidadeLocalizacao,
     setIndisponibilidadeLocalizacao,
-  ] = useState<
-    | Exclude<
-        ResultadoPermissaoRastreamento,
-        {concedida: true}
-      >
-    | null
-  >(null);
+  ] = useState<PermissaoRastreamentoNegada | null>(null);
   const [
     verificandoLocalizacao,
     setVerificandoLocalizacao,
@@ -247,6 +117,9 @@ export function ExecucaoRotaProvider({
       string,
       {running: boolean; requested: boolean}
     >(),
+  );
+  const synchronizationRetryRef = useRef(
+    new Map<string, {falhas: number; proximaTentativaEm: number}>(),
   );
   const currentOwnerKeyRef = useRef<string | null>(
     owner?.key ?? null,
@@ -261,10 +134,16 @@ export function ExecucaoRotaProvider({
     async (
       executionOwner: ExecucaoRotaOwner,
     ): Promise<void> => {
-      await sincronizarExecucoesRota(
+      const result = await sincronizarExecucoesRota(
         executionOwner.key,
         api,
       );
+
+      if (result.falhas > 0) {
+        throw new Error(
+          `${result.falhas} execução(ões) permanecem pendentes.`,
+        );
+      }
 
       if (
         currentOwnerKeyRef.current !==
@@ -286,6 +165,17 @@ export function ExecucaoRotaProvider({
 
   const scheduleSynchronization = useCallback(
     (executionOwner: ExecucaoRotaOwner): void => {
+      const retry = synchronizationRetryRef.current.get(
+        executionOwner.key,
+      );
+
+      if (
+        retry &&
+        retry.proximaTentativaEm > Date.now()
+      ) {
+        return;
+      }
+
       const states =
         synchronizationStateRef.current;
       const state = states.get(
@@ -307,6 +197,9 @@ export function ExecucaoRotaProvider({
           do {
             state.requested = false;
             await synchronizeOwner(executionOwner);
+            synchronizationRetryRef.current.delete(
+              executionOwner.key,
+            );
 
           /*
            * Se uma finalização ocorreu enquanto a sincronização inicial
@@ -314,6 +207,26 @@ export function ExecucaoRotaProvider({
            */
           } while (state.requested);
         } catch (error: unknown) {
+          const previous =
+            synchronizationRetryRef.current.get(
+              executionOwner.key,
+            );
+          const failures = Math.min(
+            (previous?.falhas ?? 0) + 1,
+            6,
+          );
+          const delay = Math.min(
+            60_000 * 2 ** (failures - 1),
+            15 * 60_000,
+          );
+
+          synchronizationRetryRef.current.set(
+            executionOwner.key,
+            {
+              falhas: failures,
+              proximaTentativaEm: Date.now() + delay,
+            },
+          );
           appLogger.warn(
             'A sincronização das execuções será tentada novamente:',
             error instanceof Error
@@ -464,7 +377,7 @@ export function ExecucaoRotaProvider({
 
         if (!availability.concedida) {
           const eventType =
-            mapPermissionReasonToEvent(availability);
+            mapearMotivoPermissaoParaOcorrencia(availability);
 
           if (eventType) {
             await registrarIndisponibilidadeLocalizacao(
@@ -492,6 +405,11 @@ export function ExecucaoRotaProvider({
             error,
           );
         }
+      } catch (error: unknown) {
+        appLogger.warn(
+          'Não foi possível verificar o estado da localização:',
+          error,
+        );
       } finally {
         checkingLocationRef.current = false;
         setVerificandoLocalizacao(false);
@@ -515,8 +433,15 @@ export function ExecucaoRotaProvider({
         }
 
         await Linking.openSettings();
-      } catch {
-        await Linking.openSettings();
+      } catch (error: unknown) {
+        try {
+          await Linking.openSettings();
+        } catch (fallbackError: unknown) {
+          appLogger.warn(
+            'Não foi possível abrir as configurações de localização:',
+            fallbackError ?? error,
+          );
+        }
       }
     }, [indisponibilidadeLocalizacao?.motivo]);
 
@@ -577,6 +502,13 @@ export function ExecucaoRotaProvider({
   ]);
 
   useEffect(() => {
+    if (!owner) return;
+
+    /* Antecipamos a consulta para disponibilizar a decisão em modo offline. */
+    void obterConfiguracaoMonitoramentoRota(client);
+  }, [client, owner]);
+
+  useEffect(() => {
     const handleAppStateChange = (
       state: AppStateStatus,
     ): void => {
@@ -596,6 +528,18 @@ export function ExecucaoRotaProvider({
     scheduleSynchronization,
     verificarLocalizacao,
   ]);
+
+  useEffect(() => {
+    if (!owner) return undefined;
+
+    const interval = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        scheduleSynchronization(owner);
+      }
+    }, 60_000);
+
+    return () => clearInterval(interval);
+  }, [owner, scheduleSynchronization]);
 
   useEffect(() => {
     if (!execucaoAtiva) return;
@@ -629,22 +573,22 @@ export function ExecucaoRotaProvider({
         };
       }
 
-      const existingExecution =
-        await obterExecucaoRotaAtiva();
-
-      if (existingExecution) {
-        setExecucaoAtiva(existingExecution);
-
-        return {
-          status: 'ja_existe',
-          execucao: existingExecution,
-        };
-      }
-
       startingRef.current = true;
       setIniciando(true);
 
       try {
+        const existingExecution =
+          await obterExecucaoRotaAtiva();
+
+        if (existingExecution) {
+          setExecucaoAtiva(existingExecution);
+
+          return {
+            status: 'ja_existe',
+            execucao: existingExecution,
+          };
+        }
+
         const destinations =
           converterFiliaisEmDestinos(
             input.rotas,
@@ -672,7 +616,7 @@ export function ExecucaoRotaProvider({
           converterLocalizacaoEmPonto(
             initialLocation,
           );
-        const execution = createExecution(
+        const execution = criarExecucaoRotaLocal(
           input,
           owner,
           {
@@ -749,16 +693,27 @@ export function ExecucaoRotaProvider({
         | typeof STATUS_EXECUCAO_ROTA.CANCELADA
         | typeof STATUS_EXECUCAO_ROTA.INTERROMPIDA,
       reason: MotivoFinalizacaoRota,
-    ): Promise<void> => {
-      const currentExecution =
-        execucaoAtiva ??
-        (await obterExecucaoRotaAtiva());
+      captureFinalPoint = true,
+    ): Promise<boolean> => {
+      let currentExecution: ExecucaoRota | null;
+
+      try {
+        currentExecution =
+          execucaoAtiva ??
+          (await obterExecucaoRotaAtiva());
+      } catch (error: unknown) {
+        appLogger.error(
+          'Não foi possível localizar a execução ativa:',
+          error,
+        );
+        return false;
+      }
 
       if (
         !currentExecution ||
         finalizingRef.current
       ) {
-        return;
+        return false;
       }
 
       finalizingRef.current = true;
@@ -769,6 +724,7 @@ export function ExecucaoRotaProvider({
           currentExecution,
           status,
           reason,
+          captureFinalPoint,
         );
         setExecucaoAtiva(null);
         setIndisponibilidadeLocalizacao(null);
@@ -776,6 +732,13 @@ export function ExecucaoRotaProvider({
         if (owner) {
           scheduleSynchronization(owner);
         }
+        return true;
+      } catch (error: unknown) {
+        appLogger.error(
+          'Não foi possível finalizar a execução local:',
+          error,
+        );
+        return false;
       } finally {
         finalizingRef.current = false;
         setFinalizando(false);
@@ -789,22 +752,58 @@ export function ExecucaoRotaProvider({
     ],
   );
 
+  useEffect(() => {
+    if (!owner) return undefined;
+
+    return registerSessionTerminationPreparation(
+      async () => {
+        const active = await obterExecucaoRotaAtiva();
+
+        if (active?.ownerKey === owner.key) {
+          const finalized = await finishActiveExecution(
+            STATUS_EXECUCAO_ROTA.INTERROMPIDA,
+            MOTIVO_FINALIZACAO_ROTA.INTERROMPIDA_LOGOUT,
+            false,
+          );
+
+          if (!finalized) {
+            throw new Error(
+              'A execução ativa não pôde ser finalizada antes do logout.',
+            );
+          }
+        }
+
+        await synchronizeOwner(owner);
+      },
+    );
+  }, [finishActiveExecution, owner, synchronizeOwner]);
+
   const cancelarPorFalhaAoAbrirNavegador =
     useCallback(
-      async (codigoSessao: string): Promise<void> => {
-        const execution = await obterExecucaoRota(
-          codigoSessao,
-        );
+      async (codigoSessao: string): Promise<boolean> => {
+        let execution: ExecucaoRota | null;
+
+        try {
+          execution = await obterExecucaoRota(
+            codigoSessao,
+          );
+        } catch (error: unknown) {
+          appLogger.error(
+            'Não foi possível cancelar a execução local:',
+            error,
+          );
+          return false;
+        }
 
         if (
           !execution ||
           execution.status !==
             STATUS_EXECUCAO_ROTA.EM_ANDAMENTO
         ) {
-          return;
+          return true;
         }
 
-        await finishActiveExecution(
+        return finishActiveExecution(
           STATUS_EXECUCAO_ROTA.CANCELADA,
           MOTIVO_FINALIZACAO_ROTA.CANCELADA_ABERTURA_NAVEGADOR,
         );
@@ -813,7 +812,7 @@ export function ExecucaoRotaProvider({
     );
 
   const interromperExecucao = useCallback(
-    (): Promise<void> =>
+    (): Promise<boolean> =>
       finishActiveExecution(
         STATUS_EXECUCAO_ROTA.INTERROMPIDA,
         MOTIVO_FINALIZACAO_ROTA.INTERROMPIDA_USUARIO,
@@ -878,10 +877,7 @@ export function useExecucaoRota(): ExecucaoRotaContextValue {
 }
 
 export function obterMensagemPermissaoRastreamento(
-  permission: Exclude<
-    ResultadoPermissaoRastreamento,
-    {concedida: true}
-  >,
+  permission: PermissaoRastreamentoNegada,
 ): string {
-  return getPermissionMessage(permission);
+  return obterMensagemPermissao(permission);
 }

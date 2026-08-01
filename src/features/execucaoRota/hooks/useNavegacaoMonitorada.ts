@@ -13,7 +13,10 @@ import type {
   PlanejamentoExecucaoRota,
   TipoDestinoRota,
 } from '../models/ExecucaoRota';
-import {obterConfiguracaoMonitoramentoRota} from '../services/configuracaoMonitoramentoRotaApi';
+import {
+  obterConfiguracaoMonitoramentoRota,
+  type ResultadoConfiguracaoMonitoramento,
+} from '../services/configuracaoMonitoramentoRotaApi';
 
 interface IniciarNavegacaoMonitoradaInput {
   rotas: readonly Filial[];
@@ -62,13 +65,11 @@ export default function useNavegacaoMonitorada() {
    * dependa de reiniciar o aplicativo. Consultas simultâneas são agrupadas.
    */
   const verificarMonitoramento =
-    useCallback(async (): Promise<boolean> => {
+    useCallback(async (): Promise<ResultadoConfiguracaoMonitoramento> => {
       if (checkingConfigurationRef.current) {
-        const result =
-          await obterConfiguracaoMonitoramentoRota(
-            client,
-          );
-        return result.habilitado;
+        return obterConfiguracaoMonitoramentoRota(
+          client,
+        );
       }
 
       checkingConfigurationRef.current = true;
@@ -81,13 +82,17 @@ export default function useNavegacaoMonitorada() {
             {force: true},
           );
 
-        if (!result.obtidoDoServidor) {
+        if (result.origem === 'cache') {
           appLogger.warn(
-            'Configuração de monitoramento indisponível; a rota será aberta sem registro.',
+            'Strapi indisponível; será usada a última configuração válida do monitoramento.',
+          );
+        } else if (result.origem === 'indisponivel') {
+          appLogger.warn(
+            'Não existe configuração conhecida; a rota será aberta no modo externo.',
           );
         }
 
-        return result.habilitado;
+        return result;
       } finally {
         checkingConfigurationRef.current = false;
         setVerificandoMonitoramento(false);
@@ -163,12 +168,34 @@ export default function useNavegacaoMonitorada() {
           await abrirNavegador(navegador, rotas);
 
         if (!routeOpened) {
-          await cancelarPorFalhaAoAbrirNavegador(
+          const canceled =
+            await cancelarPorFalhaAoAbrirNavegador(
             result.execucao.codigoSessao,
           );
+
+          Toast.show({
+            type: 'error',
+            text1: 'Não foi possível abrir o navegador',
+            text2: canceled
+              ? 'Tente novamente em alguns instantes.'
+              : 'A rota foi preservada. Abra o aplicativo novamente para concluir ou interromper.',
+            position: 'bottom',
+          });
         }
 
         return routeOpened;
+      } catch (error: unknown) {
+        appLogger.error(
+          'Falha inesperada ao iniciar a navegação:',
+          error,
+        );
+        Toast.show({
+          type: 'error',
+          text1: 'Não foi possível iniciar a viagem',
+          text2: 'Se o problema continuar, feche e abra o aplicativo novamente.',
+          position: 'bottom',
+        });
+        return false;
       } finally {
         setAbrindoNavegador(false);
       }

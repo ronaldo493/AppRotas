@@ -16,6 +16,7 @@ import Toast from 'react-native-toast-message';
 import useLocation from '../../core/location/useLocation';
 import {useAppTheme} from '../../core/theme/appTheme';
 import useNavegacaoMonitorada from '../execucaoRota/hooks/useNavegacaoMonitorada';
+import {definirFluxoMonitoramentoRota} from '../execucaoRota/useCases/definirFluxoMonitoramentoRota';
 import type {NavegadorRota} from '../execucaoRota/models/ExecucaoRota';
 import useFiliais from '../filiais/hooks/useFiliais';
 import type {Filial} from '../filiais/models/Filial';
@@ -106,12 +107,16 @@ export default function ChamadosScreen(): React.JSX.Element {
       return;
     }
 
-    const monitoringEnabled =
+    const monitoringConfiguration =
       await verificarMonitoramento();
+    const monitoringFlow =
+      definirFluxoMonitoramentoRota(
+        monitoringConfiguration,
+      );
 
     setPendingStore(store);
     setMonitoringEnabledForFlow(
-      monitoringEnabled,
+      monitoringFlow.monitorar,
     );
     setNavigatorDialogVisible(true);
   };

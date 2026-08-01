@@ -89,6 +89,10 @@ export async function fetchRoutePreview(
         origin,
         destinations,
       },
+      {
+        timeout: 10_000,
+        'axios-retry': {retries: 1},
+      },
     );
   const data = response.data;
   const coordinates =

@@ -102,6 +102,8 @@ export default function usePontos(): UsePontosReturn {
       const novoPonto: NovoPonto = {
         ...novoPontoInput,
         usernameCriador: user.username,
+        setorCriador:
+          user.setor?.trim() || 'Não informado',
       };
 
       const response = await conexao.post<
@@ -130,7 +132,7 @@ export default function usePontos(): UsePontosReturn {
 
       return savedPonto;
     },
-    [conexao, setPontos, user?.username],
+    [conexao, setPontos, user?.setor, user?.username],
   );
 
   useEffect(() => {

@@ -11,6 +11,12 @@ seus componentes, hooks, modelos, telas, serviços e casos de uso.
 > Este é o projeto móvel. Para iniciar a solução completa e consultar a
 > documentação do backend, veja o [README da raiz](../README.md).
 
+Documentação técnica desta camada:
+
+- [Arquitetura e módulos](./docs/ARQUITETURA_E_MODULOS.md)
+- [Contrato detalhado do monitoramento](./docs/STRAPI_MONITORAMENTO_ROTAS.md)
+- [Regras integradas do sistema](../docs/SISTEMA_E_REGRAS.md)
+
 ## Funcionalidades
 
 - Autenticação com JWT, restauração e expiração automática da sessão.
@@ -32,7 +38,7 @@ seus componentes, hooks, modelos, telas, serviços e casos de uso.
   e relatório compartilhável.
 - Envio de sugestões, melhorias e problemas.
 - Tema claro/escuro e componentes do React Native Paper.
-- Perfil com e-mail secundário e alteração autenticada de senha.
+- Perfil com e-mail Drogal (`emailSec`) e alteração autenticada de senha.
 
 ## Tecnologias principais
 
@@ -152,7 +158,8 @@ feature/
 ### Login e sessão
 
 1. O aplicativo autentica em `/auth/local`.
-2. Carrega os menus permitidos para o cargo e setor.
+2. Solicita ao Strapi, em `/menus/me`, somente os menus permitidos para o
+   usuário autenticado.
 3. Valida e persiste o JWT e o usuário.
 4. Resolve a cidade atual quando houver permissão de localização.
 5. Registra a sessão em `/sessoes`.
@@ -163,6 +170,20 @@ restaurada, quando o aplicativo volta ao primeiro plano e a cada cinco minutos
 de uso ativo. Se o Strapi estiver indisponível, os últimos acessos válidos são
 preservados.
 
+### Senha temporária no primeiro acesso
+
+O campo Boolean `deveAlterarSenha` do usuário nasce como `true`. O
+`ForcedPasswordChangeGate` consulta `GET /troca-senha-obrigatoria/status`
+antes de montar providers, menus ou telas autenticadas. Quando necessário, o
+modal de senha existente é aberto em modo não dispensável e envia a alteração
+para `POST /troca-senha-obrigatoria`. O acesso permanece bloqueado se o status
+não puder ser verificado; o usuário pode tentar novamente ou sair.
+
+O módulo está isolado em `core/auth/forcedPasswordChange`. Uma futura
+autenticação corporativa pode desativá-lo removendo somente o wrapper
+`ForcedPasswordChangeGate` de `application/providers/AppProviders.tsx`; o
+`AuthContext`, a navegação e as demais features não dependem dessa regra.
+
 ### Menus dinâmicos
 
 O campo `rota` do Strapi é o identificador técnico usado pela navegação. O
@@ -171,9 +192,16 @@ quebrar a rota. As rotas suportadas ficam centralizadas em
 `application/navigation/menuRegistry.ts`.
 
 Menus inativos, rotas desconhecidas e rotas técnicas duplicadas não são
-registrados no navegador. As regras de cargo e setor ficam no caso de uso
-`features/menus/useCases/filtrarMenusPermitidos.ts`, sem dependência de React ou
-da interface.
+registrados no navegador. As regras de cargo e setor são aplicadas pelo
+backend; o aplicativo recebe apenas os acessos autorizados e valida o formato
+da resposta antes de atualizar a navegação. Durante o login, o JWT é enviado
+explicitamente porque a sessão ainda não foi publicada no contexto global.
+
+Ao sair ou entrar com outro usuário, os providers que mantêm dados de filiais,
+pontos, chamados e histórico são recriados com uma chave de sessão. Isso evita
+que dados mantidos em memória por uma conta apareçam para a conta seguinte.
+O provider de execução de rota permanece acima desse limite para finalizar ou
+sincronizar com segurança uma execução pertencente à sessão anterior.
 
 As rotas atualmente aceitas no Strapi são: `Home`, `MapaLojas`, `Historico`,
 `Pontos`, `Patrimonio`, `Chamados`, `Contatos` e `Admin`.
@@ -206,6 +234,11 @@ dispensar o aviso.
 9. Se apenas parte for realizada, os destinos visitados permanecem registrados
    como execução parcial.
 10. O usuário só precisa interromper manualmente quando abandonar a rota.
+
+Se o Strapi ou a estimativa estiver indisponível, a última configuração válida
+do monitoramento é recuperada do armazenamento local. Uma configuração ativa
+mantém a gravação do percurso e permite continuar sem a prévia; Maps ou Waze
+continuam abrindo normalmente.
 
 O cálculo da prévia só ocorre ao tocar em `Traçar rota`; pesquisar uma filial
 não consulta a Routes API. Se a prévia for fechada, ela permanece em memória e
@@ -269,6 +302,12 @@ plano, restaura a sessão ao reabrir o aplicativo e interrompe o rastreamento
 ao trocar de usuário. Maps, Waze e uma futura navegação interna utilizam o
 mesmo contrato.
 
+Todas as mutações do SQLite passam por uma fila única, usam timeout de bloqueio
+e repetem somente falhas transitórias. A sincronização ocorre na abertura, no
+retorno ao primeiro plano e periodicamente, com intervalo progressivo depois
+de falhas. Antes do logout, o app preserva a execução e tenta sincronizá-la por
+uma janela limitada, sem deixar a saída do usuário travada.
+
 O resumo do aparelho é provisório. O backend deve recalcular os indicadores a
 partir dos segmentos antes de disponibilizá-los ao gestor. O contrato completo
 está em
@@ -324,7 +363,8 @@ Single type com o campo Boolean obrigatório `monitoramentoRotasAtivo`. Quando
 está `true`, o aplicativo exibe a prévia e pode iniciar a execução monitorada.
 Quando está `false`, nenhuma prévia é calculada, o SQLite/GPS não é iniciado e
 o usuário apenas escolhe entre Maps e Waze. Se a configuração não puder ser
-lida, o aplicativo adota esse modo externo para proteger a cota da Routes API.
+lida, o aplicativo reutiliza a última decisão confirmada pelo servidor. Apenas
+uma instalação sem decisão anterior utiliza o modo externo como contingência.
 
 No papel `Authenticated`, libere apenas a ação `find` desse single type.
 
@@ -348,8 +388,14 @@ histórico. O campo singular `destination` continua aceito para versões antigas
 | `latitude` | Texto curto ou Decimal, conforme o contrato existente |
 | `longitude` | Texto curto ou Decimal, conforme o contrato existente |
 | `descricao` | Texto curto |
-| `categoria` | Enumeration: `Restaurante`, `Posto de Combustível` |
+| `categoria` | Texto: `Restaurante`, `Posto de Combustível` |
 | `usernameCriador` | Texto curto |
+| `cidadePonto` | Texto curto com a cidade da coordenada |
+| `setorCriador` | Texto curto com o setor do autor |
+
+O app tenta resolver `cidadePonto` por geocodificação reversa e usa `Não
+informado` como contingência. O controller do Strapi sobrescreve
+`usernameCriador` e `setorCriador` com os dados do usuário autenticado.
 
 ### `audit-logs`
 
@@ -369,13 +415,21 @@ armazenados.
 O horário deve utilizar o campo automático `createdAt` do Strapi. O papel
 `Authenticated` precisa somente da permissão `create` nessa coleção.
 
+### Usuário e troca de senha no primeiro acesso
+
+O User do Users & Permissions possui `deveAlterarSenha`, Boolean com padrão
+`true`. No papel `Authenticated`, habilite as ações `verificar` e `trocar` da
+API `troca-senha-obrigatoria`. A senha e a liberação da flag são gravadas na
+mesma atualização do usuário.
+
 ### Outras coleções utilizadas
 
 - `update-app` (single type): `versao`, `appUrl` e mídia `appApk`.
 - Usuário do Users & Permissions: campo opcional `emailSec` do tipo Email.
 - `informacoeslojas`: dados e coordenadas das filiais.
 - `menus`: título, rota, ícone, situação, ordem e relação com setores.
-- `chamados`: chamados filtrados por responsável e setor.
+- `/chamados`: chamados filtrados por responsável e setor; o schema não está
+  versionado no Strapi deste repositório e depende do ambiente legado.
 - `contatos`: `departamento`, `colaboradores`, `ramal`, `ddr` e `email`.
 - `sugestoes`: `user`, `setor`, `email`, `tipo`, `tela`, `sugestao` e
   `situation`.
@@ -444,6 +498,12 @@ yarn test:route-preview
 
 # testes do relatório de patrimônio
 yarn test:patrimonio
+
+# testes da troca obrigatória de senha
+yarn test:auth
+
+# todos os testes automatizados
+yarn test:all
 ```
 
 Quando houver problema de cache:
@@ -479,14 +539,12 @@ Antes de entregar uma alteração:
 3. não faça uma feature importar arquivos internos de outra sem necessidade;
 4. atualize os modelos quando o contrato do Strapi mudar;
 5. execute `yarn typecheck`;
-6. valide manualmente login, mapas, criação de ponto e histórico offline quando
+6. execute `yarn test:all`;
+7. valide manualmente login, mapas, criação de ponto e histórico offline quando
    a alteração atingir esses fluxos.
 
 Próximos passos recomendados:
 
-- testes unitários dos casos de uso de histórico;
 - testes de integração dos hooks do Strapi;
-- idempotência no backend para evitar histórico duplicado após sincronização;
-- monitor de conectividade para sincronização automática;
 - lint e formatação automatizados no CI;
 - migração da API de produção para HTTPS.

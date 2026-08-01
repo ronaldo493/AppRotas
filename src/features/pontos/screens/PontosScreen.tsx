@@ -29,6 +29,7 @@ import {useAppTheme} from '../../../core/theme/appTheme';
 import ClusterMarker from '../../../shared/components/maps/ClusterMarker';
 import {appLogger} from '../../../shared/logging/appLogger';
 import useNavegacaoMonitorada from '../../execucaoRota/hooks/useNavegacaoMonitorada';
+import {definirFluxoMonitoramentoRota} from '../../execucaoRota/useCases/definirFluxoMonitoramentoRota';
 import type {
   NavegadorRota,
   PlanejamentoExecucaoRota,
@@ -38,6 +39,7 @@ import NavigationAppDialog from '../../rotas/components/NavigationAppDialog';
 import RoutePreviewModal from '../../rotas/components/RoutePreviewModal';
 import type {RoutePreview} from '../../rotas/models/RoutePreview';
 import usePontos from '../hooks/usePontos';
+import {identificarCidadePonto} from '../useCases/identificarCidadePonto';
 import type {
   CategoriaPonto,
   NovoPontoInput,
@@ -133,6 +135,7 @@ export default function PontosScreen(): React.JSX.Element {
             nomefilial:
               navigationPoint.descricao,
             nomecidade:
+              navigationPoint.cidadePonto ??
               currentCity ??
               'Não informado',
             latitude: navigationPoint.latitude,
@@ -404,18 +407,21 @@ export default function PontosScreen(): React.JSX.Element {
   const savePoint = async (categoria: CategoriaPonto): Promise<void> => {
     if (!selectedPoint || saving) return;
 
-    const novoPonto: NovoPontoInput = {
-      latitude: selectedPoint.latitude.toString(),
-      longitude: selectedPoint.longitude.toString(),
-      descricao: description.trim(),
-      categoria,
-    };
-
     Keyboard.dismiss();
     setCategoryDialogVisible(false);
     setSaving(true);
 
     try {
+      const cidadePonto =
+        await identificarCidadePonto(selectedPoint);
+      const novoPonto: NovoPontoInput = {
+        latitude: selectedPoint.latitude.toString(),
+        longitude: selectedPoint.longitude.toString(),
+        descricao: description.trim(),
+        categoria,
+        cidadePonto: cidadePonto ?? 'Não informado',
+      };
+
       await postPontos(novoPonto);
 
       Toast.show({
@@ -480,15 +486,21 @@ export default function PontosScreen(): React.JSX.Element {
         return;
       }
 
-      const monitoringEnabled =
+      const monitoringConfiguration =
         await verificarMonitoramento();
+      const monitoringFlow =
+        definirFluxoMonitoramentoRota(
+          monitoringConfiguration,
+        );
 
       setMonitoringEnabledForFlow(
-        monitoringEnabled,
+        monitoringFlow.monitorar,
       );
       setSelectedPlanning(undefined);
 
-      if (monitoringEnabled) {
+      if (
+        monitoringFlow.exibirPrevia
+      ) {
         setRoutePreviewVisible(true);
         return;
       }
@@ -508,6 +520,12 @@ export default function PontosScreen(): React.JSX.Element {
       duracaoPlanejadaSegundos:
         preview.durationSeconds,
     });
+    setRoutePreviewVisible(false);
+    setNavigatorDialogVisible(true);
+  };
+
+  const handleStartWithoutPreview = (): void => {
+    setSelectedPlanning(undefined);
     setRoutePreviewVisible(false);
     setNavigatorDialogVisible(true);
   };
@@ -661,6 +679,7 @@ export default function PontosScreen(): React.JSX.Element {
           setRoutePreviewVisible(false)
         }
         onStart={handleStartPreviewedRoute}
+        onStartWithoutPreview={handleStartWithoutPreview}
         onRequestLocation={() => {
           void openLocationSettings();
         }}

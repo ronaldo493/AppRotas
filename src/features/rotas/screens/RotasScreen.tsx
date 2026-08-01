@@ -7,6 +7,7 @@ import Toast from 'react-native-toast-message';
 import {useAppTheme} from '../../../core/theme/appTheme';
 import useLocation from '../../../core/location/useLocation';
 import useNavegacaoMonitorada from '../../execucaoRota/hooks/useNavegacaoMonitorada';
+import {definirFluxoMonitoramentoRota} from '../../execucaoRota/useCases/definirFluxoMonitoramentoRota';
 import FilialSearch from '../../filiais/components/FilialSearch';
 import type {Filial} from '../../filiais/models/Filial';
 import SugestaoFab from '../../sugestoes/components/SugestaoFab';
@@ -130,15 +131,21 @@ export default function RotasScreen(): React.JSX.Element {
 
     if (!hasRoutes) return;
 
-    const monitoringEnabled =
+    const monitoringConfiguration =
       await verificarMonitoramento();
+    const monitoringFlow =
+      definirFluxoMonitoramentoRota(
+        monitoringConfiguration,
+      );
 
     setMonitoringEnabledForFlow(
-      monitoringEnabled,
+      monitoringFlow.monitorar,
     );
     setSelectedPlanning(undefined);
 
-    if (monitoringEnabled) {
+    if (
+      monitoringFlow.exibirPrevia
+    ) {
       setRoutePreviewVisible(true);
       return;
     }
@@ -166,11 +173,30 @@ export default function RotasScreen(): React.JSX.Element {
     setNavigatorDialogVisible(true);
   };
 
+  const handleStartWithoutPreview = (): void => {
+    setSelectedPlanning(undefined);
+    setRoutePreviewVisible(false);
+    setNavigatorDialogVisible(true);
+  };
+
   const handleInterruptRoute =
     async (): Promise<void> => {
       if (processando || !execucaoAtiva) return;
 
-      await interromperNavegacao();
+      const interrupted =
+        await interromperNavegacao();
+
+      if (!interrupted) {
+        Toast.show({
+          type: 'error',
+          text1: 'Não foi possível interromper',
+          text2:
+            'A rota continua preservada. Tente novamente em alguns instantes.',
+          position: 'bottom',
+        });
+        return;
+      }
+
       setInterruptionDialogVisible(false);
 
       Toast.show({
@@ -406,6 +432,7 @@ export default function RotasScreen(): React.JSX.Element {
           setRoutePreviewVisible(false)
         }
         onStart={handleStartPreviewedRoute}
+        onStartWithoutPreview={handleStartWithoutPreview}
         onRequestLocation={handleLocationAction}
       />
 

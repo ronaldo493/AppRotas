@@ -159,6 +159,10 @@ export function sincronizarExecucoesRota(
     const pendingExecutions =
       await listarExecucoesPendentes(ownerKey);
 
+    if (pendingExecutions.length === 0) {
+      return result;
+    }
+
     for (const execution of pendingExecutions) {
       try {
         const synchronized =

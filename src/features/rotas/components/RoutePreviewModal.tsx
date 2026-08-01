@@ -37,6 +37,7 @@ interface RoutePreviewModalProps {
   starting?: boolean;
   onClose: () => void;
   onStart: (preview: RoutePreview) => void;
+  onStartWithoutPreview?: () => void;
   onRequestLocation?: () => void;
 }
 
@@ -58,6 +59,7 @@ export default function RoutePreviewModal({
   starting = false,
   onClose,
   onStart,
+  onStartWithoutPreview,
   onRequestLocation,
 }: RoutePreviewModalProps): React.JSX.Element {
   const theme = useAppTheme();
@@ -266,6 +268,17 @@ export default function RoutePreviewModal({
                 ? 'Tentar novamente'
                 : 'Abrir configurações'}
             </Button>
+
+            {origin && error && onStartWithoutPreview && (
+              <Button
+                mode="contained"
+                style={styles.retryButton}
+                disabled={starting}
+                onPress={onStartWithoutPreview}
+              >
+                Continuar sem prévia
+              </Button>
+            )}
           </View>
         )}
 

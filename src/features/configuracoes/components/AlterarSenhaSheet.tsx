@@ -6,7 +6,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useAppTheme} from '../../../core/theme/appTheme';
 import styles from './alterarSenhaSheet.styles';
 
-interface SenhaInput {
+export interface SenhaInput {
   currentPassword: string;
   newPassword: string;
   passwordConfirmation: string;
@@ -15,6 +15,10 @@ interface SenhaInput {
 interface AlterarSenhaSheetProps {
   visible: boolean;
   loading: boolean;
+  dismissible?: boolean;
+  title?: string;
+  description?: string;
+  submitLabel?: string;
   onDismiss: () => void;
   onSubmit: (input: SenhaInput) => Promise<boolean>;
 }
@@ -22,6 +26,10 @@ interface AlterarSenhaSheetProps {
 export default function AlterarSenhaSheet({
   visible,
   loading,
+  dismissible = true,
+  title = 'Alterar senha',
+  description = 'Informe sua senha atual e escolha uma nova senha.',
+  submitLabel = 'Salvar senha',
   onDismiss,
   onSubmit,
 }: AlterarSenhaSheetProps): React.JSX.Element {
@@ -42,7 +50,7 @@ export default function AlterarSenhaSheet({
   }, [visible]);
 
   const handleDismiss = (): void => {
-    if (!loading) onDismiss();
+    if (dismissible && !loading) onDismiss();
   };
 
   const handleSubmit = async (): Promise<void> => {
@@ -52,7 +60,7 @@ export default function AlterarSenhaSheet({
       passwordConfirmation,
     });
 
-    if (updated) onDismiss();
+    if (updated && dismissible) onDismiss();
   };
 
   const passwordIcon = () => (
@@ -92,8 +100,8 @@ export default function AlterarSenhaSheet({
               showsVerticalScrollIndicator={false}
             >
               <View style={[styles.handle, {backgroundColor: theme.colors.outline}]} />
-              <Text style={[styles.title, {color: theme.colors.onSurface}]}>Alterar senha</Text>
-              <Text style={[styles.description, {color: theme.colors.onSurfaceVariant}]}>Informe sua senha atual e escolha uma nova senha.</Text>
+              <Text style={[styles.title, {color: theme.colors.onSurface}]}>{title}</Text>
+              <Text style={[styles.description, {color: theme.colors.onSurfaceVariant}]}>{description}</Text>
 
               <View style={styles.fields}>
                 <TextInput
@@ -132,7 +140,9 @@ export default function AlterarSenhaSheet({
               </View>
 
               <View style={styles.actions}>
-                <Button disabled={loading} textColor={theme.colors.onSurfaceVariant} onPress={handleDismiss}>Cancelar</Button>
+                {dismissible ? (
+                  <Button disabled={loading} textColor={theme.colors.onSurfaceVariant} onPress={handleDismiss}>Cancelar</Button>
+                ) : null}
                 <Button
                   mode="contained"
                   loading={loading}
@@ -143,7 +153,7 @@ export default function AlterarSenhaSheet({
                   style={styles.primaryButton}
                   onPress={() => void handleSubmit()}
                 >
-                  Salvar senha
+                  {submitLabel}
                 </Button>
               </View>
             </ScrollView>

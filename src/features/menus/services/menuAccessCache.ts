@@ -1,4 +1,5 @@
 import type {AuthUser} from '../../../core/auth/AuthContext';
+import {getAuthUserKey} from '../../../core/auth/getAuthUserKey';
 
 const lastSuccessfulLoadByUser = new Map<string, number>();
 
@@ -7,19 +8,7 @@ const lastSuccessfulLoadByUser = new Map<string, number>();
  * dos menus, priorizando os identificadores imutáveis retornados pelo Strapi.
  */
 export function getMenuAccessUserKey(user: AuthUser | null): string | null {
-  if (!user) return null;
-
-  if (typeof user.documentId === 'string' && user.documentId) {
-    return `document:${user.documentId}`;
-  }
-
-  if (typeof user.id === 'number') {
-    return `id:${user.id}`;
-  }
-
-  return user.username
-    ? `username:${user.username}`
-    : null;
+  return getAuthUserKey(user);
 }
 
 /**
@@ -38,9 +27,12 @@ export function markMenuAccessLoaded(user: AuthUser): void {
  * Informa se os menus do usuário foram consultados dentro do intervalo
  * recebido. O cache existe somente durante a execução atual do aplicativo.
  */
-export function wasMenuAccessLoadedRecently(user: AuthUser, maxAgeMs: number,): boolean {
+export function wasMenuAccessLoadedRecently(
+  user: AuthUser,
+  maxAgeMs: number,
+): boolean {
   const userKey = getMenuAccessUserKey(user);
-  
+
   const loadedAt = userKey
     ? lastSuccessfulLoadByUser.get(userKey)
     : undefined;
