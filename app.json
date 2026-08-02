@@ -2,7 +2,7 @@
   "expo": {
     "name": "Suporte Drogal",
     "slug": "AppDrogal",
-    "version": "2.0.7",
+    "version": "2.0.8",
     "runtimeVersion": {
       "policy": "fingerprint"
     },
