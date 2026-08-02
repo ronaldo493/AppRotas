@@ -28,6 +28,7 @@ import {useMapLocation} from '../../../core/location/useLocation';
 import {useAppTheme} from '../../../core/theme/appTheme';
 import ClusterMarker from '../../../shared/components/maps/ClusterMarker';
 import {appLogger} from '../../../shared/logging/appLogger';
+import ConfirmacaoPermissaoRastreamentoDialog from '../../execucaoRota/components/ConfirmacaoPermissaoRastreamentoDialog';
 import useNavegacaoMonitorada from '../../execucaoRota/hooks/useNavegacaoMonitorada';
 import {definirFluxoMonitoramentoRota} from '../../execucaoRota/useCases/definirFluxoMonitoramentoRota';
 import type {
@@ -56,6 +57,11 @@ import {
   MapClusterIndex,
 } from '../../../shared/maps/clustering';
 import PontoForm from '../components/PontoForm';
+import PontosNoMesmoLocalDialog from '../components/PontosNoMesmoLocalDialog';
+import {
+  agruparPontosPorLocal,
+  type GrupoPontosPorLocal,
+} from '../useCases/agruparPontosPorLocal';
 import AddPointStyles from './pontosScreen.styles';
 
 interface PontoMapa extends PontoInteresse {
@@ -63,10 +69,14 @@ interface PontoMapa extends PontoInteresse {
   uniqueKey: string;
 }
 
-const getPontoCoordinate = (ponto: PontoMapa): LatLng =>
-  ponto.coordinate;
-const getPontoKey = (ponto: PontoMapa): string =>
-  ponto.uniqueKey;
+type LocalPontosMapa = GrupoPontosPorLocal<PontoMapa>;
+
+const getLocalPontosCoordinate = (
+  local: LocalPontosMapa,
+): LatLng => local.coordinate;
+const getLocalPontosKey = (
+  local: LocalPontosMapa,
+): string => local.uniqueKey;
 
 const criarRotaPonto = (
   ponto: PontoInteresse | null,
@@ -98,6 +108,9 @@ export default function PontosScreen(): React.JSX.Element {
     processando,
     iniciarNavegacao,
     verificarMonitoramento,
+    confirmacaoPermissaoVisivel,
+    confirmarPermissaoRastreamento,
+    cancelarPermissaoRastreamento,
   } = useNavegacaoMonitorada();
   const {
     currentLocation,
@@ -122,6 +135,8 @@ export default function PontosScreen(): React.JSX.Element {
   const [mapReady, setMapReady] = useState(false);
   const [navigationPoint, setNavigationPoint] =
     useState<PontoMapa | null>(null);
+  const [pontosNoMesmoLocal, setPontosNoMesmoLocal] =
+    useState<PontoMapa[]>([]);
   const [
     routePreviewVisible,
     setRoutePreviewVisible,
@@ -174,6 +189,10 @@ export default function PontosScreen(): React.JSX.Element {
 
     return Array.from(pontosUnicos.values());
   }, [pontos]);
+  const locaisPontos = useMemo<LocalPontosMapa[]>(
+    () => agruparPontosPorLocal(pontosValidos),
+    [pontosValidos],
+  );
 
   const handleMapReady = useCallback((): void => {
     setMapReady(true);
@@ -219,11 +238,11 @@ export default function PontosScreen(): React.JSX.Element {
   const clusterIndex = useMemo(
     () =>
       new MapClusterIndex({
-        items: pontosValidos,
-        getCoordinate: getPontoCoordinate,
-        getKey: getPontoKey,
+        items: locaisPontos,
+        getCoordinate: getLocalPontosCoordinate,
+        getKey: getLocalPontosKey,
       }),
-    [pontosValidos],
+    [locaisPontos],
   );
 
   /*
@@ -277,11 +296,40 @@ export default function PontosScreen(): React.JSX.Element {
     [isAddMode],
   );
 
+  const selectPointLocation = useCallback(
+    (local: LocalPontosMapa): void => {
+      if (isAddMode) return;
+
+      if (local.pontos.length === 1) {
+        selectNavigationPoint(local.pontos[0]);
+        return;
+      }
+
+      setNavigationPoint(null);
+      setPontosNoMesmoLocal(local.pontos);
+    },
+    [isAddMode, selectNavigationPoint],
+  );
+
   const pointMarkers = useMemo(
     () =>
       clusters.map(cluster => {
         if (cluster.item) {
-          const point = cluster.item;
+          const local = cluster.item;
+          const point = local.pontos[0];
+
+          if (local.pontos.length > 1) {
+            return (
+              <ClusterMarker
+                key={cluster.id}
+                coordinate={local.coordinate}
+                count={local.pontos.length}
+                backgroundColor={theme.colors.info}
+                textColor={theme.colors.onPrimary}
+                onPress={() => selectPointLocation(local)}
+              />
+            );
+          }
 
           return (
             <Marker
@@ -299,7 +347,7 @@ export default function PontosScreen(): React.JSX.Element {
                 event: MarkerPressEvent,
               ) => {
                 event.stopPropagation();
-                selectNavigationPoint(point);
+                selectPointLocation(local);
               }}
             />
           );
@@ -326,7 +374,8 @@ export default function PontosScreen(): React.JSX.Element {
     [
       clusters,
       focusCluster,
-      selectNavigationPoint,
+      selectPointLocation,
+      theme.colors.info,
       theme.colors.onPrimary,
       theme.colors.primary,
       theme.colors.success,
@@ -350,11 +399,13 @@ export default function PontosScreen(): React.JSX.Element {
     setSelectedPoint(null);
     setDescription('');
     setCategoryDialogVisible(false);
+    setPontosNoMesmoLocal([]);
   };
 
   const handleMapPress = (event: MapPressEvent): void => {
     if (!isAddMode) {
       setNavigationPoint(null);
+      setPontosNoMesmoLocal([]);
       return;
     }
 
@@ -542,6 +593,7 @@ export default function PontosScreen(): React.JSX.Element {
     if (!pontoSolicitado) return;
 
     setNavigationPoint(pontoSolicitado);
+    setPontosNoMesmoLocal([]);
     mapRef.current?.animateToRegion(
       {
         ...pontoSolicitado.coordinate,
@@ -678,6 +730,7 @@ export default function PontosScreen(): React.JSX.Element {
           ]}
           onPress={() => {
             setNavigationPoint(null);
+            setPontosNoMesmoLocal([]);
             setRoutePreviewVisible(false);
             setIsAddMode(true);
           }}
@@ -722,6 +775,16 @@ export default function PontosScreen(): React.JSX.Element {
           onSaveCategory={savePoint}
         />
       )}
+
+      <PontosNoMesmoLocalDialog
+        visible={pontosNoMesmoLocal.length > 1}
+        pontos={pontosNoMesmoLocal}
+        onDismiss={() => setPontosNoMesmoLocal([])}
+        onSelect={ponto => {
+          setPontosNoMesmoLocal([]);
+          selectNavigationPoint(ponto);
+        }}
+      />
 
       <RoutePreviewModal
         visible={routePreviewVisible}
@@ -799,6 +862,12 @@ export default function PontosScreen(): React.JSX.Element {
           setNavigatorDialogVisible(false);
           void handleOpenPointRoute(navigator);
         }}
+      />
+
+      <ConfirmacaoPermissaoRastreamentoDialog
+        visible={confirmacaoPermissaoVisivel}
+        onConfirm={confirmarPermissaoRastreamento}
+        onDismiss={cancelarPermissaoRastreamento}
       />
     </View>
   );

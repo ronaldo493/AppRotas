@@ -6,12 +6,14 @@ import {
   useState,
 } from 'react';
 
-import useFiliais from './useFiliais';
 import type {Filial} from '../models/Filial';
 
 interface UseSearchFilialProps {
   onAddRoute: (filial: Filial) => void;
   onResultChange?: (hasSearch: boolean) => void;
+  filiais: readonly Filial[];
+  filiaisError: string | null;
+  loadingFiliais: boolean;
 }
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -19,13 +21,14 @@ const SEARCH_DEBOUNCE_MS = 400;
 export default function useSearchFilial({
   onAddRoute,
   onResultChange,
+  filiais,
+  filiaisError,
+  loadingFiliais,
 }: UseSearchFilialProps) {
     
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilial, setSelectedFilial] = useState<Filial | null>(null);
   const [searchFinished, setSearchFinished] = useState(false);
-
-  const {filiais = [], error: filiaisError, loading: loadingFiliais,} = useFiliais();
 
   const debouncedSearch = useMemo(
     () =>

@@ -6,6 +6,7 @@ import Toast from 'react-native-toast-message';
 
 import {useAppTheme} from '../../../core/theme/appTheme';
 import useLocation from '../../../core/location/useLocation';
+import ConfirmacaoPermissaoRastreamentoDialog from '../../execucaoRota/components/ConfirmacaoPermissaoRastreamentoDialog';
 import useNavegacaoMonitorada from '../../execucaoRota/hooks/useNavegacaoMonitorada';
 import {definirFluxoMonitoramentoRota} from '../../execucaoRota/useCases/definirFluxoMonitoramentoRota';
 import FilialSearch from '../../filiais/components/FilialSearch';
@@ -14,6 +15,7 @@ import type {PlanejamentoExecucaoRota} from '../../execucaoRota/models/ExecucaoR
 import RouteList from '../components/RouteList';
 import RoutePreviewModal from '../components/RoutePreviewModal';
 import type {RoutePreview} from '../models/RoutePreview';
+import useFiliaisRotaOffline from '../hooks/useFiliaisRotaOffline';
 import {useRotasContext} from '../RotasContext';
 import HomeStyles from './rotasScreen.styles';
 
@@ -21,12 +23,16 @@ type NavigatorType = 'google' | 'waze';
 
 export default function RotasScreen(): React.JSX.Element {
   const theme = useAppTheme();
+  const filiaisRota = useFiliaisRotaOffline();
   const {
     execucaoAtiva,
     processando,
     iniciarNavegacao,
     interromperNavegacao,
     verificarMonitoramento,
+    confirmacaoPermissaoVisivel,
+    confirmarPermissaoRastreamento,
+    cancelarPermissaoRastreamento,
   } = useNavegacaoMonitorada();
 
   const {
@@ -238,6 +244,14 @@ export default function RotasScreen(): React.JSX.Element {
       <FilialSearch
         onAddRoute={handleAddRoute}
         onResultChange={setHasSearchResult}
+        filiais={filiaisRota.filiais}
+        loadingFiliais={filiaisRota.loading}
+        filiaisError={filiaisRota.error}
+        usandoDadosSalvos={filiaisRota.usandoDadosSalvos}
+        dadosOnlineIndisponiveis={
+          filiaisRota.dadosOnlineIndisponiveis
+        }
+        cacheAtualizadoEm={filiaisRota.cacheAtualizadoEm}
       />
 
       <View style={HomeStyles.routeContainer}>
@@ -459,6 +473,12 @@ export default function RotasScreen(): React.JSX.Element {
         onStart={handleStartPreviewedRoute}
         onStartWithoutPreview={handleStartWithoutPreview}
         onRequestLocation={handleLocationAction}
+      />
+
+      <ConfirmacaoPermissaoRastreamentoDialog
+        visible={confirmacaoPermissaoVisivel}
+        onConfirm={confirmarPermissaoRastreamento}
+        onDismiss={cancelarPermissaoRastreamento}
       />
     </View>
   );

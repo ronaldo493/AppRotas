@@ -55,6 +55,7 @@ const getSearchText = (filial: FilialMapa): string =>
       filial.codigofilial,
       filial.nomefilial,
       filial.nomecidade,
+      filial.uf,
       filial.bairro,
       filial.endereco,
     ]
@@ -62,12 +63,22 @@ const getSearchText = (filial: FilialMapa): string =>
       .join(' '),
   );
 
-export const parseLojas = (filiais: FilialMapa[]): LojaMapa[] =>
-  filiais.flatMap(filial => {
+export const parseLojas = (filiais: FilialMapa[]): LojaMapa[] => {
+  const identidades = new Set<string>();
+
+  return filiais.flatMap(filial => {
     const coordinate = getCoordinates(filial);
 
     if (!coordinate) return [];
 
+    const codigo = Number(filial.codigofilial);
+    const identidade =
+      Number.isInteger(codigo) && codigo > 0
+        ? `codigo:${codigo}`
+        : `coordenada:${coordinate.latitude}|${coordinate.longitude}`;
+    if (identidades.has(identidade)) return [];
+
+    identidades.add(identidade);
     return [
       {
         filial,
@@ -77,3 +88,4 @@ export const parseLojas = (filiais: FilialMapa[]): LojaMapa[] =>
       },
     ];
   });
+};

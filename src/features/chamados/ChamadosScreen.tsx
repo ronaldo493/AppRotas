@@ -15,6 +15,7 @@ import Toast from 'react-native-toast-message';
 
 import useLocation from '../../core/location/useLocation';
 import {useAppTheme} from '../../core/theme/appTheme';
+import ConfirmacaoPermissaoRastreamentoDialog from '../execucaoRota/components/ConfirmacaoPermissaoRastreamentoDialog';
 import useNavegacaoMonitorada from '../execucaoRota/hooks/useNavegacaoMonitorada';
 import {definirFluxoMonitoramentoRota} from '../execucaoRota/useCases/definirFluxoMonitoramentoRota';
 import type {NavegadorRota} from '../execucaoRota/models/ExecucaoRota';
@@ -48,6 +49,9 @@ export default function ChamadosScreen(): React.JSX.Element {
     processando,
     iniciarNavegacao,
     verificarMonitoramento,
+    confirmacaoPermissaoVisivel,
+    confirmarPermissaoRastreamento,
+    cancelarPermissaoRastreamento,
   } = useNavegacaoMonitorada();
   const {chamados, error, loading, reload} =
     useChamados();
@@ -491,6 +495,12 @@ export default function ChamadosScreen(): React.JSX.Element {
           </Dialog.Actions>
         </Dialog>
       </Portal>
+
+      <ConfirmacaoPermissaoRastreamentoDialog
+        visible={confirmacaoPermissaoVisivel}
+        onConfirm={confirmarPermissaoRastreamento}
+        onDismiss={cancelarPermissaoRastreamento}
+      />
     </View>
   );
 }

@@ -5,6 +5,7 @@
   },
   "build": {
     "preview_android":{
+      "node": "20.19.4",
       "distribution": "internal",
       "environment": "preview",
       "android": {
@@ -12,14 +13,27 @@
       }
     },
     "development": {
+      "node": "20.19.4",
       "developmentClient": true,
       "distribution": "internal"
     },
     "preview": {
+      "node": "20.19.4",
       "distribution": "internal"
     },
     "production": {
+      "node": "20.19.4",
+      "environment": "production",
       "autoIncrement": true
+    },
+    "production_apk": {
+      "node": "20.19.4",
+      "distribution": "internal",
+      "environment": "production",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {

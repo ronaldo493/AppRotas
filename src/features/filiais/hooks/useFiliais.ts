@@ -23,8 +23,13 @@ let pendingFiliaisRequest: PendingFiliaisRequest | null = null;
 interface UseFiliaisReturn {
   filiais: Filial[];
   error: string | null;
+  errorStatus: number | null;
   loading: boolean;
   getFiliais: (showErrorToast?: boolean) => Promise<Filial[] | null>;
+}
+
+interface UseFiliaisOptions {
+  showErrorToast?: boolean;
 }
 
 const getErrorMessage = (error: unknown): string => {
@@ -67,13 +72,17 @@ const fetchAllFiliais = async (
   return allFiliais;
 };
 
-export default function useFiliais(): UseFiliaisReturn {
+export default function useFiliais(
+  options: UseFiliaisOptions = {},
+): UseFiliaisReturn {
+  const {showErrorToast = true} = options;
   const conexao = useStrapiClient();
   const {token} = useAuthContext();
 
   const {filiais, setFiliais} = useFiliaisContext();
 
   const [error, setError] =  useState<string | null>(null);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
   /*
@@ -82,7 +91,7 @@ export default function useFiliais(): UseFiliaisReturn {
    */
   const requestingRef = useRef(false);
 
-  const getFiliais = useCallback(async (showErrorToast = true): Promise<Filial[] | null> => {
+  const getFiliais = useCallback(async (shouldShowErrorToast = true): Promise<Filial[] | null> => {
       if (requestingRef.current) {
         const requestEmAndamento = pendingFiliaisRequest;
 
@@ -98,6 +107,7 @@ export default function useFiliais(): UseFiliaisReturn {
       requestingRef.current = true;
       setLoading(true);
       setError(null);
+      setErrorStatus(null);
 
       try {
         if (
@@ -134,8 +144,9 @@ export default function useFiliais(): UseFiliaisReturn {
 
         const errorMessage = getErrorMessage(err);
         setError(errorMessage);
+        setErrorStatus(strapiError.response?.status ?? null);
 
-        if (showErrorToast) {
+        if (shouldShowErrorToast) {
           const accessDenied = strapiError.response?.status === 403;
 
           Toast.show({
@@ -167,12 +178,13 @@ export default function useFiliais(): UseFiliaisReturn {
       return;
     }
 
-    void getFiliais();
-  }, [filiais.length, getFiliais]);
+    void getFiliais(showErrorToast);
+  }, [filiais.length, getFiliais, showErrorToast]);
 
   return {
     filiais,
     error,
+    errorStatus,
     loading,
     getFiliais,
   };

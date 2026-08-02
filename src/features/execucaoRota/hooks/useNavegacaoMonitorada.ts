@@ -17,6 +17,7 @@ import {
   obterConfiguracaoMonitoramentoRota,
   type ResultadoConfiguracaoMonitoramento,
 } from '../services/configuracaoMonitoramentoRotaApi';
+import {verificarDisponibilidadeRastreamento} from '../services/backgroundLocationTask';
 
 interface IniciarNavegacaoMonitoradaInput {
   rotas: readonly Filial[];
@@ -48,6 +49,10 @@ export default function useNavegacaoMonitorada() {
     setVerificandoMonitoramento,
   ] = useState(false);
   const checkingConfigurationRef = useRef(false);
+  const [verificandoPermissao, setVerificandoPermissao] =
+    useState(false);
+  const [navegacaoAguardandoPermissao, setNavegacaoAguardandoPermissao] =
+    useState<IniciarNavegacaoMonitoradaInput | null>(null);
 
   const abrirNavegador = useCallback(
     (
@@ -99,7 +104,7 @@ export default function useNavegacaoMonitorada() {
       }
     }, [client]);
 
-  const iniciarNavegacao = useCallback(
+  const iniciarNavegacaoConfirmada = useCallback(
     async ({
       rotas,
       navegador,
@@ -208,15 +213,87 @@ export default function useNavegacaoMonitorada() {
     ],
   );
 
+  /**
+   * Explica a permissão antes da solicitação nativa quando ainda falta acesso
+   * à localização. Depois de concedida, as próximas rotas seguem direto.
+   */
+  const iniciarNavegacao = useCallback(
+    async (
+      input: IniciarNavegacaoMonitoradaInput,
+    ): Promise<boolean> => {
+      if (
+        input.monitorar === false ||
+        abrindoNavegador
+      ) {
+        return iniciarNavegacaoConfirmada(input);
+      }
+
+      if (
+        verificandoPermissao ||
+        navegacaoAguardandoPermissao
+      ) {
+        return false;
+      }
+
+      setVerificandoPermissao(true);
+
+      try {
+        const permission =
+          await verificarDisponibilidadeRastreamento();
+
+        if (
+          !permission.concedida &&
+          (
+            permission.motivo ===
+              'primeiro_plano_negado' ||
+            permission.motivo ===
+              'segundo_plano_negado'
+          )
+        ) {
+          setNavegacaoAguardandoPermissao(input);
+          return false;
+        }
+
+        return iniciarNavegacaoConfirmada(input);
+      } finally {
+        setVerificandoPermissao(false);
+      }
+    },
+    [
+      abrindoNavegador,
+      iniciarNavegacaoConfirmada,
+      navegacaoAguardandoPermissao,
+      verificandoPermissao,
+    ],
+  );
+
+  const confirmarPermissaoRastreamento = useCallback((): void => {
+    const navigation = navegacaoAguardandoPermissao;
+    setNavegacaoAguardandoPermissao(null);
+
+    if (navigation) {
+      void iniciarNavegacaoConfirmada(navigation);
+    }
+  }, [iniciarNavegacaoConfirmada, navegacaoAguardandoPermissao]);
+
+  const cancelarPermissaoRastreamento = useCallback((): void => {
+    setNavegacaoAguardandoPermissao(null);
+  }, []);
+
   return {
     execucaoAtiva,
     processando:
       iniciando ||
       finalizando ||
       abrindoNavegador ||
-      verificandoMonitoramento,
+      verificandoMonitoramento ||
+      verificandoPermissao,
     iniciarNavegacao,
     verificarMonitoramento,
     interromperNavegacao: interromperExecucao,
+    confirmacaoPermissaoVisivel:
+      navegacaoAguardandoPermissao !== null,
+    confirmarPermissaoRastreamento,
+    cancelarPermissaoRastreamento,
   };
 }

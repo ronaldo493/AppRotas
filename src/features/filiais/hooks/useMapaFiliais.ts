@@ -24,6 +24,13 @@ import {
   type FilialMapa,
   type LojaMapa,
 } from '../utils/mapaFilialUtils';
+import {
+  analisarDistribuicaoFiliais,
+  filialPertenceAoGrupo,
+  type AgrupamentoDistribuicaoFiliais,
+  type FiltroDistribuicaoFiliais,
+  type ItemDistribuicaoFiliais,
+} from '../useCases/analisarDistribuicaoFiliais';
 
 interface Feedback {
   message: string;
@@ -32,13 +39,22 @@ interface Feedback {
   onAction?: () => void;
 }
 
+const FILTER_EDGE_PADDING = {
+  top: 170,
+  right: 48,
+  bottom: 90,
+  left: 48,
+};
+
 export default function useMapaFiliais() {
   const mapRef = useRef<MapView | null>(null);
   const initializedRef = useRef(false);
   const initialRegionRef = useRef<Region | null>(null);
   const lastFocusedRegionRef = useRef<Region | null>(null);
 
-  const [search, setSearch] = useState('');
+  const [search, setSearchValue] = useState('');
+  const [filtroDistribuicao, setFiltroDistribuicao] =
+    useState<FiltroDistribuicaoFiliais | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [visibleRegion, setVisibleRegion] =
     useState<Region | null>(null);
@@ -66,17 +82,72 @@ export default function useMapaFiliais() {
     [filiais],
   );
 
+  const distribuicao = useMemo(
+    () => analisarDistribuicaoFiliais(lojas.map(loja => loja.filial)),
+    [lojas],
+  );
+
   const lojasFiltradas = useMemo(() => {
     const normalizedSearch = normalizeText(deferredSearch);
 
-    if (!normalizedSearch) {
-      return lojas;
+    return lojas.filter(loja => {
+      const pertenceAoFiltro =
+        !filtroDistribuicao
+        || filialPertenceAoGrupo(
+          loja.filial,
+          filtroDistribuicao.tipo,
+          filtroDistribuicao.chave,
+        );
+      const correspondePesquisa =
+        !normalizedSearch
+        || loja.searchText.includes(normalizedSearch);
+
+      return pertenceAoFiltro && correspondePesquisa;
+    });
+  }, [deferredSearch, filtroDistribuicao, lojas]);
+
+  /**
+   * Uma pesquisa textual inicia um novo recorte e remove o filtro analítico
+   * anterior para evitar duas condições invisíveis atuando ao mesmo tempo.
+   */
+  const setSearch = useCallback((value: string): void => {
+    setSearchValue(value);
+    setFiltroDistribuicao(null);
+  }, []);
+
+  const aplicarFiltroDistribuicao = useCallback(
+    (
+      tipo: AgrupamentoDistribuicaoFiliais,
+      item: ItemDistribuicaoFiliais,
+    ): void => {
+      setSearchValue('');
+      setFiltroDistribuicao({
+        tipo,
+        chave: item.chave,
+        rotulo: item.rotulo,
+        quantidade: item.quantidade,
+      });
+    },
+    [],
+  );
+
+  const limparFiltroDistribuicao = useCallback((): void => {
+    setFiltroDistribuicao(null);
+
+    if (!mapReady || lojas.length === 0) return;
+    if (lojas.length === 1) {
+      mapRef.current?.animateToRegion(getRegion(lojas[0].coordinate), 400);
+      return;
     }
 
-    return lojas.filter(loja =>
-      loja.searchText.includes(normalizedSearch),
+    mapRef.current?.fitToCoordinates(
+      lojas.map(loja => loja.coordinate),
+      {
+        edgePadding: FILTER_EDGE_PADDING,
+        animated: true,
+      },
     );
-  }, [deferredSearch, lojas]);
+  }, [lojas, mapReady]);
 
   const calculatedInitialRegion = useMemo(() => {
     if (mapRegion) {
@@ -224,6 +295,43 @@ export default function useMapaFiliais() {
     mapReady,
   ]);
 
+  /*
+   * Enquadra todo o agrupamento selecionado. A operação altera apenas a câmera;
+   * o índice do Supercluster continua sendo reutilizado.
+   */
+  useEffect(() => {
+    if (!mapReady || !filtroDistribuicao || lojasFiltradas.length === 0) {
+      return;
+    }
+
+    if (lojasFiltradas.length === 1) {
+      focusLoja(lojasFiltradas[0]);
+      return;
+    }
+
+    mapRef.current?.fitToCoordinates(
+      lojasFiltradas.map(loja => loja.coordinate),
+      {
+        edgePadding: FILTER_EDGE_PADDING,
+        animated: true,
+      },
+    );
+  }, [filtroDistribuicao, focusLoja, lojasFiltradas, mapReady]);
+
+  useEffect(() => {
+    if (!filtroDistribuicao) return;
+
+    const grupos =
+      filtroDistribuicao.tipo === 'cidade'
+        ? distribuicao.cidades
+        : distribuicao.estados;
+    const aindaExiste = grupos.some(
+      grupo => grupo.chave === filtroDistribuicao.chave,
+    );
+
+    if (!aindaExiste) setFiltroDistribuicao(null);
+  }, [distribuicao.cidades, distribuicao.estados, filtroDistribuicao]);
+
   const retryFiliais = useCallback((): void => {
     void getFiliais();
   }, [getFiliais]);
@@ -256,7 +364,7 @@ export default function useMapaFiliais() {
   }, [filiaisError, noResults, retryFiliais]);
 
   const clearSearch = useCallback((): void => {
-    setSearch('');
+    setSearchValue('');
   }, []);
 
   return {
@@ -266,6 +374,10 @@ export default function useMapaFiliais() {
     clearSearch,
 
     lojas: lojasFiltradas,
+    distribuicao,
+    filtroDistribuicao,
+    aplicarFiltroDistribuicao,
+    limparFiltroDistribuicao,
     initialRegion,
     currentLocation,
     mapReady,

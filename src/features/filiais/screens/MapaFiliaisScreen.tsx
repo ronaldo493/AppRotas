@@ -1,5 +1,4 @@
-import { MaterialIcons } from '@expo/vector-icons';
-import React, {useCallback, useMemo} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {Text, useWindowDimensions, View} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { ActivityIndicator, Banner, Searchbar, Surface } from 'react-native-paper';
@@ -7,11 +6,13 @@ import { ActivityIndicator, Banner, Searchbar, Surface } from 'react-native-pape
 import ClusterMarker from '../../../shared/components/maps/ClusterMarker';
 import {useAppTheme} from '../../../core/theme/appTheme';
 import {MapClusterIndex} from '../../../shared/maps/clustering';
+import DistribuicaoFiliaisSheet from '../components/DistribuicaoFiliaisSheet';
+import MapaResumoDistribuicao from '../components/MapaResumoDistribuicao';
 import useMapaFiliais from '../hooks/useMapaFiliais';
 import styles from './mapaFiliais.styles';
 import type {LojaMapa} from '../utils/mapaFilialUtils';
 
-const MAP_PADDING = {top: 75, right: 0, bottom: 0, left: 0};
+const MAP_PADDING = {top: 155, right: 0, bottom: 0, left: 0};
 
 const getLojaCoordinate = (loja: LojaMapa) => loja.coordinate;
 const getLojaKey = (loja: LojaMapa): string =>
@@ -20,6 +21,7 @@ const getLojaKey = (loja: LojaMapa): string =>
 export default function MapaFiliaisScreen(): React.JSX.Element {
   const theme = useAppTheme();
   const {width, height} = useWindowDimensions();
+  const [distribuicaoVisivel, setDistribuicaoVisivel] = useState(false);
 
   const {
     mapRef,
@@ -27,6 +29,10 @@ export default function MapaFiliaisScreen(): React.JSX.Element {
     setSearch,
     clearSearch,
     lojas,
+    distribuicao,
+    filtroDistribuicao,
+    aplicarFiltroDistribuicao,
+    limparFiltroDistribuicao,
     initialRegion,
     currentLocation,
     mapReady,
@@ -41,8 +47,6 @@ export default function MapaFiliaisScreen(): React.JSX.Element {
     feedback?.actionLabel && feedback.onAction
       ? [{ label: feedback.actionLabel, onPress: feedback.onAction }]
       : [];
-
-  const storeCountLabel = lojas.length === 1 ? 'filial exibida' : 'filiais exibidas';
 
   /*
    * O índice é reconstruído somente quando as lojas mudam. Movimentar o mapa
@@ -187,25 +191,14 @@ export default function MapaFiliaisScreen(): React.JSX.Element {
         />
       </Surface>
 
-      {!loading && (
-        <Surface
-          elevation={2}
-          pointerEvents="none"
-          style={[
-            styles.storeCountBadge,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outline,
-            },
-          ]}
-        >
-          <MaterialIcons name="storefront" size={17} color={theme.colors.primary} />
-
-          <Text style={[styles.storeCountText, { color: theme.colors.onSurface }]}>
-            {lojas.length} {storeCountLabel}
-          </Text>
-        </Surface>
-      )}
+      {!loading && distribuicao.totalFiliais > 0 ? (
+        <MapaResumoDistribuicao
+          resumo={distribuicao}
+          filtro={filtroDistribuicao}
+          onOpen={() => setDistribuicaoVisivel(true)}
+          onClear={limparFiltroDistribuicao}
+        />
+      ) : null}
 
       {feedback && (
         <Banner
@@ -247,6 +240,16 @@ export default function MapaFiliaisScreen(): React.JSX.Element {
           </Surface>
         </View>
       )}
+
+      <DistribuicaoFiliaisSheet
+        visible={distribuicaoVisivel}
+        resumo={distribuicao}
+        filtro={filtroDistribuicao}
+        onDismiss={() => setDistribuicaoVisivel(false)}
+        onSelect={aplicarFiltroDistribuicao}
+        onClear={limparFiltroDistribuicao}
+      />
     </View>
   );
+
 }

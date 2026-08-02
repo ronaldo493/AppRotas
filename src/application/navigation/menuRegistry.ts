@@ -9,6 +9,15 @@ import HistoricoScreen from '../../features/historico/screens/HistoricoScreen';
 import PontosScreen from '../../features/pontos/screens/PontosScreen';
 import PatrimonioEntryScreen from '../../features/patrimonio/screens/PatrimonioEntryScreen';
 import RotasScreen from '../../features/rotas/screens/RotasScreen';
+import {
+  isMenuRouteName,
+  type MenuRouteName,
+} from './menuRouteNames';
+
+export {
+  isMenuRouteName,
+  type MenuRouteName,
+} from './menuRouteNames';
 
 /**
  * Mantém a relação entre a rota técnica cadastrada no Strapi e a tela
@@ -23,26 +32,13 @@ export const menuScreenRegistry = {
   Chamados: ChamadosScreen,
   Contatos: ContatosScreen,
   Admin: AdminScreen,
-} satisfies Record<string, ComponentType<object>>;
-
-export type MenuRouteName = keyof typeof menuScreenRegistry;
+} satisfies Record<MenuRouteName, ComponentType<object>>;
 
 export interface NavigableMenu extends Omit<MenuItem, 'rota'> {rota: MenuRouteName}
 
 interface MenuNavigationResolution {
   menus: NavigableMenu[];
   unsupportedRoutes: string[];
-}
-
-/**
- * Verifica se uma rota recebida do backend está registrada no aplicativo e
- * permite que o TypeScript trate o valor como uma rota de menu válida.
- */
-export function isMenuRouteName(route: string): route is MenuRouteName {
-  return Object.prototype.hasOwnProperty.call(
-    menuScreenRegistry,
-    route,
-  );
 }
 
 /**

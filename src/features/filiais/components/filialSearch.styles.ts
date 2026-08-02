@@ -37,6 +37,19 @@ export default StyleSheet.create({
     marginBottom: 12,
   },
 
+  offlineContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+
+  offlineText: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+
   resultCard: {
     borderRadius: 18,
     borderWidth: 1,

@@ -20,13 +20,28 @@ interface SearchBarProps {
   onResultChange?: (
     hasSearch: boolean,
   ) => void;
+  filiais: readonly Filial[];
+  loadingFiliais: boolean;
+  filiaisError: string | null;
+  usandoDadosSalvos: boolean;
+  dadosOnlineIndisponiveis: boolean;
+  cacheAtualizadoEm: number | null;
 }
 
 export default function SearchBar({
   onAddRoute,
   onResultChange,
+  filiais,
+  loadingFiliais,
+  filiaisError,
+  usandoDadosSalvos,
+  dadosOnlineIndisponiveis,
+  cacheAtualizadoEm,
 }: SearchBarProps): React.JSX.Element {
   const theme = useAppTheme();
+  const cacheDate = cacheAtualizadoEm
+    ? new Date(cacheAtualizadoEm).toLocaleDateString('pt-BR')
+    : null;
 
   const {
     searchTerm,
@@ -37,12 +52,12 @@ export default function SearchBar({
     filialNotFound,
     addSelectedFilial,
 
-    loadingFiliais,
-    filiaisError,
-
   } = useSearchFilial({
     onAddRoute,
     onResultChange,
+    filiais,
+    filiaisError,
+    loadingFiliais,
   });
 
   const handleClear = (): void => {
@@ -119,6 +134,32 @@ export default function SearchBar({
         >
           <Text style={{color: theme.colors.onErrorContainer}}>
             {filiaisError}
+          </Text>
+        </View>
+      )}
+
+      {usandoDadosSalvos && !filiaisError && (
+        <View
+          style={[
+            SearchBarStyles.offlineContainer,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outline,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              SearchBarStyles.offlineText,
+              {color: theme.colors.onSurfaceVariant},
+            ]}
+          >
+            {dadosOnlineIndisponiveis
+              ? 'Sem conexão: usando filiais salvas'
+              : 'Usando filiais salvas enquanto verifica atualizações'}.
+            {cacheDate
+              ? ` Última atualização: ${cacheDate}.`
+              : ''}
           </Text>
         </View>
       )}

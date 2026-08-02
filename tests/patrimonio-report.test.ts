@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import createPatrimonioReport from '../src/features/patrimonio/domain/createPatrimonioReport.ts';
+import createPatrimonioReport from '../src/features/patrimonio/domain/createPatrimonioReport';
 
 test('mantém o formato atual do relatório de patrimônio', () => {
   const report = createPatrimonioReport({

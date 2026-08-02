@@ -83,9 +83,7 @@ const useHistoricoRotas = (
       setLoading(true);
       setError(null);
 
-      const filters: Record<string, unknown> = {
-        username: { $eq: user.username},
-      };
+      const filters: Record<string, unknown> = {};
 
       if (filtro.dataInicial || filtro.dataFinal) {
         filters.datahora = {
@@ -99,7 +97,7 @@ const useHistoricoRotas = (
       }
 
       try {
-        const response = await conexao.get<StrapiListResponse<HistoricoVisita>>('/historico-visitas', {
+        const response = await conexao.get<StrapiListResponse<HistoricoVisita>>('/historico-visitas/me', {
           params: {
             filters,
             sort: ['datahora:desc'],

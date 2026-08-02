@@ -8,7 +8,6 @@ import type {
 import type {PeriodoHistoricoAssistente} from '../models/ComandoAssistente';
 
 interface ConsultarHistoricoInput {
-  username: string;
   periodo: PeriodoHistoricoAssistente;
   tipo?: TipoHistorico;
 }
@@ -48,11 +47,9 @@ const obterIntervalo = (
  */
 export const consultarHistoricoAssistente = async (
   client: AxiosInstance,
-  {username, periodo, tipo}: ConsultarHistoricoInput,
+  {periodo, tipo}: ConsultarHistoricoInput,
 ): Promise<ResumoHistoricoAssistente> => {
-  const filters: Record<string, unknown> = {
-    username: {$eq: username},
-  };
+  const filters: Record<string, unknown> = {};
 
   if (periodo !== 'geral') {
     const limites = obterIntervalo(periodo);
@@ -66,7 +63,7 @@ export const consultarHistoricoAssistente = async (
   if (tipo) filters.tipoHistorico = {$eq: tipo};
 
   const response = await client.get<StrapiListResponse<HistoricoVisita>>(
-    '/historico-visitas',
+    '/historico-visitas/me',
     {
       params: {
         filters,

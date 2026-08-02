@@ -32,29 +32,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  storeCountBadge: {
-    position: 'absolute',
-    top: 84,
-    left: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderRadius: 18,
-    zIndex: 15,
-    elevation: 4,
-  },
-
-  storeCountText: {
-    marginLeft: 6,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-
   bannerOverlay: {
     position: 'absolute',
-    top: 120,
+    top: 156,
     left: 14,
     right: 14,
     overflow: 'hidden',

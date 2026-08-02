@@ -31,7 +31,8 @@ Documentação técnica desta camada:
 - Registro de percursos iniciados pelo usuário, com GPS em segundo plano,
   conclusão automática, execução parcial, fila SQLite por colaborador,
   duração, distância, chegadas e desvios.
-- Mapa de filiais e pontos de interesse com agrupamento de marcadores.
+- Mapa de filiais com distribuição por cidade/estado, filtros analíticos e
+  agrupamento de marcadores; pontos de interesse também usam agrupamento.
 - Cadastro de restaurantes e postos com identificação do usuário criador.
 - Histórico por usuário, período, cidade de origem e tipo de destino.
 - Fila local para históricos que não puderam ser enviados ao Strapi.
@@ -284,6 +285,24 @@ região nativa são ignoradas para evitar que os agrupamentos pareçam se mover
 sozinhos. Ao tocar em um cluster, a biblioteca calcula o zoom em que ele começa
 a se dividir.
 
+Nos pontos de interesse, registros a até 12 metros são tratados como um mesmo
+local apenas para renderização. Um marcador numerado abre a lista de opções,
+permitindo escolher, por exemplo, o restaurante ou o posto cadastrado na mesma
+coordenada. Os registros originais continuam separados no Strapi.
+
+### Filiais disponíveis offline na tela de Rotas
+
+A busca por código da filial mantém a última lista online válida no aparelho.
+O cache é versionado e isolado por servidor e usuário. Ele é usado somente pela
+tela de Rotas; mapa, contatos, histórico, pontos e demais módulos continuam com
+o comportamento online atual. Respostas `401/403` nunca são ocultadas por dados
+locais.
+
+Sem internet, o usuário consegue localizar filiais salvas, montar e ordenar os
+destinos. A estimativa de tempo/distância ainda requer a Routes API e pode ser
+ignorada pelo botão de continuar sem prévia. Abrir e navegar depende do suporte
+offline oferecido pelo Google Maps ou Waze instalado no aparelho.
+
 ### Histórico offline
 
 Os registros pendentes ficam no AsyncStorage em uma chave versionada e
@@ -331,6 +350,10 @@ feature.
 | `cidadeOrigem` | Texto curto | Cidade resolvida no login |
 
 ### `historico-visitas`
+
+A tela e a assistente consultam `GET /api/historico-visitas/me`. O backend
+deriva o usuário do JWT e aceita somente intervalo de data e paginação; o app
+não envia mais `username` como regra de autorização.
 
 | Campo | Tipo recomendado | Uso |
 | --- | --- | --- |
@@ -427,8 +450,10 @@ armazenados.
 | `setor` | Texto curto | Setor do usuário |
 | `origem` | Enumeration | `APP_MOBILE` |
 
-O horário deve utilizar o campo automático `createdAt` do Strapi. O papel
-`Authenticated` precisa somente da permissão `create` nessa coleção.
+O horário utiliza o campo automático `createdAt` do Strapi. O aplicativo não
+cria audit logs diretamente: `PUT /api/perfil/email` e
+`POST /api/perfil/senha` confirmam a identidade do JWT, concluem a alteração e
+registram a auditoria no servidor.
 
 ### Usuário e troca de senha no primeiro acesso
 
@@ -436,6 +461,12 @@ O User do Users & Permissions possui `deveAlterarSenha`, Boolean com padrão
 `true`. No papel `Authenticated`, habilite as ações `verificar` e `trocar` da
 API `troca-senha-obrigatoria`. A senha e a liberação da flag são gravadas na
 mesma atualização do usuário.
+
+Para a edição comum, habilite `Perfil > atualizarEmail` e
+`Perfil > alterarSenha`. O novo aplicativo não precisa de
+`Users-permissions User > update`, `Auth > changePassword` nem
+`Audit-log > create`. Mantenha essas permissões antigas apenas durante o
+rollout se ainda houver APK anterior em uso.
 
 ### Outras coleções utilizadas
 
@@ -456,7 +487,7 @@ Os papéis autenticados do Strapi precisam das permissões `find`, `findOne` ou
 
 Requisitos:
 
-- Node.js 18 ou superior;
+- Node.js 20.19.4 ou superior;
 - Yarn;
 - Android Studio/SDK para execução nativa no Android;
 - Xcode para execução nativa no iOS.
@@ -529,10 +560,17 @@ npx expo start --clear
 
 ### Builds Android
 
-`yarn build-android` usa o perfil `preview_android` definido no `eas.json`.
-Ele serve para distribuição e validação interna; antes de publicar uma versão
-em produção, confira o perfil correspondente no EAS, a URL HTTPS do Strapi e
-as restrições da chave do Google Maps.
+`yarn build-android` e `yarn build-android:preview` usam `preview_android`
+somente para validação interna. Para distribuir um APK com variáveis de
+produção use `yarn build-android:production-apk`; para gerar o AAB da loja use
+`yarn build-android:store`.
+
+Antes do build confirme no ambiente EAS correspondente
+`GOOGLE_MAPS_API_KEY`, `EXPO_PUBLIC_STRAPI_URL` e
+`ALLOW_CLEARTEXT_TRAFFIC=false`. O código possui fallback HTTPS para o Strapi,
+mas declarar a URL no EAS torna o artefato auditável e evita depender de valor
+compilado no código. Consulte também o
+[checklist de publicação do aplicativo](./docs/CHECKLIST_PUBLICACAO.md).
 
 ## Segurança
 

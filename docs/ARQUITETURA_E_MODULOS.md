@@ -207,6 +207,18 @@ Mantém lista ordenável de destinos, pesquisa de filial e prévia. Responsabili
 ordem e coordenadas dos destinos; alteração da lista ou ordem o invalida. A
 polyline recebida é decodificada para desenho no mapa.
 
+A pesquisa numérica da tela de Rotas possui um fallback persistente exclusivo.
+Depois de uma leitura online válida de `/informacoeslojas`, a lista é salva no
+AsyncStorage com versão, servidor e chave estável do usuário. Enquanto a API é
+consultada, a última lista válida pode atender a pesquisa; falhas transitórias
+mantêm esse fallback, mas respostas `401` e `403` o bloqueiam. O mapa de lojas,
+o assistente e os demais módulos não consomem esse cache.
+
+O fallback garante a seleção e ordenação dos destinos. A prévia com distância e
+tempo continua dependendo da Routes API; quando indisponível, o fluxo existente
+permite continuar sem prévia. A navegação final depende dos recursos offline do
+Google Maps/Waze instalados no aparelho.
+
 ### 9.2 `execucaoRota`
 
 É o módulo de maior criticidade. Ele não depende da tela nem do navegador de
@@ -266,6 +278,12 @@ por token e compartilha o resultado no contexto. Coordenadas inválidas não sã
 enviadas ao mapa. A localização inicial usa usuário, depois Piracicaba ou a
 primeira filial válida como fallback.
 
+O mapa calcula localmente a distribuição das filiais válidas por cidade e UF,
+sem endpoint adicional. Códigos repetidos contam uma única vez. O painel mostra
+ranking, quantidade e proporção; selecionar uma linha filtra os marcadores e
+enquadra o grupo. Pesquisa textual e filtro analítico não ficam ativos juntos,
+evitando um recorte invisível para o usuário.
+
 ### 9.5 `pontos`
 
 Carrega e cria `/pontos-interesses`. Modela campos opcionais para compatibilidade
@@ -275,6 +293,11 @@ No novo cadastro, cidade é resolvida pela coordenada; falha vira `Não informad
 O hook envia dados do usuário, mas o backend autentica e sobrescreve autoria.
 Criar não chama histórico. Traçar para o ponto reaproveita os módulos `rotas` e
 `execucaoRota`.
+
+Registros separados que estejam em um raio de 12 metros são representados por
+um único local numerado. Ao tocar, o usuário escolhe o restaurante ou posto que
+deseja usar. Essa consolidação acontece antes do Supercluster, somente quando a
+lista muda, e não altera nem combina os registros persistidos no Strapi.
 
 ### 9.6 `contatos`
 
@@ -288,11 +311,14 @@ Carrega `/chamados` com filtros de responsável/setor. Mantém contexto por
 sessão. O modelo do backend não está versionado neste repositório Strapi; trate
 como contrato externo ao alterar campos.
 
-### 9.8 `configuracoes` e `auditoria`
+### 9.8 `configuracoes`
 
 Perfil atualiza apenas `emailSec` e senha. Cargo e e-mail corporativo principal
-não são editados pela tela. A auditoria é best-effort depois da confirmação do
-Strapi e nunca recebe valores sensíveis.
+permanecem somente leitura. As alterações usam `/perfil/email` e
+`/perfil/senha`, que derivam o usuário do JWT e geram audit log no backend;
+o app não recebe permissão genérica para editar usuários ou criar auditoria.
+Cargo e e-mail corporativo principal não são editados pela tela, e a auditoria
+nunca recebe valores sensíveis.
 
 ### 9.9 `atualizacao`
 

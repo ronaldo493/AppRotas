@@ -41,7 +41,6 @@ export default function useHistoricoAssistenteHandler({
           ? comando.periodo
           : 'geral';
         const resumo = await consultarHistoricoAssistente(client, {
-          username: user.username,
           periodo: periodoConsulta,
           tipo: comando.tipo,
         });
@@ -109,4 +108,3 @@ export default function useHistoricoAssistenteHandler({
 
   return {consultarHistorico};
 }
-
