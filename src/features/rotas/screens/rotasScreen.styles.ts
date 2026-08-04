@@ -70,6 +70,18 @@ export default StyleSheet.create({
     fontWeight: '700',
   },
 
+  activeRouteAction: {
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+
+  activeRouteActionText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+
   locationMessage: {
     flexDirection: 'row',
     alignItems: 'center',

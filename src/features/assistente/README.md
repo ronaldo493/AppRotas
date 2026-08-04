@@ -2,27 +2,59 @@
 
 Módulo opcional de ajuda por voz com arquitetura **local-first**. Comandos
 conhecidos continuam instantâneos e independentes de IA. Quando a interpretação
-local não reconhece uma frase, o Strapi pode usar uma IA externa apenas para
-reescrevê-la em um comando canônico já permitido pelo aplicativo.
+local não reconhece uma frase, o Strapi pode usar uma IA externa para classificá-la
+em uma intenção estruturada já permitida pelo aplicativo.
 
 ## Fluxo seguro
 
 1. o aparelho converte a fala em texto;
 2. a árvore local tenta interpretar e executar o comando;
-3. somente se ela falhar e `assistenteIaAtiva = true`, o app envia ao Strapi a
-   frase e o nome da tela atual;
+3. somente se ela falhar e `assistenteIaAtiva = true`, o app envia ao Strapi até
+   cinco alternativas da fala, a tela, a rota atual e até quatro interações
+   recentes sem incluir respostas ou dados consultados;
 4. o Strapi monta um contexto mínimo com os módulos liberados para o usuário e
-   pede ao provedor apenas um comando canônico, com JSON estruturado;
-5. respostas curtas com confiança mínima de 65% voltam ao app;
-6. o comando retornado passa novamente pelos interpretadores locais e pelas
-   permissões do usuário antes de qualquer ação;
+   pede ao provedor uma intenção com domínio, ação e parâmetros tipados;
+5. respostas com confiança mínima de 65% voltam ao app; pedidos realmente
+   ambíguos podem gerar uma pergunta curta de esclarecimento;
+6. o app reconstrói o comando por uma lista fechada e o envia aos mesmos handlers
+   locais e verificações de acesso usados pela árvore determinística;
 7. timeout, falta de internet, limite do provedor, erro HTTP ou resposta inválida
    usam o fallback local sem bloquear o colaborador.
+
+Comandos complexos de adicionar, remover e reordenar filiais mantêm um texto
+canônico como ponte para o interpretador especializado de rotas. O mesmo campo
+permite publicar backend e APK em qualquer ordem durante a transição. Ele não
+executa ações diretamente.
 
 Após uma falha de rede, novas tentativas externas ficam suspensas por um minuto
 para não repetir a mesma espera; comandos locais continuam disponíveis.
 Interpretações externas válidas ficam em memória por 15 minutos, limitadas a
-100 frases, sem persistência no aparelho.
+100 combinações de frase e contexto, sem persistência no aparelho. A memória de
+conversa também é volátil, limitada a quatro interações e limpa ao trocar de
+usuário.
+
+## Informações das filiais
+
+Perguntas factuais usam a collection já carregada de `informacoeslojas`. A
+árvore local reconhece código, nome, cidade, bairro ou endereço e pode responder
+resumo, endereço completo, telefone, horário de funcionamento, gerente,
+supervisor, CNPJ, CEP, bairro, cidade e UF. Exemplos:
+
+- `qual o telefone da filial 25`;
+- `que horas fecha a loja 48`;
+- `quem é o gerente da filial 35`;
+- `me fale tudo sobre a filial 128`;
+- depois de uma resposta, `e o endereço dela`.
+
+O handler mantém somente a última filial em memória durante a sessão. Se uma
+busca por nome ou cidade resultar em lojas igualmente prováveis, nenhuma é
+escolhida automaticamente: a assistente lista as alternativas e pede o código.
+Campos ausentes são informados como não cadastrados.
+
+O Gemini pode classificar frases mais livres, mas recebe apenas candidatos com
+código, nome e cidade. A resposta é sempre formatada no aparelho a partir do
+objeto real da filial; endereço, telefone, horário, gerente, supervisor, CNPJ e
+coordenadas não são enviados ao provedor nem completados pela IA.
 
 A IA não executa navegação, não consulta collections e não decide acesso. O
 backend consulta os menus autorizados e envia um contexto resumido para ajudar
@@ -53,8 +85,13 @@ app, ao voltar ao primeiro plano e a cada cinco minutos. Offline, usa-se a
 - `AssistenteGlobal`: somente interface e acessibilidade;
 - `useAssistenteGlobal`: coordena conversa, permissões e executores;
 - `handlers`: casos de filiais, pontos/GPS, contatos, histórico e chamados;
+- `formatarDetalhesFilialAssistente`: apresenta fatos do cadastro sem IA;
 - `useCases`: interpretação e regras puras, testáveis sem Expo;
-- `assistenteIaApi`: única porta do app para o fallback do Strapi;
+- `assistenteIaApi`: única porta do app para o fallback do Strapi e seu cache;
+- `validarComandoAssistenteIa`: allowlist que reconstrói comandos tipados antes
+  de chegarem aos handlers;
+- `validarRespostaAssistenteIa`: valida confiança, esclarecimento e o contrato
+  de rollout do backend;
 - `useReconhecimentoVoz` e `useAssistenteFalante`: adaptadores nativos;
 - `RotasContext` e `PontosContext`: contratos dos domínios acionados.
 
@@ -120,5 +157,6 @@ npm run typecheck
 npm run test:assistant
 ```
 
-Os testes cobrem a árvore local, comandos de rota, contexto, busca e rejeição de
-respostas de IA com contrato inválido ou baixa confiança.
+Os testes cobrem a árvore local, comandos de rota, contexto, busca, detalhes e
+continuação de filial, contrato legado, intenção estruturada, esclarecimento e
+rejeição de ações inválidas ou de baixa confiança.

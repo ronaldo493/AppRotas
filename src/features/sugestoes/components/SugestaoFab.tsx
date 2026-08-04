@@ -176,7 +176,7 @@ export default function SugestaoFab({
       {showButton ? (
         <Animated.View
           {...panHandlers}
-          style={[ styles.fabContainer, { bottom: 94 + insets.bottom, transform }]}
+          style={[styles.fabContainer, {transform}]}
         >
           <TouchableOpacity
             activeOpacity={0.8}

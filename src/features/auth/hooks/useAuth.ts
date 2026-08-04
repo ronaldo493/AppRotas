@@ -2,7 +2,7 @@ import axios from 'axios';
 import {useCallback, useState} from 'react';
 import {type AuthUser, useAuthContext} from '../../../core/auth/AuthContext';
 import useStrapiClient from '../../../core/api/strapiClient';
-import useLocation from '../../../core/location/useLocation';
+import {capturarSnapshotLocalizacaoAtual} from '../../../core/location/services/locationSnapshotService';
 import {appLogger} from '../../../shared/logging/appLogger';
 import useAuthMenus from '../../menus/hooks/useAuthMenus';
 
@@ -23,7 +23,6 @@ interface UseAuthReturn {
 export default function useAuth():
   UseAuthReturn {
   const conexao = useStrapiClient();
-  const {resolveCurrentCity} = useLocation();
 
   const {
     user,
@@ -58,9 +57,21 @@ export default function useAuth():
         return;
       }
 
-      try {
-        const cidadeOrigem = await resolveCurrentCity();
+      let cidadeOrigem: string | null = null;
 
+      try {
+        const snapshot =
+          await capturarSnapshotLocalizacaoAtual();
+
+        cidadeOrigem = snapshot?.city ?? null;
+      } catch (locationError: unknown) {
+        appLogger.error(
+          'Erro ao obter localização da sessão:',
+          locationError,
+        );
+      }
+
+      try {
         await conexao.post(
           '/sessoes',
           {
@@ -96,7 +107,7 @@ export default function useAuth():
          */
       }
     },
-    [conexao, resolveCurrentCity],
+    [conexao],
   );
 
   const conexaoLogin = useCallback(

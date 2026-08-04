@@ -12,6 +12,49 @@ import type {
 export class RoutePreviewValidationError extends Error {}
 
 const MAX_ROUTE_PREVIEW_DESTINATIONS = 25;
+const EARTH_RADIUS_METERS = 6_371_000;
+
+export const ROUTE_PREVIEW_CACHE_MAX_AGE_MS =
+  10 * 60 * 1_000;
+export const ROUTE_PREVIEW_CACHE_MAX_DISTANCE_METERS =
+  500;
+
+export interface RoutePreviewCacheMetadata {
+  origin: LatLng;
+  createdAt: number;
+}
+
+const toRadians = (degrees: number): number =>
+  degrees * (Math.PI / 180);
+
+/** Calcula a distância entre duas origens para validar o reaproveitamento. */
+function getDistanceMeters(
+  first: LatLng,
+  second: LatLng,
+): number {
+  const latitudeDelta = toRadians(
+    second.latitude - first.latitude,
+  );
+  const longitudeDelta = toRadians(
+    second.longitude - first.longitude,
+  );
+  const firstLatitude = toRadians(first.latitude);
+  const secondLatitude = toRadians(second.latitude);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(firstLatitude) *
+      Math.cos(secondLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+
+  return (
+    2 *
+    EARTH_RADIUS_METERS *
+    Math.atan2(
+      Math.sqrt(haversine),
+      Math.sqrt(1 - haversine),
+    )
+  );
+}
 
 /**
  * Identifica a composição exata da rota sem considerar pequenas oscilações
@@ -32,6 +75,47 @@ export function createRoutePreviewCacheKey(
       ].join(':');
     })
     .join('|');
+}
+
+/**
+ * Diferencia requisições simultâneas pela rota e pela origem efetivamente
+ * consultada, sem transformar pequenas variações do GPS em cache permanente.
+ */
+export function createRoutePreviewRequestKey(
+  origin: LatLng,
+  routes: readonly Filial[],
+): string {
+  return [
+    origin.latitude.toFixed(3),
+    origin.longitude.toFixed(3),
+    createRoutePreviewCacheKey(routes),
+  ].join('|');
+}
+
+/**
+ * Reutiliza a estimativa somente por um período curto e se o usuário ainda
+ * estiver próximo da origem usada no cálculo anterior.
+ */
+export function isRoutePreviewCacheValid(
+  cached: RoutePreviewCacheMetadata,
+  currentOrigin: LatLng,
+  now = Date.now(),
+): boolean {
+  const age = now - cached.createdAt;
+
+  if (
+    age < 0 ||
+    age > ROUTE_PREVIEW_CACHE_MAX_AGE_MS
+  ) {
+    return false;
+  }
+
+  return (
+    getDistanceMeters(
+      cached.origin,
+      currentOrigin,
+    ) <= ROUTE_PREVIEW_CACHE_MAX_DISTANCE_METERS
+  );
 }
 
 /**

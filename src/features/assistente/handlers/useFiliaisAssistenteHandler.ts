@@ -1,8 +1,9 @@
-import {useCallback} from 'react';
+import {useCallback, useRef} from 'react';
 
 import {navigateToMenu} from '../../../application/navigation/navigationService';
 import useFiliais from '../../filiais/hooks/useFiliais';
 import {useFiliaisContext} from '../../filiais/FiliaisContext';
+import type {Filial} from '../../filiais/models/Filial';
 import type {ComandoAssistente} from '../models/ComandoAssistente';
 import {
   analisarFiliaisAssistente,
@@ -11,6 +12,7 @@ import {
 } from '../useCases/analisarFiliaisAssistente';
 import {buscarFiliaisAssistente} from '../useCases/buscarFiliaisAssistente';
 import {formatarListaAssistente} from '../useCases/formatarListaAssistente';
+import {formatarDetalhesFilialAssistente} from '../useCases/formatarDetalhesFilialAssistente';
 import type {AssistenteHandlerDependencies} from './assistenteHandlerTypes';
 
 interface UseFiliaisAssistenteHandlerParams
@@ -28,6 +30,22 @@ export default function useFiliaisAssistenteHandler({
 }: UseFiliaisAssistenteHandlerParams) {
   const {filiais, getFiliais} = useFiliais();
   const {solicitarPesquisaMapa} = useFiliaisContext();
+  const ultimaFilialRef = useRef<Filial | null>(null);
+
+  const responderDetalhesFilial = useCallback(
+    (
+      filial: Filial,
+      campo: Extract<
+        ComandoAssistente,
+        {dominio: 'filiais'; acao: 'consultar' | 'consultar_ultima'}
+      >['campo'],
+    ): void => {
+      ultimaFilialRef.current = filial;
+      const resposta = formatarDetalhesFilialAssistente(filial, campo);
+      responder(resposta.visual, resposta.falada);
+    },
+    [responder],
+  );
 
   const obterFiliais = useCallback(
     async (mensagem: string) => {
@@ -89,6 +107,7 @@ export default function useFiliaisAssistenteHandler({
       }
 
       const primeira = resultados[0].filial;
+      if (resultados.length === 1) ultimaFilialRef.current = primeira;
       responder(
         resultados.length === 1
           ? `Mostrando a filial ${primeira.codigofilial}, ${primeira.nomefilial}, em ${primeira.nomecidade}.`
@@ -109,12 +128,23 @@ export default function useFiliaisAssistenteHandler({
     ],
   );
 
-  const consultarAnaliseFiliais = useCallback(
+  const consultarFiliais = useCallback(
     async (
       comando: Extract<ComandoAssistente, {dominio: 'filiais'}>,
     ): Promise<void> => {
       if (!temAcesso('MapaLojas') && !temAcesso('Home')) {
         informarAcessoNegado('filiais');
+        return;
+      }
+
+      if (comando.acao === 'consultar_ultima') {
+        const filial = ultimaFilialRef.current;
+        if (!filial) {
+          responder('Consulte primeiro uma filial pelo código, nome ou cidade.');
+          return;
+        }
+
+        responderDetalhesFilial(filial, comando.campo);
         return;
       }
 
@@ -131,6 +161,34 @@ export default function useFiliaisAssistenteHandler({
 
       if (filiaisDisponiveis.length === 0) {
         responder('Não consegui carregar as filiais agora. Verifique sua conexão.');
+        return;
+      }
+
+      if (comando.acao === 'consultar') {
+        const resultados = buscarFiliaisAssistente(
+          filiaisDisponiveis,
+          comando.termo,
+        );
+
+        if (resultados.length === 0) {
+          responder(`Não encontrei filial para ${comando.termo}.`);
+          return;
+        }
+
+        if (
+          resultados.length === 1 ||
+          resultados[0].pontuacao > resultados[1].pontuacao
+        ) {
+          responderDetalhesFilial(resultados[0].filial, comando.campo);
+          return;
+        }
+
+        const alternativas = resultados.slice(0, 4).map(({filial}) =>
+          `filial ${filial.codigofilial}, ${filial.nomefilial}, em ${filial.nomecidade}`,
+        );
+        responder(
+          `Encontrei mais de uma filial: ${formatarListaAssistente(alternativas, 4)}. Informe o código da loja para consultar com segurança.`,
+        );
         return;
       }
 
@@ -212,9 +270,27 @@ export default function useFiliaisAssistenteHandler({
         `${avisoRegional}${itens.join('; ')}.`,
       );
     },
-    [informarAcessoNegado, obterFiliais, responder, temAcesso],
+    [
+      informarAcessoNegado,
+      obterFiliais,
+      responder,
+      responderDetalhesFilial,
+      temAcesso,
+    ],
   );
 
-  return {pesquisarFiliaisNoMapa, consultarAnaliseFiliais};
-}
+  const limparContextoFilial = useCallback((): void => {
+    ultimaFilialRef.current = null;
+  }, []);
 
+  const obterContextoFilial = useCallback(() => ({
+    possuiUltimaFilial: Boolean(ultimaFilialRef.current),
+  }), []);
+
+  return {
+    pesquisarFiliaisNoMapa,
+    consultarFiliais,
+    limparContextoFilial,
+    obterContextoFilial,
+  };
+}

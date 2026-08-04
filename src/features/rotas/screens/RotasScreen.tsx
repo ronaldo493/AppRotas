@@ -17,9 +17,11 @@ import RoutePreviewModal from '../components/RoutePreviewModal';
 import type {RoutePreview} from '../models/RoutePreview';
 import useFiliaisRotaOffline from '../hooks/useFiliaisRotaOffline';
 import {useRotasContext} from '../RotasContext';
+import {iniciarNovaRotaAposInterrupcao} from '../useCases/iniciarNovaRotaAposInterrupcao';
 import HomeStyles from './rotasScreen.styles';
 
 type NavigatorType = 'google' | 'waze';
+type InterruptionDialogMode = 'manage' | 'replace' | null;
 
 export default function RotasScreen(): React.JSX.Element {
   const theme = useAppTheme();
@@ -36,7 +38,6 @@ export default function RotasScreen(): React.JSX.Element {
   } = useNavegacaoMonitorada();
 
   const {
-    currentCity,
     error: locationError,
     loading: loadingLocation,
     ensureLocation,
@@ -64,7 +65,9 @@ export default function RotasScreen(): React.JSX.Element {
   ] = useState<PlanejamentoExecucaoRota | undefined>(
     undefined,
   );
-  const [interruptionDialogVisible, setInterruptionDialogVisible] =
+  const [interruptionDialogMode, setInterruptionDialogMode] =
+    useState<InterruptionDialogMode>(null);
+  const [replaceActiveRoute, setReplaceActiveRoute] =
     useState(false);
 
   const hasRoutes = routes.length > 0;
@@ -111,6 +114,12 @@ export default function RotasScreen(): React.JSX.Element {
     );
   };
 
+  /** Limpa somente a seleção usada para montar a rota que acabou de abrir. */
+  const handleNavigationStarted = useCallback((): void => {
+    setRoutes([]);
+    setHasSearchResult(false);
+  }, [setRoutes]);
+
   /**
    * A escolha do navegador confirma o início. A prévia já foi exibida antes,
    * portanto não é necessário outro diálogo intermediário.
@@ -122,23 +131,58 @@ export default function RotasScreen(): React.JSX.Element {
 
     setNavigatorDialogVisible(false);
 
-    await iniciarNavegacao({
-      rotas: routes,
-      navegador: navigator,
-      cidadeOrigem: currentCity,
-      tipoDestino: 'loja',
-      monitorar: monitoringEnabledForFlow,
-      planejamento: selectedPlanning,
-    });
+    const start = (): Promise<boolean> =>
+      iniciarNavegacao({
+        rotas: routes,
+        navegador: navigator,
+        tipoDestino: 'loja',
+        monitorar: monitoringEnabledForFlow,
+        planejamento: selectedPlanning,
+        onStarted: handleNavigationStarted,
+      });
+
+    if (replaceActiveRoute && execucaoAtiva) {
+      const interruptionSucceeded =
+        await iniciarNovaRotaAposInterrupcao(
+          interromperNavegacao,
+          start,
+        );
+
+      setReplaceActiveRoute(false);
+
+      if (!interruptionSucceeded) {
+        Toast.show({
+          type: 'error',
+          text1: 'Não foi possível trocar a rota',
+          text2:
+            'A rota atual continua preservada. Tente novamente em alguns instantes.',
+          position: 'bottom',
+        });
+      }
+
+      return;
+    }
+
+    setReplaceActiveRoute(false);
+    await start();
   };
+
+  /**
+   * A prévia continua sendo apenas uma consulta. A existência de uma rota
+   * ativa só muda a etapa seguinte, sem impedir o cálculo de tempo e distância.
+   */
+  const openStartFlow = useCallback((): void => {
+    if (execucaoAtiva) {
+      setInterruptionDialogMode('replace');
+      return;
+    }
+
+    setReplaceActiveRoute(false);
+    setNavigatorDialogVisible(true);
+  }, [execucaoAtiva]);
 
   const handleTraceRoute = useCallback(async (): Promise<void> => {
     if (processando) return;
-
-    if (execucaoAtiva) {
-      setInterruptionDialogVisible(true);
-      return;
-    }
 
     if (!hasRoutes) return;
 
@@ -161,10 +205,10 @@ export default function RotasScreen(): React.JSX.Element {
       return;
     }
 
-    setNavigatorDialogVisible(true);
+    openStartFlow();
   }, [
-    execucaoAtiva,
     hasRoutes,
+    openStartFlow,
     processando,
     verificarMonitoramento,
   ]);
@@ -201,16 +245,17 @@ export default function RotasScreen(): React.JSX.Element {
         preview.durationSeconds,
     });
     setRoutePreviewVisible(false);
-    setNavigatorDialogVisible(true);
+    openStartFlow();
   };
 
   const handleStartWithoutPreview = (): void => {
     setSelectedPlanning(undefined);
     setRoutePreviewVisible(false);
-    setNavigatorDialogVisible(true);
+    openStartFlow();
   };
 
-  const handleInterruptRoute =
+  /** Interrompe a rota atual sem iniciar outro percurso. */
+  const handleInterruptCurrentRoute =
     async (): Promise<void> => {
       if (processando || !execucaoAtiva) return;
 
@@ -228,7 +273,7 @@ export default function RotasScreen(): React.JSX.Element {
         return;
       }
 
-      setInterruptionDialogVisible(false);
+      setInterruptionDialogMode(null);
 
       Toast.show({
         type: 'info',
@@ -238,6 +283,23 @@ export default function RotasScreen(): React.JSX.Element {
         position: 'bottom',
       });
     };
+
+  /**
+   * Prossegue para a escolha do navegador sem interromper imediatamente. Se o
+   * usuário cancelar a próxima etapa, a execução atual permanece intacta.
+   */
+  const handleConfirmRouteReplacement = (): void => {
+    setInterruptionDialogMode(null);
+    setReplaceActiveRoute(true);
+    setNavigatorDialogVisible(true);
+  };
+
+  const handleCloseNavigatorDialog = (): void => {
+    if (processando) return;
+
+    setNavigatorDialogVisible(false);
+    setReplaceActiveRoute(false);
+  };
 
   return (
     <View style={[ HomeStyles.container, { backgroundColor: theme.colors.background }]}>
@@ -312,29 +374,29 @@ export default function RotasScreen(): React.JSX.Element {
           }}
           disabled={
             processando ||
-            (!hasRoutes && !execucaoAtiva)
+            !hasRoutes
           }
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityState={{
             disabled:
               processando ||
-              (!hasRoutes && !execucaoAtiva),
+              !hasRoutes,
           }}
           style={[
             HomeStyles.traceButton,
             {
               backgroundColor:
-                hasRoutes || execucaoAtiva
+                hasRoutes
                 ? theme.colors.actionBackground
                 : theme.colors.buttonBackground,
               borderColor:
-                hasRoutes || execucaoAtiva
+                hasRoutes
                 ? theme.colors.actionBackground
                 : theme.colors.outline,
               opacity:
                 !processando &&
-                (hasRoutes || execucaoAtiva)
+                hasRoutes
                   ? 1
                   : 0.7,
             },
@@ -345,7 +407,7 @@ export default function RotasScreen(): React.JSX.Element {
               HomeStyles.traceButtonText,
               {
                 color:
-                  hasRoutes || execucaoAtiva
+                  hasRoutes
                   ? theme.colors.actionForeground
                   : theme.colors.onSurfaceVariant,
               },
@@ -353,18 +415,38 @@ export default function RotasScreen(): React.JSX.Element {
           >
             {processando
               ? 'Iniciando viagem...'
-              : execucaoAtiva
-                ? 'Rota em andamento'
-                : 'Traçar rota'}
+              : 'Traçar rota'}
           </Text>
         </TouchableOpacity>
+
+        {execucaoAtiva && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Gerenciar rota em andamento"
+            disabled={processando}
+            onPress={() =>
+              setInterruptionDialogMode('manage')
+            }
+            style={HomeStyles.activeRouteAction}
+          >
+            <Text
+              style={[
+                HomeStyles.activeRouteActionText,
+                {color: theme.colors.primary},
+              ]}
+            >
+              Gerenciar rota em andamento
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <Portal>
         <Dialog
           visible={navigatorDialogVisible}
           dismissable={!processando}
-          onDismiss={() => setNavigatorDialogVisible(false)}
+          onDismiss={handleCloseNavigatorDialog}
           style={{ backgroundColor: theme.colors.surface,}}
         >
           <Dialog.Title>
@@ -372,11 +454,16 @@ export default function RotasScreen(): React.JSX.Element {
           </Dialog.Title>
 
           <Dialog.Content>
-            {monitoringEnabledForFlow ? (
-            <Text style={{color: theme.colors.onSurfaceVariant }}>
-              Escolha o navegador. A partir desta confirmação, o percurso será
-              registrado até a chegada aos destinos ou sua interrupção.
-            </Text>
+            {replaceActiveRoute ? (
+              <Text style={{color: theme.colors.onSurfaceVariant}}>
+                Ao escolher o navegador, a rota atual será interrompida e o
+                novo percurso será iniciado.
+              </Text>
+            ) : monitoringEnabledForFlow ? (
+              <Text style={{color: theme.colors.onSurfaceVariant}}>
+                Escolha o navegador. A partir desta confirmação, o percurso
+                será registrado até a chegada aos destinos ou sua interrupção.
+              </Text>
             ) : (
               <Text
                 style={{
@@ -392,7 +479,7 @@ export default function RotasScreen(): React.JSX.Element {
           <Dialog.Actions>
             <Button
               disabled={processando}
-              onPress={() => setNavigatorDialogVisible(false)}
+              onPress={handleCloseNavigatorDialog}
             >
               Cancelar
             </Button>
@@ -418,11 +505,11 @@ export default function RotasScreen(): React.JSX.Element {
         </Dialog>
 
         <Dialog
-          visible={interruptionDialogVisible}
+          visible={interruptionDialogMode !== null}
           dismissable={!processando}
           onDismiss={() => {
             if (!processando) {
-              setInterruptionDialogVisible(false);
+              setInterruptionDialogMode(null);
             }
           }}
           style={{backgroundColor: theme.colors.surface}}
@@ -435,9 +522,9 @@ export default function RotasScreen(): React.JSX.Element {
                 color: theme.colors.onSurfaceVariant,
               }}
             >
-              A rota será concluída automaticamente quando todos os destinos
-              forem confirmados. Interrompa somente se o percurso não for mais
-              realizado.
+              {interruptionDialogMode === 'replace'
+                ? 'Para iniciar este novo percurso, a rota atual precisará ser interrompida. Ela continuará ativa caso você desista antes de escolher o navegador.'
+                : 'A rota será concluída automaticamente quando todos os destinos forem confirmados. Interrompa somente se o percurso não for mais realizado.'}
             </Text>
           </Dialog.Content>
 
@@ -445,18 +532,30 @@ export default function RotasScreen(): React.JSX.Element {
             <Button
               disabled={processando}
               onPress={() =>
-                setInterruptionDialogVisible(false)
+                setInterruptionDialogMode(null)
               }
             >
-              Manter rota
+              Manter rota atual
             </Button>
 
             <Button
-              loading={processando}
               disabled={processando}
-              onPress={() => void handleInterruptRoute()}
+              loading={
+                processando &&
+                interruptionDialogMode === 'manage'
+              }
+              onPress={() => {
+                if (interruptionDialogMode === 'replace') {
+                  handleConfirmRouteReplacement();
+                  return;
+                }
+
+                void handleInterruptCurrentRoute();
+              }}
             >
-              Interromper
+              {interruptionDialogMode === 'replace'
+                ? 'Continuar'
+                : 'Interromper'}
             </Button>
           </Dialog.Actions>
         </Dialog>

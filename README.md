@@ -26,7 +26,8 @@ Documentação técnica desta camada:
 - Registro de sessão com usuário, setor e cidade de origem.
 - Busca, ordenação e navegação por rotas entre filiais.
 - Assistente global opcional, controlada pelo Strapi, com interpretação local
-  de comandos e fallback automático para a bolinha de sugestões.
+  de comandos, consulta factual das filiais e fallback automático para a
+  bolinha de sugestões.
 - Abertura de rotas no Google Maps e no Waze.
 - Registro de percursos iniciados pelo usuário, com GPS em segundo plano,
   conclusão automática, execução parcial, fila SQLite por colaborador,
@@ -178,10 +179,12 @@ preservados.
 
 O campo Boolean `deveAlterarSenha` do usuário nasce como `true`. O
 `ForcedPasswordChangeGate` consulta `GET /troca-senha-obrigatoria/status`
-antes de montar providers, menus ou telas autenticadas. Quando necessário, o
-modal de senha existente é aberto em modo não dispensável e envia a alteração
-para `POST /troca-senha-obrigatoria`. O acesso permanece bloqueado se o status
-não puder ser verificado; o usuário pode tentar novamente ou sair.
+e persiste a última decisão válida junto ao perfil. Ao reabrir o aplicativo
+offline, um perfil que já concluiu a troca é liberado imediatamente e a
+consulta é tentada em segundo plano; um perfil marcado como pendente continua
+bloqueado. Ausência de uma decisão booleana local não libera o acesso. Quando
+necessário, o modal de senha é aberto em modo não dispensável e envia a
+alteração para `POST /troca-senha-obrigatoria`.
 
 O módulo está isolado em `core/auth/forcedPasswordChange`. Uma futura
 autenticação corporativa pode desativá-lo removendo somente o wrapper
@@ -246,9 +249,11 @@ continuam abrindo normalmente.
 
 O cálculo da prévia só ocorre ao tocar em `Traçar rota`; pesquisar uma filial
 não consulta a Routes API. Se a prévia for fechada, ela permanece em memória e
-é reaproveitada enquanto a lista e a ordem dos destinos não mudarem. Ao iniciar
-o percurso, o mesmo planejamento é enviado à execução, evitando uma segunda
-consulta ao Google.
+é reaproveitada por até 10 minutos enquanto a lista, a ordem dos destinos e a
+origem permanecerem válidas. Antes de decidir entre cache e nova consulta, o
+aplicativo atualiza o GPS; um deslocamento superior a 500 metros invalida a
+estimativa. Ao iniciar o percurso, o mesmo planejamento é enviado à execução,
+evitando uma segunda consulta ao Google.
 
 ### Rota para ponto de interesse
 
@@ -303,6 +308,12 @@ destinos. A estimativa de tempo/distância ainda requer a Routes API e pode ser
 ignorada pelo botão de continuar sem prévia. Abrir e navegar depende do suporte
 offline oferecido pelo Google Maps ou Waze instalado no aparelho.
 
+Uma sessão local com JWT ainda válido também pode ser restaurada offline. O
+perfil, os menus e a decisão de troca obrigatória vêm do armazenamento isolado
+do usuário; sincronizações remotas posteriores não bloqueiam a abertura da tela
+de Rotas. Token expirado, perfil ausente ou primeiro acesso ainda pendente não
+são liberados pelo fallback.
+
 ### Histórico offline
 
 Os registros pendentes ficam no AsyncStorage em uma chave versionada e
@@ -347,7 +358,7 @@ feature.
 | --- | --- | --- |
 | `user` | Texto curto | Username autenticado |
 | `setor` | Texto curto | Setor do usuário |
-| `cidadeOrigem` | Texto curto | Cidade resolvida no login |
+| `cidadeOrigem` | Texto curto | Cidade resolvida usando a mesma leitura atual de GPS do login |
 
 ### `historico-visitas`
 
@@ -360,7 +371,7 @@ não envia mais `username` como regra de autorização.
 | `datahora` | DateTime | Instante original da ação |
 | `username` | Texto curto | Usuário que iniciou a rota |
 | `setor` | Texto curto | Setor do usuário |
-| `cidadeOrigem` | Texto curto | Cidade de início |
+| `cidadeOrigem` | Texto curto | Cidade resolvida pelas mesmas coordenadas gravadas na origem da execução |
 | `tipoHistorico` | Enumeration | `loja`, `restaurante` ou `posto_combustivel` |
 | `rotas` | JSON | Destinos e ordem da rota |
 | `codigoSessao` | Texto curto, único e opcional | Liga novos históricos a uma execução confirmada |
@@ -541,6 +552,9 @@ yarn test:route-execution
 
 # testes da prévia de rota
 yarn test:route-preview
+
+# testes de consistência entre cidade e coordenadas
+yarn test:location
 
 # testes do relatório de patrimônio
 yarn test:patrimonio

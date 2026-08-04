@@ -4,7 +4,10 @@ import test from 'node:test';
 import {decodeGooglePolyline} from '../src/shared/maps/polyline';
 import {
   createRoutePreviewCacheKey,
+  createRoutePreviewRequestKey,
   getRoutePreviewDestinations,
+  isRoutePreviewCacheValid,
+  ROUTE_PREVIEW_CACHE_MAX_AGE_MS,
   RoutePreviewValidationError,
 } from '../src/features/rotas/services/routePreviewService';
 
@@ -110,4 +113,79 @@ test('a chave de cache muda quando a ordem dos destinos muda', () => {
 
   assert.notEqual(original, reordered);
   assert.equal(original, sameOrder);
+});
+
+test('reaproveita a prévia enquanto origem e validade permanecem seguras', () => {
+  const now = Date.parse('2026-08-03T12:05:00.000Z');
+  const origin = {
+    latitude: -22.72528,
+    longitude: -47.64917,
+  };
+
+  assert.equal(
+    isRoutePreviewCacheValid(
+      {
+        origin,
+        createdAt: now - 5 * 60 * 1_000,
+      },
+      {
+        latitude: -22.726,
+        longitude: -47.64917,
+      },
+      now,
+    ),
+    true,
+  );
+});
+
+test('invalida a prévia após deslocamento relevante ou expiração', () => {
+  const now = Date.parse('2026-08-03T12:15:00.000Z');
+  const origin = {
+    latitude: -22.72528,
+    longitude: -47.64917,
+  };
+
+  assert.equal(
+    isRoutePreviewCacheValid(
+      {origin, createdAt: now - 60_000},
+      {
+        latitude: -22.73128,
+        longitude: -47.64917,
+      },
+      now,
+    ),
+    false,
+  );
+  assert.equal(
+    isRoutePreviewCacheValid(
+      {
+        origin,
+        createdAt:
+          now - ROUTE_PREVIEW_CACHE_MAX_AGE_MS - 1,
+      },
+      origin,
+      now,
+    ),
+    false,
+  );
+});
+
+test('a requisição ativa diferencia origens distintas', () => {
+  const routes = [{
+    codigofilial: 25,
+    nomefilial: 'Filial 25',
+    nomecidade: 'Piracicaba',
+    latitude: -22.725,
+    longitude: -47.649,
+  }];
+  const first = createRoutePreviewRequestKey(
+    {latitude: -22.72528, longitude: -47.64917},
+    routes,
+  );
+  const second = createRoutePreviewRequestKey(
+    {latitude: -22.73128, longitude: -47.64917},
+    routes,
+  );
+
+  assert.notEqual(first, second);
 });

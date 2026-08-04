@@ -58,6 +58,8 @@ yarn build-android:store
 ## Smoke test do APK
 
 - login, senha inválida, expiração e troca de usuário;
+- reabertura offline com sessão válida, troca concluída e filiais em cache;
+- reabertura offline com `deveAlterarSenha=true` permanece bloqueada;
 - troca obrigatória, edição de e-mail/senha e audit log;
 - menus por papel e tema claro/escuro entre telas;
 - filiais online e cache offline exclusivo da montagem de rotas;

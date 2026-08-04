@@ -7,16 +7,21 @@ import {
 import type {LatLng} from 'react-native-maps';
 
 import useStrapiClient from '../../../core/api/strapiClient';
+import {capturarLocalizacaoAtual} from '../../../core/location/services/locationSnapshotService';
+import {appLogger} from '../../../shared/logging/appLogger';
 import type {Filial} from '../../filiais/models/Filial';
 import type {RoutePreview} from '../models/RoutePreview';
 import {
   createRoutePreviewCacheKey,
+  createRoutePreviewRequestKey,
   fetchRoutePreview,
+  isRoutePreviewCacheValid,
   RoutePreviewValidationError,
 } from '../services/routePreviewService';
 
 interface UseRoutePreviewReturn {
   preview: RoutePreview | null;
+  previewOrigin: LatLng | null;
   loading: boolean;
   error: string | null;
   loadPreview: (
@@ -28,6 +33,8 @@ interface UseRoutePreviewReturn {
 
 interface CachedPreview {
   key: string;
+  origin: LatLng;
+  createdAt: number;
   data: RoutePreview;
 }
 
@@ -68,6 +75,8 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
     useRef<ActivePreviewRequest | null>(null);
   const [preview, setPreview] =
     useState<RoutePreview | null>(null);
+  const [previewOrigin, setPreviewOrigin] =
+    useState<LatLng | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] =
     useState<string | null>(null);
@@ -80,32 +89,72 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
       const requestId = ++requestIdRef.current;
       const cacheKey =
         createRoutePreviewCacheKey(routes);
-      const cachedPreview = cacheRef.current;
-
-      if (cachedPreview?.key === cacheKey) {
-        setPreview(cachedPreview.data);
-        setError(null);
-        setLoading(false);
-        return true;
-      }
+      let requestKey: string | null = null;
+      let effectiveOrigin = origin;
 
       setLoading(true);
       setError(null);
       setPreview(null);
 
       try {
+        try {
+          const capturedLocation =
+            await capturarLocalizacaoAtual();
+
+          if (!capturedLocation) {
+            throw new Error(
+              'Localização atual indisponível.',
+            );
+          }
+
+          effectiveOrigin =
+            capturedLocation.coordinates;
+        } catch (locationError: unknown) {
+          appLogger.error(
+            'Erro ao atualizar origem da estimativa:',
+            locationError,
+          );
+
+          throw new RoutePreviewValidationError(
+            'Não foi possível atualizar sua localização. Tente novamente ou continue sem a prévia.',
+          );
+        }
+
+        if (requestId !== requestIdRef.current) {
+          return false;
+        }
+
+        setPreviewOrigin(effectiveOrigin);
+
+        const cachedPreview = cacheRef.current;
+
+        if (
+          cachedPreview?.key === cacheKey &&
+          isRoutePreviewCacheValid(
+            cachedPreview,
+            effectiveOrigin,
+          )
+        ) {
+          setPreview(cachedPreview.data);
+          return true;
+        }
+
+        requestKey = createRoutePreviewRequestKey(
+          effectiveOrigin,
+          routes,
+        );
         let activeRequest =
           activeRequestRef.current;
 
-        if (activeRequest?.key !== cacheKey) {
+        if (activeRequest?.key !== requestKey) {
           const promise = fetchRoutePreview(
             client,
-            origin,
+            effectiveOrigin,
             routes,
           );
 
           activeRequest = {
-            key: cacheKey,
+            key: requestKey,
             promise,
           };
           activeRequestRef.current =
@@ -120,6 +169,8 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
 
         cacheRef.current = {
           key: cacheKey,
+          origin: effectiveOrigin,
+          createdAt: Date.now(),
           data: result,
         };
         setPreview(result);
@@ -133,8 +184,8 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
         return false;
       } finally {
         if (
-          activeRequestRef.current?.key ===
-          cacheKey
+          requestKey &&
+          activeRequestRef.current?.key === requestKey
         ) {
           activeRequestRef.current = null;
         }
@@ -150,12 +201,14 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
   const resetPreview = useCallback((): void => {
     requestIdRef.current += 1;
     setPreview(null);
+    setPreviewOrigin(null);
     setError(null);
     setLoading(false);
   }, []);
 
   return {
     preview,
+    previewOrigin,
     loading,
     error,
     loadPreview,

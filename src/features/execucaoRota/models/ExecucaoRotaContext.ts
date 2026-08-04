@@ -10,7 +10,6 @@ import type {
 export interface IniciarExecucaoRotaInput {
   rotas: readonly Filial[];
   navegador: NavegadorRota;
-  cidadeOrigem: string | null;
   tipoDestino?: TipoDestinoRota;
   planejamento?: PlanejamentoExecucaoRota;
 }

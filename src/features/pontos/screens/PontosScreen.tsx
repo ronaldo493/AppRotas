@@ -518,7 +518,6 @@ export default function PontosScreen(): React.JSX.Element {
     await iniciarNavegacao({
       rotas: previewPointRoute,
       navegador,
-      cidadeOrigem: currentCity,
       tipoDestino:
         navigationPoint.categoria ===
         'Restaurante'

@@ -17,6 +17,10 @@ export async function fetchPasswordChangeRequirement(
   const response =
     await client.get<ForcedPasswordChangeResponse>(
       '/troca-senha-obrigatoria/status',
+      {
+        timeout: 5_000,
+        'axios-retry': {retries: 0},
+      },
     );
   const required =
     response.data.data?.deveAlterarSenha;

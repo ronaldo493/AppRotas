@@ -31,6 +31,7 @@ Crie uma Collection Type com:
 | `distanciaPlanejadaMetros` | Number (decimal) | opcional |
 | `duracaoPlanejadaSegundos` | Number (big integer) | opcional |
 | `distanciaPercorridaMetros` | Number (decimal) | opcional |
+
 | `duracaoTotalSegundos` | Number (big integer) | opcional |
 | `tempoMovimentoSegundos` | Number (big integer) | opcional |
 | `tempoParadoSegundos` | Number (big integer) | opcional |
@@ -55,6 +56,11 @@ Crie uma Collection Type com:
 | `ultimaLocalizacaoEm` | Date (datetime) | opcional |
 | `versaoAplicativo` | Text (Short text) | opcional |
 | `segmentos` | Relation | one-to-many com `segmento-execucao-rota` |
+
+`cidadeOrigem` e `origem` são produzidos pelo mesmo snapshot de localização no
+aplicativo. A tela não envia uma cidade previamente armazenada. Se somente a
+geocodificação reversa falhar, `cidadeOrigem` pode ser nula e as coordenadas da
+execução continuam válidas; nenhuma alteração de schema é necessária.
 
 Valores de `situacaoExecucao`:
 

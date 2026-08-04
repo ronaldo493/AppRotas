@@ -1,5 +1,6 @@
 import {TIPO_HISTORICO} from '../../historico/models/Historico';
 import type {
+  CampoDetalheFilialAssistente,
   ComandoAssistente,
   ContextoInterpretacaoAssistente,
   DestinoAssistente,
@@ -29,6 +30,34 @@ const normalizarTexto = (texto: string): string =>
 
 const contem = (texto: string, expressao: RegExp): boolean =>
   expressao.test(texto);
+
+const obterCampoDetalheFilial = (
+  texto: string,
+): CampoDetalheFilialAssistente | null => {
+  if (/\b(supervisor|supervisora|supervisao)\b/.test(texto)) return 'supervisor';
+  if (/\b(gerente|gerencia|responsavel pela (?:loja|filial))\b/.test(texto)) {
+    return 'gerente';
+  }
+  if (/\b(horario|horarios|abre|abertura|fecha|fechamento|funciona)\b/.test(texto)) {
+    return 'horario';
+  }
+  if (/\b(telefone|fone|ligar|contato da (?:filial|loja))\b/.test(texto)) {
+    return 'telefone';
+  }
+  if (/\b(endereco|logradouro|rua|avenida|localizacao)\b/.test(texto)) {
+    return 'endereco';
+  }
+  if (/\bcnpj\b/.test(texto)) return 'cnpj';
+  if (/\bcep\b/.test(texto)) return 'cep';
+  if (/\bbairro\b/.test(texto)) return 'bairro';
+  if (/\b(cidade|municipio)\b/.test(texto)) return 'cidade';
+  if (/\b(uf|estado)\b/.test(texto)) return 'uf';
+  if (/\b(informacoes|informacao|dados|detalhes|tudo)\b.*\b(filial|loja)\b|\b(sobre)\b.*\b(filial|loja)\b/.test(texto)) {
+    return 'resumo';
+  }
+
+  return null;
+};
 
 const interpretarConfirmacao = ({
   texto,
@@ -89,6 +118,24 @@ const interpretarContexto = ({
   texto,
   conversa,
 }: ContextoInterpretacao): ComandoAssistente | null => {
+  if (conversa.possuiUltimaFilial) {
+    const campoFilial = obterCampoDetalheFilial(texto);
+    const referenciaAnterior =
+      /\b(dela|dele|dessa filial|dessa loja|da filial|da loja|da anterior|da ultima filial|da ultima loja)\b/.test(
+        texto,
+      ) ||
+      /^(e )?(qual |quais |mostre |me diga |informe )?(e )?(o |a |os |as )?(telefone|fone|horario|endereco|gerente|supervisor|cnpj|cep|bairro|cidade|uf|estado)( dela| dele)?$/.test(
+        texto,
+      );
+
+    if (campoFilial && referenciaAnterior && !/\b\d{1,6}\b/.test(texto)) {
+      return {
+        dominio: 'filiais',
+        acao: 'consultar_ultima',
+        campo: campoFilial,
+      };
+    }
+  }
   if (conversa.ultimoDepartamento) {
     if (
       /^(e )?(quantas|quantos|quantas pessoas|quantos colaboradores|qual o total)( trabalham| tem| ha)?( nele| nela| nesse departamento| nessa area)?$/.test(
@@ -196,6 +243,33 @@ const limparTermoCidade = (texto: string): string =>
     )
     .replace(/\s+/g, ' ')
     .trim();
+
+const limparTermoDetalheFilial = (texto: string): string =>
+  texto
+    .replace(
+      /\b(qual|quais|quem|que|como|onde|mostrar|mostre|consultar|consulte|buscar|busque|me|diga|fale|informe|informacoes|informacao|dados|detalhes|tudo|sobre|e|eh|o|a|os|as|do|da|dos|das|de|no|na|nos|nas|em|para|pelo|pela|daquela|daquele|dessa|desse|dela|dele|filial|filiais|loja|lojas|codigo|numero|telefone|fone|ligar|contato|hora|horas|horario|horarios|abre|abertura|fecha|fechamento|funciona|funcionamento|endereco|logradouro|rua|avenida|localizacao|gerente|gerencia|responsavel|supervisor|supervisora|supervisao|cnpj|cep|bairro|cidade|municipio|uf|estado)\b/g,
+      ' ',
+    )
+    .replace(/\s+/g, ' ')
+    .replace(/(\d)\s+(?=\d)/g, '$1')
+    .trim();
+
+/** Entende consultas factuais sobre uma filial sem depender da IA. */
+const interpretarDetalhesFilial = ({
+  texto,
+}: ContextoInterpretacao): ComandoAssistente | null => {
+  if (/\b(rota|tracar|trace|adicionar|adicione|remover|remova)\b/.test(texto)) {
+    return null;
+  }
+
+  const campo = obterCampoDetalheFilial(texto);
+  if (!campo) return null;
+
+  const termo = limparTermoDetalheFilial(texto);
+  return termo
+    ? {dominio: 'filiais', acao: 'consultar', termo, campo}
+    : null;
+};
 
 /** Entende perguntas quantitativas sobre a distribuição das filiais. */
 const interpretarAnaliseFiliais = ({
@@ -717,6 +791,7 @@ const ARVORE_INTENCOES: NoIntencao = {
     {id: 'ajuda', interpretar: interpretarAjuda},
     {id: 'perfil', interpretar: interpretarPerfil},
     {id: 'analise-filiais', interpretar: interpretarAnaliseFiliais},
+    {id: 'detalhes-filial', interpretar: interpretarDetalhesFilial},
     {id: 'mapa', interpretar: interpretarMapa},
     {
       id: 'consultas',

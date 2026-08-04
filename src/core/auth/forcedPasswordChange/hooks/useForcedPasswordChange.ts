@@ -11,6 +11,7 @@ import {
   validateForcedPasswordChange,
   type ForcedPasswordChangeInput,
 } from '../domain/forcedPasswordChangeValidation';
+import {getCachedPasswordChangeStatus} from '../domain/forcedPasswordChangeOfflinePolicy';
 import {
   changeRequiredPassword,
   fetchPasswordChangeRequirement,
@@ -84,9 +85,14 @@ export default function useForcedPasswordChange(): UseForcedPasswordChangeReturn
       return;
     }
 
+    const cachedStatus =
+      getCachedPasswordChangeStatus(
+        userRef.current?.deveAlterarSenha,
+      );
+
     setVerification({
       sessionKey,
-      status: 'checking',
+      status: cachedStatus ?? 'checking',
       errorMessage: null,
     });
 
@@ -115,6 +121,20 @@ export default function useForcedPasswordChange(): UseForcedPasswordChangeReturn
         });
       } catch (error: unknown) {
         if (cancelled) return;
+
+        const fallbackStatus =
+          getCachedPasswordChangeStatus(
+            userRef.current?.deveAlterarSenha,
+          );
+
+        if (fallbackStatus) {
+          setVerification({
+            sessionKey,
+            status: fallbackStatus,
+            errorMessage: null,
+          });
+          return;
+        }
 
         setVerification({
           sessionKey,
@@ -197,7 +217,9 @@ export default function useForcedPasswordChange(): UseForcedPasswordChangeReturn
 
   const status =
     sessionKey && verification.sessionKey !== sessionKey
-      ? 'checking'
+      ? getCachedPasswordChangeStatus(
+          user?.deveAlterarSenha,
+        ) ?? 'checking'
       : verification.status;
 
   return {

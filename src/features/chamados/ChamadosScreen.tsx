@@ -13,7 +13,6 @@ import {
 } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 
-import useLocation from '../../core/location/useLocation';
 import {useAppTheme} from '../../core/theme/appTheme';
 import ConfirmacaoPermissaoRastreamentoDialog from '../execucaoRota/components/ConfirmacaoPermissaoRastreamentoDialog';
 import useNavegacaoMonitorada from '../execucaoRota/hooks/useNavegacaoMonitorada';
@@ -43,7 +42,6 @@ const sortByOpeningDate = (
 export default function ChamadosScreen(): React.JSX.Element {
   const theme = useAppTheme();
   const {filiais} = useFiliais();
-  const {currentCity} = useLocation();
   const {
     execucaoAtiva,
     processando,
@@ -135,7 +133,6 @@ export default function ChamadosScreen(): React.JSX.Element {
     await iniciarNavegacao({
       rotas: [pendingStore],
       navegador,
-      cidadeOrigem: currentCity,
       tipoDestino: 'loja',
       monitorar: monitoringEnabledForFlow,
     });

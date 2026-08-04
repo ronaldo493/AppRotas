@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 
+import type {LocationSnapshot} from '../../../core/location/models/LocationSnapshot';
 import type {ExecucaoRotaOwner} from '../services/execucaoRotaOwner';
 import type {
   DestinoExecucaoRota,
@@ -55,7 +56,7 @@ export function mapearMotivoPermissaoParaOcorrencia(
 export function criarExecucaoRotaLocal(
   input: IniciarExecucaoRotaInput,
   owner: ExecucaoRotaOwner,
-  origin: {latitude: number; longitude: number},
+  originSnapshot: LocationSnapshot,
   destinations: DestinoExecucaoRota[],
 ): ExecucaoRota {
   return {
@@ -69,8 +70,8 @@ export function criarExecucaoRotaLocal(
     navegador: input.navegador,
     iniciadaEm: new Date().toISOString(),
     finalizadaEm: null,
-    cidadeOrigem: input.cidadeOrigem,
-    origem: origin,
+    cidadeOrigem: originSnapshot.city,
+    origem: originSnapshot.coordinates,
     destinos: destinations,
     trajetoPlanejado:
       input.planejamento?.trajetoPlanejado ?? null,

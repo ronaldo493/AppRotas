@@ -22,10 +22,10 @@ import {verificarDisponibilidadeRastreamento} from '../services/backgroundLocati
 interface IniciarNavegacaoMonitoradaInput {
   rotas: readonly Filial[];
   navegador: NavegadorRota;
-  cidadeOrigem: string | null;
   tipoDestino: TipoDestinoRota;
   monitorar?: boolean;
   planejamento?: PlanejamentoExecucaoRota;
+  onStarted?: () => void;
 }
 
 /**
@@ -108,10 +108,10 @@ export default function useNavegacaoMonitorada() {
     async ({
       rotas,
       navegador,
-      cidadeOrigem,
       tipoDestino,
       monitorar = true,
       planejamento,
+      onStarted,
     }: IniciarNavegacaoMonitoradaInput): Promise<boolean> => {
       if (abrindoNavegador) return false;
 
@@ -119,16 +119,19 @@ export default function useNavegacaoMonitorada() {
 
       try {
         if (!monitorar) {
-          return abrirNavegador(
+          const routeOpened = await abrirNavegador(
             navegador,
             rotas,
           );
+
+          if (routeOpened) onStarted?.();
+
+          return routeOpened;
         }
 
         const result = await iniciarExecucao({
           rotas,
           navegador,
-          cidadeOrigem,
           tipoDestino,
           planejamento,
         });
@@ -186,6 +189,8 @@ export default function useNavegacaoMonitorada() {
               : 'A rota foi preservada. Abra o aplicativo novamente para concluir ou interromper.',
             position: 'bottom',
           });
+        } else {
+          onStarted?.();
         }
 
         return routeOpened;

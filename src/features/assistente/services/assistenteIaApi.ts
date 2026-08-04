@@ -6,15 +6,34 @@ import {
   type RespostaAssistenteIa,
 } from '../useCases/validarRespostaAssistenteIa';
 
+export interface InteracaoRecenteAssistenteIa {
+  textoUsuario: string;
+  dominio?: string;
+  acao?: string;
+}
+
+export interface ContextoConversaAssistenteIa {
+  interacoesRecentes: readonly InteracaoRecenteAssistenteIa[];
+  rotaAtual: readonly number[];
+  possuiUltimoPonto: boolean;
+  possuiUltimoContato: boolean;
+  possuiUltimaFilial: boolean;
+  ultimoDepartamento?: string;
+}
+
 interface SolicitarInterpretacaoParams {
-  texto: string;
+  transcricoes: readonly string[];
   telaAtual?: string;
+  contextoConversa: ContextoConversaAssistenteIa;
 }
 
 const RESPOSTA_VAZIA: RespostaAssistenteIa = {
   interpretado: false,
+  comando: null,
   comandoCanonico: null,
   confianca: 0,
+  precisaEsclarecimento: false,
+  esclarecimento: null,
 };
 const COOLDOWN_INDISPONIBILIDADE_MS = 60_000;
 const CACHE_INTERPRETACAO_MS = 15 * 60_000;
@@ -47,21 +66,39 @@ const cacheInterpretacao = (
 
 /**
  * Única porta de saída da funcionalidade de IA no aplicativo. A chave e o
- * contexto de domínio permanecem no backend; o app envia só frase e tela.
+ * contexto de domínio permanecem no backend; o app envia alternativas da fala,
+ * tela e uma memória curta sem respostas nem dados consultados.
  */
 export const solicitarInterpretacaoAssistenteIa = async (
   client: AxiosInstance,
   params: SolicitarInterpretacaoParams,
 ): Promise<RespostaAssistenteIa> => {
-  const texto = params.texto.replace(/\s+/g, ' ').trim();
-  if (!texto || texto.length > 320) return RESPOSTA_VAZIA;
+  const transcricoes = params.transcricoes
+    .slice(0, 5)
+    .map(texto => texto.replace(/\s+/g, ' ').trim())
+    .filter(texto => texto.length > 0 && texto.length <= 320);
+  const texto = transcricoes[0] ?? '';
+  if (!texto) return RESPOSTA_VAZIA;
 
   const serverKey = String(client.defaults.baseURL ?? 'strapi');
   if ((indisponivelAteByServer.get(serverKey) ?? 0) > Date.now()) {
     return RESPOSTA_VAZIA;
   }
 
-  const requestKey = `${serverKey}|${params.telaAtual ?? ''}|${texto.toLocaleLowerCase('pt-BR')}`;
+  const assinaturaContexto = JSON.stringify({
+    i: params.contextoConversa.interacoesRecentes.slice(-4),
+    r: params.contextoConversa.rotaAtual.slice(0, 20),
+    p: params.contextoConversa.possuiUltimoPonto,
+    c: params.contextoConversa.possuiUltimoContato,
+    f: params.contextoConversa.possuiUltimaFilial,
+    d: params.contextoConversa.ultimoDepartamento ?? '',
+  });
+  const requestKey = [
+    serverKey,
+    params.telaAtual ?? '',
+    transcricoes.join('|').toLocaleLowerCase('pt-BR'),
+    assinaturaContexto,
+  ].join('|');
   const cached = interpretationsByCommand.get(requestKey);
   if (cached && cached.expiraEm > Date.now()) return cached.resposta;
   if (cached) interpretationsByCommand.delete(requestKey);
@@ -74,8 +111,11 @@ export const solicitarInterpretacaoAssistenteIa = async (
       const response = await client.post<StrapiSingleResponse<unknown>>(
         '/assistente-ia/interpretar',
         {
+          // `texto` mantém compatibilidade com um backend anterior durante o rollout.
           texto,
+          transcricoes,
           ...(params.telaAtual ? {telaAtual: params.telaAtual} : {}),
+          contextoConversa: params.contextoConversa,
         },
         {
           timeout: 4_500,

@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import {useCallback, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import Toast from 'react-native-toast-message';
 
 import {
@@ -23,7 +23,10 @@ import type {
   ResultadoInterpretacaoAssistente,
   TopicoAjudaAssistente,
 } from '../models/ComandoAssistente';
-import {solicitarInterpretacaoAssistenteIa} from '../services/assistenteIaApi';
+import {
+  solicitarInterpretacaoAssistenteIa,
+  type InteracaoRecenteAssistenteIa,
+} from '../services/assistenteIaApi';
 import {
   aguardarDadosAssistente,
   type ResultadoEsperaAssistente,
@@ -65,11 +68,11 @@ interface UseAssistenteGlobalParams {
 }
 
 const MENSAGEM_INICIAL =
-  'Como posso ajudar? Monte uma rota, procure locais, consulte históricos e contatos ou pergunte sobre filiais, cidades e departamentos.';
+  'Como posso ajudar? Monte uma rota, procure locais, consulte históricos, contatos ou dados das filiais.';
 
 const ORIENTACOES: Record<TopicoAjudaAssistente, string> = {
   rotas:
-    'Diga os números na ordem da visita, por exemplo: primeiro 25, depois 35 e por fim 48. Você também pode reorganizar a rota, contar filiais por cidade e perguntar onde há mais ou menos lojas.',
+    'Diga os números na ordem da visita, por exemplo: primeiro 25, depois 35 e por fim 48. Você também pode reorganizar a rota, contar filiais por cidade e consultar endereço, telefone, horário, gerente, supervisor e CNPJ de uma loja.',
   pontos:
     'Peça o restaurante ou posto mais próximo, ou procure pelo nome e pela cidade. Para iniciar uma rota, eu sempre mostro uma confirmação antes de continuar.',
   contatos:
@@ -100,8 +103,8 @@ const CAPACIDADES_POR_MENU: readonly CapacidadeAssistente[] = [
   {
     rota: 'MapaLojas',
     descricao:
-      'Localizar filiais e analisar quantidade por cidade ou região cadastrada.',
-    resumoFalado: 'localizar e analisar a distribuição das filiais',
+      'Localizar filiais, consultar seus dados e analisar quantidade por cidade ou região.',
+    resumoFalado: 'localizar filiais, consultar seus dados e analisar sua distribuição',
   },
   {
     rota: 'Pontos',
@@ -235,6 +238,7 @@ const ROTULO_DESTINO: Record<DestinoAssistente, string> = {
 
 const LIMITE_ESPERA_INTERATIVA_MS = 10_000;
 const ATRASO_FEEDBACK_CARREGAMENTO_MS = 600;
+const LIMITE_MEMORIA_IA = 4;
 
 /**
  * Centraliza a conversa e distribui cada intenção para o módulo responsável.
@@ -261,6 +265,34 @@ export default function useAssistenteGlobal({
   const [transcricao, setTranscricao] = useState<string | null>(null);
   const [mensagem, setMensagem] = useState(MENSAGEM_INICIAL);
   const [sugestaoVisivel, setSugestaoVisivel] = useState(false);
+  const memoriaIaRef = useRef<InteracaoRecenteAssistenteIa[]>([]);
+
+  useEffect(() => {
+    memoriaIaRef.current = [];
+  }, [user?.username]);
+
+  /**
+   * Mantém somente a fala e a intenção recente em memória volátil. Respostas,
+   * e-mails, telefones e outros dados consultados nunca são enviados à IA.
+   */
+  const registrarInteracaoIa = useCallback(
+    (texto: string, comando?: ComandoAssistente): void => {
+      const textoUsuario = texto.replace(/\s+/g, ' ').trim().slice(0, 320);
+      if (!textoUsuario) return;
+
+      memoriaIaRef.current = [
+        ...memoriaIaRef.current,
+        {
+          textoUsuario,
+          ...(comando ? {
+            dominio: comando.dominio,
+            acao: comando.acao,
+          } : {}),
+        },
+      ].slice(-LIMITE_MEMORIA_IA);
+    },
+    [],
+  );
 
   const menusPermitidos = useMemo(
     () =>
@@ -344,7 +376,12 @@ export default function useAssistenteGlobal({
     setVisivel(false);
   }, []);
 
-  const {pesquisarFiliaisNoMapa, consultarAnaliseFiliais} =
+  const {
+    pesquisarFiliaisNoMapa,
+    consultarFiliais,
+    limparContextoFilial,
+    obterContextoFilial,
+  } =
     useFiliaisAssistenteHandler({
       responder,
       aguardarComFeedback,
@@ -352,6 +389,10 @@ export default function useAssistenteGlobal({
       informarAcessoNegado,
       ocultarAssistente,
     });
+
+  useEffect(() => {
+    limparContextoFilial();
+  }, [limparContextoFilial, user?.username]);
 
   const abrirDestino = useCallback(
     (destino: DestinoAssistente): void => {
@@ -513,7 +554,7 @@ export default function useAssistenteGlobal({
       }
 
       if (comando.dominio === 'filiais') {
-        await consultarAnaliseFiliais(comando);
+        await consultarFiliais(comando);
         return true;
       }
 
@@ -621,7 +662,7 @@ export default function useAssistenteGlobal({
       cancelarAcaoPendente,
       confirmarRotaPonto,
       consultarChamados,
-      consultarAnaliseFiliais,
+      consultarFiliais,
       consultarContato,
       consultarHistorico,
       consultarPontos,
@@ -641,35 +682,48 @@ export default function useAssistenteGlobal({
   );
 
   /**
-   * Executa somente intenções reconhecidas pelos interpretadores locais. Esse
-   * é o limite de segurança: mesmo um comando vindo da IA passa por aqui.
+   * Prioriza a árvore determinística e o interpretador especializado de rotas.
+   * Intenções estruturadas da IA chegam ao executor por outra entrada, depois
+   * de serem reconstruídas pela allowlist local.
    */
   const tentarProcessarLocalmente = useCallback(
-    async (transcricoes: readonly string[]): Promise<boolean> => {
+    async (
+      transcricoes: readonly string[],
+      textoMemoria = transcricoes[0] ?? '',
+    ): Promise<boolean> => {
       const contextoContato = obterContextoContato();
+      const contextoFilial = obterContextoFilial();
       const interpretacaoGlobal = interpretarComandoAssistente(
         transcricoes,
         {
           possuiUltimoPonto: possuiUltimoPonto(),
           ...contextoContato,
+          ...contextoFilial,
           telaAtual: getCurrentRouteName(),
         },
       );
 
       if (interpretacaoGlobal) {
         const processado = await executarComandoGlobal(interpretacaoGlobal);
-        if (processado) return true;
+        if (processado) {
+          registrarInteracaoIa(textoMemoria, interpretacaoGlobal.comando);
+          return true;
+        }
       }
 
-      return temAcesso('Home')
+      const processadoComoRota = temAcesso('Home')
         ? comandosRota.tentarProcessarTranscricoes(transcricoes)
         : false;
+      if (processadoComoRota) registrarInteracaoIa(textoMemoria);
+      return processadoComoRota;
     },
     [
       comandosRota,
       executarComandoGlobal,
       obterContextoContato,
+      obterContextoFilial,
       possuiUltimoPonto,
+      registrarInteracaoIa,
       temAcesso,
     ],
   );
@@ -685,13 +739,17 @@ export default function useAssistenteGlobal({
       void (async () => {
         setProcessando(true);
         try {
-          await executarComandoGlobal({comando, transcricao: texto});
+          const processado = await executarComandoGlobal({
+            comando,
+            transcricao: texto,
+          });
+          if (processado) registrarInteracaoIa(texto, comando);
         } finally {
           setProcessando(false);
         }
       })();
     },
-    [executarComandoGlobal],
+    [executarComandoGlobal, registrarInteracaoIa],
   );
 
   const handleTranscricoes = useCallback(
@@ -711,21 +769,55 @@ export default function useAssistenteGlobal({
             }, ATRASO_FEEDBACK_CARREGAMENTO_MS);
 
             try {
+              const contextoContatoIa = obterContextoContato();
+              const contextoFilialIa = obterContextoFilial();
               const respostaIa = await solicitarInterpretacaoAssistenteIa(
                 client,
                 {
-                  texto: primeiraTranscricao,
+                  transcricoes,
                   telaAtual: getCurrentRouteName(),
+                  contextoConversa: {
+                    interacoesRecentes: memoriaIaRef.current,
+                    rotaAtual: rotas.map(filial => filial.codigofilial),
+                    possuiUltimoPonto: possuiUltimoPonto(),
+                    possuiUltimoContato:
+                      contextoContatoIa.possuiUltimoContato === true,
+                    possuiUltimaFilial:
+                      contextoFilialIa.possuiUltimaFilial === true,
+                    ultimoDepartamento: contextoContatoIa.ultimoDepartamento,
+                  },
                 },
               );
+
+              if (respostaIa.interpretado && respostaIa.comando) {
+                const processado = await executarComandoGlobal({
+                  comando: respostaIa.comando,
+                  transcricao: primeiraTranscricao,
+                });
+                if (processado) {
+                  registrarInteracaoIa(
+                    primeiraTranscricao,
+                    respostaIa.comando,
+                  );
+                  return;
+                }
+              }
 
               if (
                 respostaIa.interpretado &&
                 respostaIa.comandoCanonico &&
                 await tentarProcessarLocalmente([
                   respostaIa.comandoCanonico,
-                ])
+                ], primeiraTranscricao)
               ) {
+                return;
+              }
+
+              if (
+                respostaIa.precisaEsclarecimento &&
+                respostaIa.esclarecimento
+              ) {
+                responder(respostaIa.esclarecimento);
                 return;
               }
             } finally {
@@ -749,6 +841,12 @@ export default function useAssistenteGlobal({
       comandosRota,
       iaHabilitada,
       informarAcessoNegado,
+      obterContextoContato,
+      obterContextoFilial,
+      possuiUltimoPonto,
+      registrarInteracaoIa,
+      responder,
+      rotas,
       temAcesso,
       tentarProcessarLocalmente,
     ],

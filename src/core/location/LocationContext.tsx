@@ -13,6 +13,7 @@ import Toast from 'react-native-toast-message';
 import type { LatLng, Region,} from 'react-native-maps';
 
 import {appLogger} from '../../shared/logging/appLogger';
+import {resolverCidadePorCoordenadas} from './services/locationSnapshotService';
 
 export interface LocationContextValue {
   currentLocation: LatLng | null;
@@ -95,36 +96,21 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
       }
 
       const request = (async (): Promise<string | null> => {
-        try {
-          const addresses =
-            await Location.reverseGeocodeAsync({
-              latitude: coordinates.latitude,
-              longitude: coordinates.longitude,
-            });
+        const city =
+          await resolverCidadePorCoordenadas(
+            coordinates,
+          );
 
-          const address = addresses[0];
+        setCurrentCity(city);
+        lastGeocodedCityRef.current = city;
 
-          const city =
-            address?.city?.trim() ||
-            address?.subregion?.trim() ||
-            null;
+        /*
+         * Salva a chave somente depois que a
+         * consulta for concluída.
+         */
+        lastGeocodedLocationRef.current = locationKey;
 
-          setCurrentCity(city);
-          lastGeocodedCityRef.current = city;
-
-          /*
-           * Salva a chave somente depois que a
-           * consulta for concluída.
-           */
-          lastGeocodedLocationRef.current = locationKey;
-
-          return city;
-        } catch (geocodeError: unknown) {
-          appLogger.error('Erro ao identificar cidade atual:', geocodeError);
-
-          setCurrentCity(null);
-          return null;
-        }
+        return city;
       })();
 
       geocodeRequestRef.current = {locationKey, request};

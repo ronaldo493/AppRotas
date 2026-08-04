@@ -36,6 +36,9 @@ const {
   buscarFiliaisAssistente,
 } = require('../src/features/assistente/useCases/buscarFiliaisAssistente.ts');
 const {
+  formatarDetalhesFilialAssistente,
+} = require('../src/features/assistente/useCases/formatarDetalhesFilialAssistente.ts');
+const {
   buscarPontosAssistente,
 } = require('../src/features/assistente/useCases/buscarPontosAssistente.ts');
 const {
@@ -64,23 +67,68 @@ test('usa sugestão como fallback e habilita assistente somente com flag ativa',
   assert.equal(definirAcaoGlobal(undefined), 'sugestao');
 });
 
-test('aceita somente comando canônico confiante retornado pela IA', () => {
+test('valida intenção estruturada, esclarecimento e contrato legado da IA', () => {
   assert.deepEqual(
     validarRespostaAssistenteIa({
       interpretado: true,
-      comandoCanonico: '  traçar   rota para filiais 25 35  ',
+      comando: {
+        dominio: 'filiais',
+        acao: 'ranking',
+        agrupamento: 'cidade',
+        ordem: 'mais',
+        quantidade: 3,
+        campoInjetado: 'ignorar',
+      },
+      comandoCanonico: '  cidades   com mais filiais  ',
       confianca: 0.91,
     }),
     {
       interpretado: true,
-      comandoCanonico: 'traçar rota para filiais 25 35',
+      comando: {
+        dominio: 'filiais',
+        acao: 'ranking',
+        agrupamento: 'cidade',
+        ordem: 'mais',
+        quantidade: 3,
+      },
+      comandoCanonico: 'cidades com mais filiais',
       confianca: 0.91,
+      precisaEsclarecimento: false,
+      esclarecimento: null,
+    },
+  );
+
+  const legado = validarRespostaAssistenteIa({
+    interpretado: true,
+    comandoCanonico: 'traçar rota para filiais 25 35',
+    confianca: 0.9,
+  });
+  assert.equal(legado.interpretado, true);
+  assert.equal(legado.comando, null);
+
+  assert.deepEqual(
+    validarRespostaAssistenteIa({
+      interpretado: false,
+      comando: null,
+      comandoCanonico: null,
+      confianca: 0.55,
+      precisaEsclarecimento: true,
+      esclarecimento: 'Você quer apenas localizar o posto ou iniciar uma rota?',
+    }),
+    {
+      interpretado: false,
+      comando: null,
+      comandoCanonico: null,
+      confianca: 0.55,
+      precisaEsclarecimento: true,
+      esclarecimento: 'Você quer apenas localizar o posto ou iniciar uma rota?',
     },
   );
 
   assert.equal(
     validarRespostaAssistenteIa({
       interpretado: true,
+      comando: {dominio: 'admin', acao: 'apagar_tudo'},
       comandoCanonico: 'abrir histórico',
       confianca: 0.4,
     }).interpretado,
@@ -89,6 +137,7 @@ test('aceita somente comando canônico confiante retornado pela IA', () => {
   assert.equal(
     validarRespostaAssistenteIa({
       interpretado: true,
+      comando: null,
       comandoCanonico: 'x'.repeat(181),
       confianca: 0.99,
     }).comandoCanonico,
@@ -561,6 +610,101 @@ test('entende análises naturais sobre cidades e filiais', () => {
       fala,
     );
   });
+});
+
+test('consulta dados reais da filial e mantém contexto para continuação', () => {
+  assert.deepEqual(
+    validarRespostaAssistenteIa({
+      interpretado: true,
+      comando: {
+        dominio: 'filiais',
+        acao: 'consultar',
+        termo: '25',
+        campo: 'supervisor',
+        valorInventado: 'ignorar',
+      },
+      comandoCanonico: 'consultar supervisor da filial 25',
+      confianca: 0.96,
+    }).comando,
+    {
+      dominio: 'filiais',
+      acao: 'consultar',
+      termo: '25',
+      campo: 'supervisor',
+    },
+  );
+  assert.deepEqual(
+    interpretarComandoAssistente(['qual o telefone da filial 25'])?.comando,
+    {
+      dominio: 'filiais',
+      acao: 'consultar',
+      termo: '25',
+      campo: 'telefone',
+    },
+  );
+  assert.deepEqual(
+    interpretarComandoAssistente(['que horas fecha a loja 48'])?.comando,
+    {
+      dominio: 'filiais',
+      acao: 'consultar',
+      termo: '48',
+      campo: 'horario',
+    },
+  );
+  assert.deepEqual(
+    interpretarComandoAssistente(['quem é o gerente da filial 35'])?.comando,
+    {
+      dominio: 'filiais',
+      acao: 'consultar',
+      termo: '35',
+      campo: 'gerente',
+    },
+  );
+  assert.deepEqual(
+    interpretarComandoAssistente(['e o endereço dela'], {
+      possuiUltimaFilial: true,
+    })?.comando,
+    {
+      dominio: 'filiais',
+      acao: 'consultar_ultima',
+      campo: 'endereco',
+    },
+  );
+  assert.deepEqual(
+    interpretarComandoAssistente(['e qual é o telefone dela'], {
+      possuiUltimaFilial: true,
+    })?.comando,
+    {
+      dominio: 'filiais',
+      acao: 'consultar_ultima',
+      campo: 'telefone',
+    },
+  );
+
+  const filial = {
+    codigofilial: 25,
+    nomefilial: 'Drogal Centro',
+    nomecidade: 'Piracicaba',
+    uf: 'SP',
+    endereco: 'Rua Governador',
+    numero: '123',
+    bairro: 'Centro',
+    cep: '13400-000',
+    telefone: '(19) 3400-0000',
+    gerente: 'Maria Souza',
+    horariofuncionamento: 'Segunda a sábado, das 8h às 22h',
+  };
+  const endereco = formatarDetalhesFilialAssistente(filial, 'endereco');
+  assert.match(endereco.visual, /Rua Governador, 123/);
+  assert.match(endereco.visual, /CEP 13400-000/);
+  assert.match(
+    formatarDetalhesFilialAssistente(filial, 'resumo').visual,
+    /Gerente: Maria Souza/,
+  );
+  assert.match(
+    formatarDetalhesFilialAssistente(filial, 'supervisor').visual,
+    /não possui supervisor informado/,
+  );
 });
 
 test('calcula distribuição de filiais sem duplicar códigos', () => {

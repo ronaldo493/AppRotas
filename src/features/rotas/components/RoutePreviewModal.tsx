@@ -68,6 +68,7 @@ export default function RoutePreviewModal({
   const [mapReady, setMapReady] = useState(false);
   const {
     preview,
+    previewOrigin,
     loading,
     error,
     loadPreview,
@@ -81,12 +82,13 @@ export default function RoutePreviewModal({
       }),
     [routes],
   );
+  const displayedOrigin = previewOrigin ?? origin;
   const allCoordinates = useMemo(
     () =>
-      origin
-        ? [origin, ...destinationCoordinates]
+      displayedOrigin
+        ? [displayedOrigin, ...destinationCoordinates]
         : destinationCoordinates,
-    [destinationCoordinates, origin],
+    [destinationCoordinates, displayedOrigin],
   );
 
   useEffect(() => {
@@ -224,11 +226,11 @@ export default function RoutePreviewModal({
           </View>
         )}
 
-        {!loading && (!origin || error) && (
+        {!loading && (!displayedOrigin || error) && (
           <View style={styles.stateContainer}>
             <MaterialIcons
               name={
-                origin
+                displayedOrigin
                   ? 'route'
                   : 'location-off'
               }
@@ -254,7 +256,7 @@ export default function RoutePreviewModal({
                 },
               ]}
             >
-              {origin
+              {displayedOrigin
                 ? error
                 : 'Precisamos da sua localização atual para calcular o trajeto.'}
             </Text>
@@ -264,12 +266,12 @@ export default function RoutePreviewModal({
               style={styles.retryButton}
               onPress={retry}
             >
-              {origin
+              {displayedOrigin
                 ? 'Tentar novamente'
                 : 'Abrir configurações'}
             </Button>
 
-            {origin && error && onStartWithoutPreview && (
+            {displayedOrigin && error && onStartWithoutPreview && (
               <Button
                 mode="contained"
                 style={styles.retryButton}
@@ -282,14 +284,14 @@ export default function RoutePreviewModal({
           </View>
         )}
 
-        {!loading && origin && preview && (
+        {!loading && displayedOrigin && preview && (
           <>
             <MapView
               ref={mapRef}
               provider={PROVIDER_GOOGLE}
               style={styles.map}
               initialRegion={{
-                ...origin,
+                ...displayedOrigin,
                 latitudeDelta: 0.08,
                 longitudeDelta: 0.08,
               }}

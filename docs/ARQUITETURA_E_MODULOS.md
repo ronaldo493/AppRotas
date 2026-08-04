@@ -155,8 +155,12 @@ explicitamente ao buscar `/menus/me` e registrar `/sessoes`.
 ### Primeiro acesso
 
 `core/auth/forcedPasswordChange` contém service, hook, gate e estilos. O hook
-consulta o status no backend, não confia apenas na flag devolvida pelo login. O
-gate possui estados `checking`, `required`, `allowed` e `error`.
+consulta o status autoritativo no backend e persiste a decisão booleana no
+perfil local. Na restauração offline, `false` libera imediatamente a aplicação
+e `true` mantém o gate obrigatório; valor ausente ou inválido permanece em
+verificação e nunca libera silenciosamente. A revalidação remota usa timeout
+curto, sem retries, e não bloqueia um perfil local já autorizado. O gate possui
+estados `checking`, `required`, `allowed` e `error`.
 
 Remover o wrapper de `AppProviders.tsx` desativa o fluxo sem criar dependência
 nas demais features. Não duplique a regra dentro das telas.
@@ -177,13 +181,23 @@ esta versão sabe montar.
 
 ## 8. Localização compartilhada
 
-`LocationProvider` fornece localização às telas. Para resolver cidade no login:
+`LocationProvider` fornece localização às telas. Registros persistidos não
+usam diretamente `currentCity`, pois esse estado visual pode representar uma
+leitura anterior. O serviço `locationSnapshotService` captura uma posição e
+resolve a cidade usando exatamente aquelas coordenadas.
+
+Para resolver cidade no login:
 
 1. tenta última posição conhecida com no máximo 60 segundos e 250 metros de
    precisão;
 2. quando necessário, solicita uma posição atual balanceada;
 3. faz geocodificação reversa;
 4. armazena cache por coordenada arredondada a três casas.
+
+Na sessão e no início de uma execução, cidade e coordenadas formam um snapshot
+único. Falha ou tempo limite da geocodificação grava cidade nula, mas não
+invalida o GPS, não impede o login e não interrompe a rota. As telas de Rotas,
+Pontos e Chamados não podem fornecer manualmente `cidadeOrigem` ao caso de uso.
 
 Negar localização não impede o login. Já uma rota monitorada exige permissão em
 uso, permissão de segundo plano e serviço do aparelho habilitado. Mensagens de
@@ -203,9 +217,12 @@ Mantém lista ordenável de destinos, pesquisa de filial e prévia. Responsabili
 - abrir Google Maps/Waze diretamente se a chave estiver desativada;
 - delegar início e rastreamento a `execucaoRota`.
 
-`routePreviewService` envia origem e destinos ao backend. O cache usa identidade,
-ordem e coordenadas dos destinos; alteração da lista ou ordem o invalida. A
-polyline recebida é decodificada para desenho no mapa.
+`routePreviewService` envia origem e destinos ao backend. No momento da prévia,
+o GPS é atualizado antes de consultar ou reaproveitar o resultado. O cache usa
+identidade, ordem e coordenadas dos destinos, expira após 10 minutos e só é
+válido até 500 metros da origem anterior. Alterar lista, ordem ou origem além
+desse limite exige nova estimativa. A polyline recebida é decodificada para
+desenho no mapa.
 
 A pesquisa numérica da tela de Rotas possui um fallback persistente exclusivo.
 Depois de uma leitura online válida de `/informacoeslojas`, a lista é salva no

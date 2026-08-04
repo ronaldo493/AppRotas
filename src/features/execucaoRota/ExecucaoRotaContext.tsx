@@ -18,6 +18,7 @@ import {
 import useStrapiClient from '../../core/api/strapiClient';
 import {useAuthContext} from '../../core/auth/AuthContext';
 import {registerSessionTerminationPreparation} from '../../core/auth/sessionTerminationCoordinator';
+import {criarSnapshotDaLocalizacao} from '../../core/location/services/locationSnapshotService';
 import {appLogger} from '../../shared/logging/appLogger';
 import {
   MOTIVO_FINALIZACAO_ROTA,
@@ -612,6 +613,10 @@ export function ExecucaoRotaProvider({
 
         const initialLocation =
           await obterLocalizacaoRastreamento();
+        const originSnapshot =
+          await criarSnapshotDaLocalizacao(
+            initialLocation,
+          );
         const initialPoint =
           converterLocalizacaoEmPonto(
             initialLocation,
@@ -619,12 +624,7 @@ export function ExecucaoRotaProvider({
         const execution = criarExecucaoRotaLocal(
           input,
           owner,
-          {
-            latitude:
-              initialLocation.coords.latitude,
-            longitude:
-              initialLocation.coords.longitude,
-          },
+          originSnapshot,
           destinations,
         );
 

@@ -29,6 +29,19 @@ export type PeriodoHistoricoAssistente =
   | 'mes_atual'
   | 'geral';
 
+export type CampoDetalheFilialAssistente =
+  | 'resumo'
+  | 'endereco'
+  | 'telefone'
+  | 'horario'
+  | 'gerente'
+  | 'supervisor'
+  | 'cnpj'
+  | 'cep'
+  | 'bairro'
+  | 'cidade'
+  | 'uf';
+
 export type ComandoAssistente =
   | {dominio: 'sistema'; acao: 'ajuda' | 'confirmar' | 'cancelar'}
   | {
@@ -39,6 +52,17 @@ export type ComandoAssistente =
   | {dominio: 'navegacao'; acao: 'abrir' | 'voltar'; destino?: DestinoAssistente}
   | {dominio: 'mapa'; acao: 'pesquisar_filiais'; termo: string}
   | {dominio: 'filiais'; acao: 'contar_total'}
+  | {
+      dominio: 'filiais';
+      acao: 'consultar';
+      termo: string;
+      campo: CampoDetalheFilialAssistente;
+    }
+  | {
+      dominio: 'filiais';
+      acao: 'consultar_ultima';
+      campo: CampoDetalheFilialAssistente;
+    }
   | {dominio: 'filiais'; acao: 'contar_cidade'; termo: string}
   | {dominio: 'filiais'; acao: 'listar_cidades'}
   | {
@@ -117,6 +141,7 @@ export type ComandoAssistente =
 export interface ContextoInterpretacaoAssistente {
   possuiUltimoPonto?: boolean;
   possuiUltimoContato?: boolean;
+  possuiUltimaFilial?: boolean;
   aguardandoRefinoContato?: boolean;
   ultimoDepartamento?: string;
   telaAtual?: string;
