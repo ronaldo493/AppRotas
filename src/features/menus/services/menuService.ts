@@ -1,6 +1,7 @@
 import type {AxiosInstance} from 'axios';
 
 import type {MenuItem} from '../../../core/menu/Menu';
+import {DEVICE_SESSION_HEADER} from '../../../core/auth/deviceSession/services/deviceSessionService';
 
 interface MenuCollectionResponse {
   data?: unknown;
@@ -33,12 +34,16 @@ const isMenuItem = (value: unknown): value is MenuItem => {
 export async function buscarMenusPermitidos(
   client: AxiosInstance,
   jwt: string,
+  deviceSessionCode?: string,
 ): Promise<MenuItem[]> {
   const response = await client.get<MenuCollectionResponse>(
     '/menus/me',
     {
       headers: {
         Authorization: `Bearer ${jwt}`,
+        ...(deviceSessionCode
+          ? {[DEVICE_SESSION_HEADER]: deviceSessionCode}
+          : {}),
       },
     },
   );

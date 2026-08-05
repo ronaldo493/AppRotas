@@ -143,6 +143,8 @@ Regras:
 | --- | --- |
 | `userToken` | JWT do Users & Permissions |
 | `userData` | usuário e menus válidos |
+| `deviceSession` | código opaco e metadados mínimos da sessão do aparelho |
+| `appInstallationId` | identificador aleatório da instalação; não contém dado de hardware |
 | `theme` | `dark` ou `light` |
 
 O JWT é decodificado apenas para validar expiração; autorização continua sendo
@@ -150,7 +152,10 @@ responsabilidade do backend. Token inválido/expirado remove a sessão. O app
 agenda logout para o `exp` e revalida ao voltar ao foreground.
 
 No login, o JWT ainda não foi publicado no contexto. Por isso `useAuth` o envia
-explicitamente ao buscar `/menus/me` e registrar `/sessoes`.
+explicitamente ao registrar `/sessoes-dispositivo`, buscar `/menus/me` e
+registrar a telemetria em `/sessoes`. O `DeviceSessionMonitor` valida a sessão
+no foreground e periodicamente sem bloquear a restauração offline. Respostas de
+revogação passam pelo coordenador de encerramento para preservar a fila de rota.
 
 ### Primeiro acesso
 
@@ -260,6 +265,10 @@ O banco habilita foreign keys, WAL e `busy_timeout = 5000`. Há índice único
 para uma execução ativa. Toda mutação passa pela fila de escrita; não crie uma
 segunda conexão/escrita direta dentro de componentes.
 
+`route_executions.device_session_code` mantém a sessão que iniciou a viagem.
+Esse valor não é removido no logout e permite reconciliar uma rota pendente com
+a sessão antiga autorizada apenas para sincronização.
+
 A tarefa `drogal-route-location-tracking` usa `BestForNavigation`, 20 m, 10 s e
 deferimento de 50 m/30 s. No Android, mantém foreground service durante a rota.
 
@@ -274,7 +283,29 @@ Sincronização:
 - backoff progressivo após falha;
 - pendências sobrevivem a reinício e falta de rede.
 
-### 9.3 `historico`
+### 9.3 `admin`
+
+É a entrada de duas funções independentes: `Monitoramento de rotas` e `Trocar
+senha`. Administradores recebem todos os setores; gestores são limitados pelo
+backend ao próprio setor e só entram no rollout quando
+`configuracao-app.painelAdminGestoresAtivo` está ativa. A mesma política filtra
+`/menus/me` e protege os endpoints administrativos. A feature separa modelos,
+serviços HTTP, hooks, casos de uso puros, componentes e telas.
+
+O fluxo principal consolida execuções e históricos, permite buscar, filtrar e
+abrir detalhes sem receber geometrias. Somente ao solicitar o mapa, a segunda
+rota devolve origem, destinos e polylines consolidadas daquela execução. Pontos
+GPS e segmentos brutos não chegam ao aplicativo. O painel permanece somente
+leitura e não reutiliza os contextos destinados ao colaborador em rota. A tela
+começa em `Hoje`, destaca estado operacional e usa a última localização apenas
+como evidência de atualização da execução.
+
+A gestão de senha usa `GET /painel-admin/usuarios` e
+`POST /painel-admin/usuarios/:usuarioId/redefinir-senha`. O app não envia setor, cargo
+ou senha temporária e não recebe hashes. O servidor redefine para o padrão de
+primeiro acesso, marca `deveAlterarSenha=true` e audita ator e usuário afetado.
+
+### 9.4 `historico`
 
 Consulta o histórico definitivo em páginas. O backend deve filtrar/expor apenas
 o escopo apropriado ao usuário conforme permissões do ambiente.
@@ -288,7 +319,7 @@ Operações por chave são serializadas. A migração grava a fila nova antes de
 remover a antiga. Nunca envie um item cujo proprietário não corresponda à
 sessão.
 
-### 9.4 `filiais`
+### 9.5 `filiais`
 
 Carrega `/informacoeslojas` em páginas de 100. Deduplica requisições concorrentes
 por token e compartilha o resultado no contexto. Coordenadas inválidas não são
@@ -301,7 +332,7 @@ ranking, quantidade e proporção; selecionar uma linha filtra os marcadores e
 enquadra o grupo. Pesquisa textual e filtro analítico não ficam ativos juntos,
 evitando um recorte invisível para o usuário.
 
-### 9.5 `pontos`
+### 9.6 `pontos`
 
 Carrega e cria `/pontos-interesses`. Modela campos opcionais para compatibilidade
 com registros antigos: `usernameCriador`, `cidadePonto` e `setorCriador`.
@@ -316,19 +347,19 @@ um único local numerado. Ao tocar, o usuário escolhe o restaurante ou posto qu
 deseja usar. Essa consolidação acontece antes do Supercluster, somente quando a
 lista muda, e não altera nem combina os registros persistidos no Strapi.
 
-### 9.6 `contatos`
+### 9.7 `contatos`
 
 Carrega páginas de 100, remove duplicidade por identidade dos campos, ordena e
 filtra em memória. A tela usa FlatList e componentes memoizados para reduzir o
 custo de listas grandes.
 
-### 9.7 `chamados`
+### 9.8 `chamados`
 
 Carrega `/chamados` com filtros de responsável/setor. Mantém contexto por
 sessão. O modelo do backend não está versionado neste repositório Strapi; trate
 como contrato externo ao alterar campos.
 
-### 9.8 `configuracoes`
+### 9.9 `configuracoes`
 
 Perfil atualiza apenas `emailSec` e senha. Cargo e e-mail corporativo principal
 permanecem somente leitura. As alterações usam `/perfil/email` e
@@ -337,26 +368,26 @@ o app não recebe permissão genérica para editar usuários ou criar auditoria.
 Cargo e e-mail corporativo principal não são editados pela tela, e a auditoria
 nunca recebe valores sensíveis.
 
-### 9.9 `atualizacao`
+### 9.10 `atualizacao`
 
 Consulta `update-app` ao montar, inclusive deslogado. Com versão remota superior,
 exibe modal não dispensável. O campo remoto `required` não participa da decisão
 atual.
 
-### 9.10 `sugestoes`
+### 9.11 `sugestoes`
 
 Envia uma sugestão e persiste apenas a posição do FAB em
 `@drogal:sugestao-fab-position`. Erro de envio mantém o formulário para nova
 tentativa.
 
-### 9.11 `patrimonio`
+### 9.12 `patrimonio`
 
 Fluxo local descrito em `src/features/patrimonio/README.md`. O formulário
 registra ambientes e equipamentos, persiste `patrimonio.json` com debounce de
 300 ms e compartilha por WhatsApp. Não depende do Strapi e não entra em
 `AppDataProviders`.
 
-### 9.12 `assistente`
+### 9.13 `assistente`
 
 Módulo opcional controlado por `configuracao-app.assistenteVozAtivo`. O
 componente `GlobalSupportAction` é o único ponto de composição: monta a
@@ -372,6 +403,11 @@ para hooks em `features/assistente/handlers`. Nenhuma tela importa a feature.
 Quando `assistenteIaAtiva` está ligada, apenas frases não reconhecidas usam
 `assistenteIaApi`; a resposta canônica retorna à árvore local e não possui
 autoridade para navegar ou consultar dados diretamente.
+
+`metricaAssistenteApi` é uma saída secundária best effort. O coordenador envia
+uma única métrica ao término da interação, distinguindo árvore local, Gemini e
+atalho. O payload não contém fala, resposta ou parâmetros, e uma falha nessa
+saída nunca interfere na execução do comando.
 
 O procedimento de remoção está em
 [`src/features/assistente/README.md`](../src/features/assistente/README.md).
@@ -426,6 +462,7 @@ yarn test:route-execution
 yarn test:route-preview
 yarn test:resilience
 yarn test:auth
+yarn test:device-session
 yarn test:all
 ```
 

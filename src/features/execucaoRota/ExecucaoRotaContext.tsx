@@ -79,7 +79,7 @@ const ExecucaoRotaContext =
 export function ExecucaoRotaProvider({
   children,
 }: PropsWithChildren): React.JSX.Element {
-  const {user} = useAuthContext();
+  const {user, deviceSession} = useAuthContext();
   const client = useStrapiClient();
   const api = useMemo(
     () => criarExecucaoRotaApi(client),
@@ -626,6 +626,7 @@ export function ExecucaoRotaProvider({
           owner,
           originSnapshot,
           destinations,
+          deviceSession?.codigoSessao ?? null,
         );
 
         await salvarExecucaoRota(execution);
@@ -681,6 +682,7 @@ export function ExecucaoRotaProvider({
     },
     [
       finishLocalExecution,
+      deviceSession?.codigoSessao,
       owner,
       scheduleSynchronization,
     ],

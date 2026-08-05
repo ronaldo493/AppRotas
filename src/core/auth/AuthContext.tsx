@@ -17,10 +17,13 @@ import Toast from 'react-native-toast-message';
 
 import {appLogger} from '../../shared/logging/appLogger';
 import {prepareSessionTermination} from './sessionTerminationCoordinator';
+import type {DeviceSession} from './deviceSession/models/DeviceSession';
+import {closeDeviceSession} from './deviceSession/services/deviceSessionService';
 import type {MenuItem} from '../menu/Menu';
 
 const TOKEN_STORAGE_KEY = 'userToken';
 const USER_STORAGE_KEY = 'userData';
+const DEVICE_SESSION_STORAGE_KEY = 'deviceSession';
 
 interface JwtPayload {
   iat?: number;
@@ -46,10 +49,13 @@ interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
+  deviceSession: DeviceSession | null;
 
   setUser: (newUser: AuthUser | null) => Promise<void>;
   setToken: (newToken: string) => Promise<void>;
+  setDeviceSession: (session: DeviceSession | null) => Promise<void>;
   clearToken: () => Promise<void>;
+  handleRemoteSessionInvalidation: () => Promise<void>;
   setLoading: Dispatch<SetStateAction<boolean>>;
 
   isLoggedIn: () => boolean;
@@ -126,8 +132,11 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
   const [user, setUserState] =useState<AuthUser | null>(null);
   const [token, setTokenState] =  useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [deviceSession, setDeviceSessionState] =
+    useState<DeviceSession | null>(null);
 
   const expirationInProgressRef =  useRef<boolean>(false);
+  const remoteInvalidationInProgressRef = useRef(false);
 
   const saveToken = useCallback(async (newToken: string): Promise<void> => {
       if (!isTokenValid(newToken)) {
@@ -176,6 +185,23 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
     [],
   );
 
+  const saveDeviceSession = useCallback(
+    async (session: DeviceSession | null): Promise<void> => {
+      if (!session) {
+        await AsyncStorage.removeItem(DEVICE_SESSION_STORAGE_KEY);
+        setDeviceSessionState(null);
+        return;
+      }
+
+      await AsyncStorage.setItem(
+        DEVICE_SESSION_STORAGE_KEY,
+        JSON.stringify(session),
+      );
+      setDeviceSessionState(session);
+    },
+    [],
+  );
+
   /*
    * Remove token, usuário e dados associados
    * à sessão atual.
@@ -185,9 +211,22 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
     async (): Promise<void> => {
         try {
         await prepareSessionTermination();
+
+        if (token && deviceSession) {
+          try {
+            await closeDeviceSession(token, deviceSession);
+          } catch (error: unknown) {
+            appLogger.warn(
+              'Não foi possível encerrar a sessão remota; o logout local continuará:',
+              error,
+            );
+          }
+        }
+
         await AsyncStorage.multiRemove([
             TOKEN_STORAGE_KEY,
             USER_STORAGE_KEY,
+            DEVICE_SESSION_STORAGE_KEY,
         ]);
         } catch (error: unknown) {
             appLogger.error('Erro ao remover dados da sessão:', error,
@@ -195,8 +234,29 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
         } finally {
             setTokenState(null);
             setUserState(null);
+            setDeviceSessionState(null);
         }
-    },[],
+    },[deviceSession, token],
+  );
+
+  const handleRemoteSessionInvalidation = useCallback(
+    async (): Promise<void> => {
+      if (remoteInvalidationInProgressRef.current) return;
+
+      remoteInvalidationInProgressRef.current = true;
+      try {
+        await clearToken();
+        Toast.show({
+          type: 'info',
+          text1: 'Acesso encerrado',
+          text2: 'Sua conta foi acessada em outro aparelho.',
+          position: 'bottom',
+        });
+      } finally {
+        remoteInvalidationInProgressRef.current = false;
+      }
+    },
+    [clearToken],
   );
 
   const handleExpiredSession = useCallback(async (): Promise<void> => {
@@ -224,9 +284,10 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
       setLoading(true);
 
       try {
-        const [storedToken, storedUser] = await Promise.all([
+        const [storedToken, storedUser, storedDeviceSession] = await Promise.all([
           AsyncStorage.getItem(TOKEN_STORAGE_KEY ),
           AsyncStorage.getItem(USER_STORAGE_KEY),
+          AsyncStorage.getItem(DEVICE_SESSION_STORAGE_KEY),
         ]);
 
         const hasValidSession =
@@ -238,29 +299,46 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
           await AsyncStorage.multiRemove([
             TOKEN_STORAGE_KEY,
             USER_STORAGE_KEY,
+            DEVICE_SESSION_STORAGE_KEY,
           ]);
 
           setTokenState(null);
           setUserState(null);
+          setDeviceSessionState(null);
 
           return;
         }
 
         const parsedUser =  JSON.parse(storedUser as string) as AuthUser;
+        let parsedDeviceSession: DeviceSession | null = null;
+
+        if (storedDeviceSession) {
+          const candidate = JSON.parse(storedDeviceSession) as Partial<DeviceSession>;
+          if (
+            typeof candidate.codigoSessao === 'string' &&
+            candidate.situacaoSessao === 'ativa' &&
+            typeof candidate.iniciadaEm === 'string'
+          ) {
+            parsedDeviceSession = candidate as DeviceSession;
+          }
+        }
 
         setTokenState(storedToken as string);
 
         setUserState(parsedUser);
+        setDeviceSessionState(parsedDeviceSession);
       } catch (error: unknown) {
         appLogger.error('Erro ao restaurar sessão:', error);
 
         await AsyncStorage.multiRemove([
           TOKEN_STORAGE_KEY,
           USER_STORAGE_KEY,
+          DEVICE_SESSION_STORAGE_KEY,
         ]);
 
         setTokenState(null);
         setUserState(null);
+        setDeviceSessionState(null);
       } finally {
         setLoading(false);
       }
@@ -358,19 +436,25 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
         user,
         token,
         loading,
+        deviceSession,
 
         setUser: saveUser,
         setToken: saveToken,
+        setDeviceSession: saveDeviceSession,
         clearToken,
+        handleRemoteSessionInvalidation,
 
         setLoading,
         isLoggedIn,
       }),
       [
         clearToken,
+        deviceSession,
+        handleRemoteSessionInvalidation,
         isLoggedIn,
         loading,
         saveToken,
+        saveDeviceSession,
         saveUser,
         token,
         user,

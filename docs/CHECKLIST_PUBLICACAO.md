@@ -1,11 +1,11 @@
 # Checklist de publicação do aplicativo
 
-Última revisão técnica: **1 de agosto de 2026**.
+Última revisão técnica: **5 de agosto de 2026**.
 
 ## Estado validado
 
 - Expo Doctor 18/18;
-- typecheck e 55 testes aprovados;
+- typecheck e 72 testes aprovados;
 - exportação Android/Metro concluída com 1.840 módulos;
 - nenhuma dependência circular nos 212 arquivos analisados;
 - dependências nativas compatíveis e `@expo/vector-icons` deduplicado.
@@ -58,14 +58,24 @@ yarn build-android:store
 ## Smoke test do APK
 
 - login, senha inválida, expiração e troca de usuário;
+- sessão única desligada registra dois aparelhos sem bloquear;
+- sessão única ligada mantém o login mais recente e encerra o anterior;
+- aparelho anterior offline abre com o cache e é encerrado ao recuperar rede;
 - reabertura offline com sessão válida, troca concluída e filiais em cache;
 - reabertura offline com `deveAlterarSenha=true` permanece bloqueada;
 - troca obrigatória, edição de e-mail/senha e audit log;
 - menus por papel e tema claro/escuro entre telas;
 - filiais online e cache offline exclusivo da montagem de rotas;
 - mapa, métricas, filtros, clusters e pontos sobrepostos;
+- painel administrativo: entrada dos módulos, escopo, filtros, paginação,
+  detalhes e mapa real/planejado;
+- rollout administrativo: `painelAdminGestoresAtivo=false` oculta e bloqueia o
+  gestor, enquanto ADMIN permanece autorizado;
+- redefinição administrativa: com a flag ativa, ADMIN em todos os setores,
+  GESTOR somente no próprio setor, bloqueio sobre ADMIN, audit-log e gate do
+  titular;
 - contatos, chamados e patrimônio;
-- assistente desligada, local e fallback online;
+- assistente desligada, local e fallback online, com métrica sem transcrição;
 - monitoramento desligado: somente Maps/Waze;
 - monitoramento ligado: prévia, início, segundo plano, perda de rede, retorno,
   finalização integral/parcial e sincronização;

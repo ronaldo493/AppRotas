@@ -88,6 +88,7 @@ app, ao voltar ao primeiro plano e a cada cinco minutos. Offline, usa-se a
 - `formatarDetalhesFilialAssistente`: apresenta fatos do cadastro sem IA;
 - `useCases`: interpretação e regras puras, testáveis sem Expo;
 - `assistenteIaApi`: única porta do app para o fallback do Strapi e seu cache;
+- `metricaAssistenteApi`: envio assíncrono de telemetria sem conteúdo da fala;
 - `validarComandoAssistenteIa`: allowlist que reconstrói comandos tipados antes
   de chegarem aos handlers;
 - `validarRespostaAssistenteIa`: valida confiança, esclarecimento e o contrato
@@ -120,7 +121,20 @@ GEMINI_ASSISTANT_TIMEOUT_MS=3500
 Modelo e timeout são opcionais; o timeout aceito fica entre 1 e 8 segundos. A
 chave não pode usar prefixo `EXPO_PUBLIC_` nem entrar no APK. No papel
 `Authenticated`, habilite `Configuracao-app > find` e
-`Assistente-ia > interpretar`. Não há nova collection.
+`Assistente-ia > interpretar`. Para medir o uso, habilite também
+`Metrica-assistente > registrar`; não libere CRUD genérico da collection.
+
+## Métricas de uso
+
+Cada pedido concluído produz no máximo uma métrica, mesmo quando a árvore local
+falha e o Gemini é consultado depois. São enviados somente tela, origem
+`LOCAL`/`GEMINI`/`ATALHO`, resultado, domínio, ação, tempo percebido e versão do
+app. Usuário e setor são associados pelo JWT no backend.
+
+Transcrição, prompt, resposta, parâmetros, localização e tokens nunca entram no
+payload. O envio não é aguardado pela interface, usa timeout curto, não repete e
+não mostra toast ou log quando falha. Portanto a assistente permanece funcional
+offline ou quando a permissão do endpoint ainda não estiver habilitada.
 
 ## Permissão do aparelho
 

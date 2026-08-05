@@ -61,6 +61,7 @@ export async function salvarExecucaoRota(
         `
       INSERT INTO route_executions (
         session_id,
+        device_session_code,
         owner_key,
         user_id,
         user_document_id,
@@ -86,6 +87,7 @@ export async function salvarExecucaoRota(
         summary_json
       ) VALUES (
         $sessionId,
+        $deviceSessionCode,
         $ownerKey,
         $userId,
         $userDocumentId,
@@ -113,6 +115,7 @@ export async function salvarExecucaoRota(
         `,
         {
           $sessionId: execution.codigoSessao,
+          $deviceSessionCode: execution.sessaoDispositivoCodigo,
           $ownerKey: execution.ownerKey,
           $userId: execution.usuarioId,
           $userDocumentId:

@@ -6,6 +6,7 @@ import type {
   PontoRastreamento,
   ResumoExecucaoRota,
 } from '../models/ExecucaoRota';
+import {DEVICE_SESSION_HEADER} from '../../../core/auth/deviceSession/services/deviceSessionService';
 
 interface IniciarExecucaoRotaResponse {
   documentId?: string | null;
@@ -43,6 +44,7 @@ export interface ExecucaoRotaApi {
   enviarSegmento: (
     codigoSessao: string,
     segment: SegmentoExecucaoRota,
+    deviceSessionCode?: string | null,
   ) => Promise<void>;
   finalizar: (
     execution: ExecucaoRota,
@@ -86,6 +88,14 @@ export function criarExecucaoRotaApi(
           versaoAplicativo:
             execution.versaoAplicativo,
         },
+        execution.sessaoDispositivoCodigo
+          ? {
+              headers: {
+                [DEVICE_SESSION_HEADER]:
+                  execution.sessaoDispositivoCodigo,
+              },
+            }
+          : undefined,
       );
       const data =
         unwrapResponse<IniciarExecucaoRotaResponse>(
@@ -109,6 +119,7 @@ export function criarExecucaoRotaApi(
     enviarSegmento: async (
       codigoSessao,
       segment,
+      deviceSessionCode,
     ) => {
       await client.post(
         `/execucoes-rotas/${encodeURIComponent(
@@ -132,6 +143,13 @@ export function criarExecucaoRotaApi(
             registradoEm: point.registradoEm,
           })),
         },
+        deviceSessionCode
+          ? {
+              headers: {
+                [DEVICE_SESSION_HEADER]: deviceSessionCode,
+              },
+            }
+          : undefined,
       );
     },
 
@@ -147,6 +165,14 @@ export function criarExecucaoRotaApi(
             execution.motivoFinalizacao,
           resumo: summary,
         },
+        execution.sessaoDispositivoCodigo
+          ? {
+              headers: {
+                [DEVICE_SESSION_HEADER]:
+                  execution.sessaoDispositivoCodigo,
+              },
+            }
+          : undefined,
       );
     },
   };

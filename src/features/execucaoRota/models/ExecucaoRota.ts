@@ -15,6 +15,8 @@ export const MOTIVO_FINALIZACAO_ROTA = {
   CANCELADA_ABERTURA_NAVEGADOR: 'cancelada_abertura_navegador',
   INTERROMPIDA_USUARIO: 'interrompida_usuario',
   INTERROMPIDA_LOGOUT: 'interrompida_logout',
+  INTERROMPIDA_TROCA_DISPOSITIVO:
+    'interrompida_troca_dispositivo',
   INTERROMPIDA_ERRO: 'interrompida_erro',
 } as const;
 
@@ -91,6 +93,7 @@ export interface ResumoExecucaoRota {
 
 export interface ExecucaoRota {
   codigoSessao: string;
+  sessaoDispositivoCodigo: string | null;
   ownerKey: string;
   usuarioId: number | null;
   usuarioDocumentId: string | null;

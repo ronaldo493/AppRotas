@@ -24,6 +24,7 @@ export async function openRouteDatabase(): Promise<SQLite.SQLiteDatabase> {
 
         CREATE TABLE IF NOT EXISTS route_executions (
           session_id TEXT PRIMARY KEY NOT NULL,
+          device_session_code TEXT,
           owner_key TEXT NOT NULL,
           user_id INTEGER,
           user_document_id TEXT,
@@ -113,8 +114,19 @@ export async function openRouteDatabase(): Promise<SQLite.SQLiteDatabase> {
           idx_route_location_events_session
           ON route_location_events(session_id, restored_at);
 
-        PRAGMA user_version = 2;
       `);
+
+      const executionColumns = await database.getAllAsync<{name: string}>(
+        'PRAGMA table_info(route_executions);',
+      );
+
+      if (!executionColumns.some(column => column.name === 'device_session_code')) {
+        await database.execAsync(
+          'ALTER TABLE route_executions ADD COLUMN device_session_code TEXT;',
+        );
+      }
+
+      await database.execAsync('PRAGMA user_version = 3;');
 
       return database;
     })().catch((error: unknown) => {

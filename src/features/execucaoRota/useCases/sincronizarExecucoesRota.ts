@@ -84,6 +84,7 @@ const synchronizeExecution = async (
         fimEm: lastPoint.registradoEm,
         pontos: pendingPoints,
       },
+      execution.sessaoDispositivoCodigo,
     );
     await marcarPontosComoSincronizados(
       pendingPoints.map(point => point.id),

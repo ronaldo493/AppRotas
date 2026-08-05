@@ -7,6 +7,7 @@ import type {
 
 export interface ExecucaoRotaRow {
   session_id: string;
+  device_session_code: string | null;
   owner_key: string;
   user_id: number | null;
   user_document_id: string | null;
@@ -84,6 +85,7 @@ export const mapExecutionRow = (
   row: ExecucaoRotaRow,
 ): ExecucaoRota => ({
   codigoSessao: row.session_id,
+  sessaoDispositivoCodigo: row.device_session_code,
   ownerKey: row.owner_key,
   usuarioId: row.user_id,
   usuarioDocumentId: row.user_document_id,

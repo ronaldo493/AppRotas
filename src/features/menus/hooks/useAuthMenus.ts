@@ -18,17 +18,25 @@ interface UserWithMenus extends AuthUser {
 export default function useAuthMenus() {
   const client = useStrapiClient();
 
-  const loadAllowedMenus = useCallback(async (jwt: string, user: AuthUser): Promise<MenuItem[]> => {
-    const menus = await buscarMenusPermitidos(client, jwt);
+  const loadAllowedMenus = useCallback(async (
+    jwt: string,
+    user: AuthUser,
+    deviceSessionCode?: string,
+  ): Promise<MenuItem[]> => {
+    const menus = await buscarMenusPermitidos(client, jwt, deviceSessionCode);
 
     markMenuAccessLoaded(user);
 
     return menus;
   }, [client]);
 
-  const loadUserWithMenus = useCallback(async (jwt: string, user: AuthUser): Promise<UserWithMenus> => {
+  const loadUserWithMenus = useCallback(async (
+    jwt: string,
+    user: AuthUser,
+    deviceSessionCode?: string,
+  ): Promise<UserWithMenus> => {
     try {
-      const menus = await loadAllowedMenus(jwt, user);
+      const menus = await loadAllowedMenus(jwt, user, deviceSessionCode);
 
       return {
         ...user,

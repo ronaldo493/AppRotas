@@ -16,11 +16,14 @@ Documentação técnica desta camada:
 - [Arquitetura e módulos](./docs/ARQUITETURA_E_MODULOS.md)
 - [Contrato detalhado do monitoramento](./docs/STRAPI_MONITORAMENTO_ROTAS.md)
 - [Módulo opcional da assistente](./src/features/assistente/README.md)
+- [Painel administrativo](./src/features/admin/README.md)
 - [Regras integradas do sistema](../docs/SISTEMA_E_REGRAS.md)
 
 ## Funcionalidades
 
 - Autenticação com JWT, restauração e expiração automática da sessão.
+- Identificação de instalação e sessão única opcional por usuário, sem
+  bloquear a abertura offline.
 - Verificação automática de novas versões do aplicativo.
 - Menus dinâmicos por cargo e setor, carregados do Strapi.
 - Registro de sessão com usuário, setor e cidade de origem.
@@ -36,6 +39,8 @@ Documentação técnica desta camada:
   agrupamento de marcadores; pontos de interesse também usam agrupamento.
 - Cadastro de restaurantes e postos com identificação do usuário criador.
 - Histórico por usuário, período, cidade de origem e tipo de destino.
+- Painel administrativo de execuções, evidências GPS, históricos consolidados
+  e comparação sob demanda entre o trajeto real e o planejado.
 - Fila local para históricos que não puderam ser enviados ao Strapi.
 - Consulta de chamados atribuídos e não atribuídos.
 - Lista de contatos com filtros por texto e departamento.
@@ -163,17 +168,23 @@ feature/
 ### Login e sessão
 
 1. O aplicativo autentica em `/auth/local`.
-2. Solicita ao Strapi, em `/menus/me`, somente os menus permitidos para o
+2. Registra a instalação em `/sessoes-dispositivo/iniciar`.
+3. Solicita ao Strapi, em `/menus/me`, somente os menus permitidos para o
    usuário autenticado.
-3. Valida e persiste o JWT e o usuário.
-4. Resolve a cidade atual quando houver permissão de localização.
-5. Registra a sessão em `/sessoes`.
+4. Valida e persiste o JWT, o usuário e a sessão do aparelho.
+5. Resolve a cidade atual quando houver permissão de localização.
+6. Registra a telemetria de acesso em `/sessoes`.
 
 Uma falha no monitoramento da sessão não bloqueia o login.
 Os acessos do menu são sincronizados silenciosamente quando uma sessão salva é
 restaurada, quando o aplicativo volta ao primeiro plano e a cada cinco minutos
 de uso ativo. Se o Strapi estiver indisponível, os últimos acessos válidos são
 preservados.
+
+O monitor de sessão revalida o aparelho ao voltar ao primeiro plano. A regra
+`loginUnicoPorUsuarioAtivo` é remota: desligada apenas observa instalações;
+ligada, o login mais recente encerra o anterior. A especificação completa está
+em [`docs/SESSAO_UNICA_DISPOSITIVO.md`](../docs/SESSAO_UNICA_DISPOSITIVO.md).
 
 ### Senha temporária no primeiro acesso
 
@@ -414,8 +425,16 @@ reconhecer. Ele não tem efeito com `assistenteVozAtivo = false`. A chave do
 provedor permanece exclusivamente no Strapi e todo comando sugerido pela IA é
 validado novamente pelo executor local antes de qualquer ação.
 
+O Boolean `painelAdminGestoresAtivo`, obrigatório e padrão `false`, é uma
+política server-side. `false` mantém a rota `Admin` e seus endpoints somente
+para `ADMIN`; `true` inclui `GESTOR`, ainda restrito ao setor do JWT. O
+aplicativo não interpreta essa flag diretamente: a navegação reflete os menus
+já autorizados por `/menus/me`.
+
 No papel `Authenticated`, libere `Configuracao-app > find`. Se usar o fallback
-online, libere também `Assistente-ia > interpretar`.
+online, libere também `Assistente-ia > interpretar`. Para registrar métricas de
+uso sem conteúdo da conversa, libere `Metrica-assistente > registrar`; o app não
+precisa de CRUD genérico dessa collection.
 
 ### `execucoes-rotas` e `segmentos-execucao-rota`
 
@@ -454,12 +473,15 @@ armazenados.
 
 | Campo | Tipo recomendado | Valores |
 | --- | --- | --- |
-| `acao` | Enumeration | `ATUALIZACAO_EMAIL`, `ALTERACAO_SENHA` |
+| `acao` | Enumeration | `ATUALIZACAO_EMAIL`, `ALTERACAO_SENHA`, `REDEFINICAO_SENHA` |
 | `entidade` | Enumeration | `USUARIO` |
-| `entidadeId` | Texto curto | ID do usuário autenticado |
-| `username` | Texto curto | Usuário que realizou a ação |
-| `setor` | Texto curto | Setor do usuário |
-| `origem` | Enumeration | `APP_MOBILE` |
+| `entidadeId` | Texto curto | ID do usuário afetado |
+| `username` | Texto curto | Usuário afetado |
+| `setor` | Texto curto | Setor do usuário afetado |
+| `origem` | Enumeration | `APP_MOBILE`, `APP_MOBILE_ADMIN` |
+| `atorId` | Texto curto opcional | ID do administrador/gestor |
+| `atorUsername` | Texto curto opcional | Username do ator |
+| `atorSetor` | Texto curto opcional | Setor do ator |
 
 O horário utiliza o campo automático `createdAt` do Strapi. O aplicativo não
 cria audit logs diretamente: `PUT /api/perfil/email` e
@@ -478,6 +500,15 @@ Para a edição comum, habilite `Perfil > atualizarEmail` e
 `Users-permissions User > update`, `Auth > changePassword` nem
 `Audit-log > create`. Mantenha essas permissões antigas apenas durante o
 rollout se ainda houver APK anterior em uso.
+
+O módulo `Admin` oferece `Monitoramento de rotas` e `Trocar senha`. Para a
+redefinição administrativa, habilite `Painel-admin > listarUsuarios` e
+`Painel-admin > redefinirSenha`. ADMIN alcança todos os setores; GESTOR fica
+restrito ao próprio setor, somente quando `painelAdminGestoresAtivo=true`, e
+não pode redefinir um ADMIN. A senha volta ao
+padrão temporário no backend e `deveAlterarSenha=true`; o aplicativo do titular
+revalida a flag ao voltar ao primeiro plano e a cada cinco minutos enquanto
+estiver ativo.
 
 ### Outras coleções utilizadas
 

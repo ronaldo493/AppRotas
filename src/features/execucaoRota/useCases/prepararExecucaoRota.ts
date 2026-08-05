@@ -58,9 +58,11 @@ export function criarExecucaoRotaLocal(
   owner: ExecucaoRotaOwner,
   originSnapshot: LocationSnapshot,
   destinations: DestinoExecucaoRota[],
+  deviceSessionCode: string | null,
 ): ExecucaoRota {
   return {
     codigoSessao: criarCodigoSessao(),
+    sessaoDispositivoCodigo: deviceSessionCode,
     ownerKey: owner.key,
     usuarioId: owner.usuarioId,
     usuarioDocumentId: owner.usuarioDocumentId,

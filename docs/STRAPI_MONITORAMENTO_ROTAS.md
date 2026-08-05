@@ -86,6 +86,7 @@ concluida_automaticamente
 cancelada_abertura_navegador
 interrompida_usuario
 interrompida_logout
+interrompida_troca_dispositivo
 interrompida_erro
 ```
 
@@ -463,8 +464,10 @@ Como proteção adicional, configure no backend uma rotina agendada para
 identificar execuções `em_andamento` sem atualização por um período definido
 pela operação. Se houver destino confirmado, encerre como
 `concluida_parcial`; se não houver nenhum, use `interrompida`. O tempo não deve
-ficar fixo no código: use, por exemplo, uma variável
-`ROUTE_EXECUTION_STALE_MINUTES`.
+ficar fixo somente no código: use `ROUTE_EXECUTION_STALE_MINUTES`. O padrão
+operacional atual é `360` minutos sem evidência nova no servidor. Esse limite
+não encerra uma viagem de mais de seis horas que continue sincronizando; ele
+protege apenas sessões sem atualização.
 
 ## 10. Histórico compatível
 

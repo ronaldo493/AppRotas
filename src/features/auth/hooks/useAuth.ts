@@ -5,6 +5,7 @@ import useStrapiClient from '../../../core/api/strapiClient';
 import {capturarSnapshotLocalizacaoAtual} from '../../../core/location/services/locationSnapshotService';
 import {appLogger} from '../../../shared/logging/appLogger';
 import useAuthMenus from '../../menus/hooks/useAuthMenus';
+import {startDeviceSession} from '../../../core/auth/deviceSession/services/deviceSessionService';
 
 interface LoginResponse {
   jwt: string;
@@ -29,6 +30,7 @@ export default function useAuth():
     token,
     setUser,
     setToken,
+    setDeviceSession,
     clearToken,
   } = useAuthContext();
 
@@ -153,6 +155,8 @@ export default function useAuth():
           );
         }
 
+        const deviceSession = await startDeviceSession(jwt);
+
         /*
          * Busca os menus antes de concluir
          * a autenticação no aplicativo.
@@ -161,14 +165,16 @@ export default function useAuth():
           await loadUserWithMenus(
             jwt,
             loginUser,
+            deviceSession.codigoSessao,
           );
 
         /*
          * O AuthContext valida o campo exp
          * do JWT antes de armazená-lo.
          */
-        await setToken(jwt);
+        await setDeviceSession(deviceSession);
         await setUser(userWithMenus);
+        await setToken(jwt);
 
         /*
          * Não bloqueia a entrada no aplicativo.
@@ -224,6 +230,7 @@ export default function useAuth():
       loadUserWithMenus,
       monitorarSessao,
       setToken,
+      setDeviceSession,
       setUser,
     ],
   );

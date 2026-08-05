@@ -32,6 +32,11 @@ const ACOES_RAPIDAS: readonly AcaoRapida[] = [
     icone: 'help-outline',
   },
   {
+    texto: 'Enviar sugestão',
+    comando: {dominio: 'sugestoes', acao: 'abrir'},
+    icone: 'feedback',
+  },
+  {
     texto: 'Restaurante próximo',
     comando: {
       dominio: 'pontos',
@@ -108,12 +113,7 @@ const ACOES_RAPIDAS: readonly AcaoRapida[] = [
       destino: 'contatos',
     },
     icone: 'contact-phone',
-  },
-  {
-    texto: 'Enviar sugestão',
-    comando: {dominio: 'sugestoes', acao: 'abrir'},
-    icone: 'feedback',
-  },
+  }
 ];
 
 interface AcaoRapidaButtonProps extends AcaoRapida {

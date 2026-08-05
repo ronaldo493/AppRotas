@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
+import {AppState, type AppStateStatus} from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import useStrapiClient from '../../../api/strapiClient';
@@ -105,7 +106,10 @@ export default function useForcedPasswordChange(): UseForcedPasswordChangeReturn
 
         const currentUser = userRef.current;
 
-        if (currentUser) {
+        if (
+          currentUser
+          && currentUser.deveAlterarSenha !== required
+        ) {
           await setUser({
             ...currentUser,
             deveAlterarSenha: required,
@@ -150,6 +154,32 @@ export default function useForcedPasswordChange(): UseForcedPasswordChangeReturn
     };
   }, [client, retryKey, sessionKey, setUser]);
 
+  /*
+   * Uma redefinição feita pelo gestor pode ocorrer com o colaborador já
+   * conectado. Revalidamos ao voltar ao app e, enquanto ele estiver aberto,
+   * a cada cinco minutos. Isso ativa o mesmo gate sem acoplar o painel ao login.
+   */
+  useEffect(() => {
+    if (!sessionKey) return;
+
+    let appState: AppStateStatus = AppState.currentState;
+    const subscription = AppState.addEventListener('change', nextState => {
+      const voltouAoApp = nextState === 'active' && appState !== 'active';
+      appState = nextState;
+      if (voltouAoApp) setRetryKey(current => current + 1);
+    });
+    const intervalId = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        setRetryKey(current => current + 1);
+      }
+    }, 5 * 60_000);
+
+    return () => {
+      subscription.remove();
+      clearInterval(intervalId);
+    };
+  }, [sessionKey]);
+
   const changePassword = useCallback(
     async (
       input: ForcedPasswordChangeInput,
@@ -182,7 +212,10 @@ export default function useForcedPasswordChange(): UseForcedPasswordChangeReturn
 
         const currentUser = userRef.current;
 
-        if (currentUser) {
+        if (
+          currentUser
+          && currentUser.deveAlterarSenha !== false
+        ) {
           await setUser({
             ...currentUser,
             deveAlterarSenha: false,

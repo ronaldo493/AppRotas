@@ -1,0 +1,49 @@
+import {StyleSheet} from 'react-native';
+
+const styles = StyleSheet.create({
+  container: {flex: 1},
+  header: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerContent: {flex: 1, minWidth: 0},
+  title: {fontSize: 16, lineHeight: 22, fontWeight: '700'},
+  subtitle: {marginTop: 1, fontSize: 11, lineHeight: 16},
+  closeButton: {paddingHorizontal: 4, paddingVertical: 10},
+  closeButtonText: {fontSize: 13, lineHeight: 18, fontWeight: '700'},
+  map: {flex: 1},
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  stateTitle: {fontSize: 16, lineHeight: 22, fontWeight: '700', textAlign: 'center'},
+  stateText: {marginTop: 7, fontSize: 13, lineHeight: 19, textAlign: 'center'},
+  retryButton: {marginTop: 16, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10},
+  retryButtonText: {fontSize: 13, lineHeight: 18, fontWeight: '700'},
+  marker: {
+    minWidth: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderRadius: 14,
+  },
+  markerText: {fontSize: 11, lineHeight: 15, fontWeight: '700'},
+  footer: {paddingHorizontal: 16, paddingTop: 11, borderTopWidth: StyleSheet.hairlineWidth},
+  footerTitle: {fontSize: 13, lineHeight: 18, fontWeight: '700'},
+  footerMeta: {marginTop: 1, fontSize: 11, lineHeight: 16},
+  notice: {marginTop: 7, fontSize: 11, lineHeight: 16},
+  legend: {flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 9},
+  legendItem: {flexDirection: 'row', alignItems: 'center', gap: 7},
+  legendLine: {width: 24, height: 3, borderRadius: 2},
+  legendLabel: {fontSize: 10, lineHeight: 15},
+});
+
+export default styles;
