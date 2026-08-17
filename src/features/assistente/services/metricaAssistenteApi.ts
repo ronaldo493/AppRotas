@@ -1,6 +1,10 @@
 import type {AxiosInstance} from 'axios';
 
-export type OrigemMetricaAssistente = 'LOCAL' | 'GEMINI' | 'ATALHO';
+export type OrigemMetricaAssistente =
+  | 'LOCAL'
+  | 'GEMINI'
+  | 'BACKEND'
+  | 'ATALHO';
 export type ResultadoMetricaAssistente =
   | 'SUCESSO'
   | 'NAO_COMPREENDIDO'

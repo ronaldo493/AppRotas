@@ -54,6 +54,10 @@ Crie uma Collection Type com:
 | `ocorrenciasLocalizacao` | JSON | opcional |
 | `motivoFinalizacao` | Enumeration | opcional |
 | `ultimaLocalizacaoEm` | Date (datetime) | opcional |
+| `ultimaSincronizacaoEm` | Date (datetime) | opcional; recebimento mais recente no servidor |
+| `atrasoUltimaSincronizacaoSegundos` | Number (big integer) | opcional |
+| `maiorAtrasoSincronizacaoSegundos` | Number (big integer) | opcional |
+| `origemFinalizacao` | Enumeration | opcional |
 | `versaoAplicativo` | Text (Short text) | opcional |
 | `segmentos` | Relation | one-to-many com `segmento-execucao-rota` |
 
@@ -88,6 +92,16 @@ interrompida_usuario
 interrompida_logout
 interrompida_troca_dispositivo
 interrompida_erro
+interrompida_inatividade
+```
+
+Valores de `origemFinalizacao`:
+
+```text
+aplicativo
+servidor_destino_confirmado
+servidor_inatividade
+servidor_troca_dispositivo
 ```
 
 Exemplo de `origem`:
@@ -185,6 +199,12 @@ Uma execução com todos os destinos confirmados gera histórico `concluida`.
 Quando apenas parte deles for confirmada e a execução for encerrada, o
 histórico recebe `concluida_parcial`. Execuções canceladas ou sem nenhuma
 visita confirmada ficam apenas em `execucoes-rotas`.
+
+Ao receber o lote que confirma todos os destinos, o backend também pode
+consolidar imediatamente a execução e o histórico. O POST final do aplicativo
+permanece idempotente e pode complementar as ocorrências de localização sem
+criar outro histórico. Essa regra evita que uma rota comprovadamente concluída
+fique aberta porque o aplicativo foi fechado antes do último request.
 
 ## 4. Prévia da rota sem iniciar execução
 

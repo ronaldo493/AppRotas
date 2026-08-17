@@ -1,9 +1,10 @@
 # Assistente global
 
-Módulo opcional de ajuda por voz com arquitetura **local-first**. Comandos
-conhecidos continuam instantâneos e independentes de IA. Quando a interpretação
-local não reconhece uma frase, o Strapi pode usar uma IA externa para classificá-la
-em uma intenção estruturada já permitida pelo aplicativo.
+Módulo opcional de ajuda por voz com arquitetura **local-first e
+server-driven**. Comandos físicos do aparelho continuam instantâneos e
+independentes de IA. Consultas factuais podem ser planejadas e resolvidas no
+Strapi, permitindo evoluir perguntas de filiais, contatos, pontos, histórico e
+monitoramento sem publicar um handler novo no APK.
 
 ## Fluxo seguro
 
@@ -22,6 +23,31 @@ em uma intenção estruturada já permitida pelo aplicativo.
    locais e verificações de acesso usados pela árvore determinística;
 8. timeout, falta de internet, limite do provedor, erro HTTP ou resposta inválida
    usam o fallback local sem bloquear o colaborador.
+
+### Protocolo V2 server-driven
+
+Quando `assistenteOrquestradorAtivo = true`, perguntas factuais passam por
+`POST /api/assistente-ia/conversar`. Um pré-roteador determinístico resolve os
+casos evidentes; somente ambiguidades usam o Gemini como planejador. O modelo
+recebe fala, tela, memória estrutural e o catálogo autorizado, mas nenhum
+registro de domínio. Depois, uma ferramenta fechada consulta o Strapi e monta a
+resposta com os dados reais.
+
+As ferramentas atuais são `filiais`, `contatos`, `pontos`, `historico`,
+`monitoramento_rotas` e `ajuda_aplicativo`. A ferramenta administrativa
+reutiliza o read model do painel: ADMIN consulta todos os setores, GESTOR apenas
+o próprio setor quando liberado e os demais usuários não recebem a ferramenta.
+O histórico comum consulta somente o username derivado do JWT.
+
+O app valida novamente protocolo, domínio, blocos, memória e sugestões. A
+resposta V2 não possui contrato para executar código ou ação física. Traçar,
+adicionar, remover e reordenar destinos, GPS, navegação, tema e confirmações
+continuam nos handlers locais. Se o endpoint estiver indisponível, desligado ou
+retornar dados inválidos, o fluxo local e `/interpretar` permanecem ativos.
+
+A memória V2 é volátil e guarda somente domínio, termo, colaborador, período e
+resultado anterior. Ela é limpa ao trocar de usuário. Sugestões retornadas pelo
+backend aparecem antes dos atalhos fixos na mesma faixa horizontal.
 
 Comandos complexos de adicionar, remover e reordenar filiais mantêm um texto
 canônico como ponte para o interpretador especializado de rotas. O mesmo campo
@@ -74,6 +100,8 @@ O single type `configuracao-app` possui:
   `SugestaoFab`;
 - `assistenteIaAtiva`: libera somente o fallback online; desligado mantém toda
   a interpretação local.
+- `assistenteOrquestradorAtivo`: libera o protocolo V2 para consultas factuais;
+  nasce `false` e pode ser desligado sem remover o fluxo atual.
 
 Ambas têm padrão `false`. A IA nunca é montada quando
 `assistenteVozAtivo` está desligado. A configuração é atualizada ao abrir o
@@ -90,6 +118,11 @@ app, ao voltar ao primeiro plano e a cada cinco minutos. Offline, usa-se a
 - `formatarDetalhesFilialAssistente`: apresenta fatos do cadastro sem IA;
 - `useCases`: interpretação e regras puras, testáveis sem Expo;
 - `assistenteIaApi`: única porta do app para o fallback do Strapi e seu cache;
+- `assistenteOrquestradorApi`: única porta do protocolo V2, com deduplicação,
+  cache curto e fallback nulo;
+- `validarRespostaAssistenteOrquestrador`: reconstrói a resposta server-driven
+  e elimina campos fora do contrato;
+- `deveConsultarOrquestrador`: preserva ações físicas no aparelho;
 - `metricaAssistenteApi`: envio assíncrono de telemetria sem conteúdo da fala;
 - `validarComandoAssistenteIa`: allowlist que reconstrói comandos tipados antes
   de chegarem aos handlers;
@@ -97,6 +130,11 @@ app, ao voltar ao primeiro plano e a cada cinco minutos. Offline, usa-se a
   de rollout do backend;
 - `useReconhecimentoVoz` e `useAssistenteFalante`: adaptadores nativos;
 - `RotasContext` e `PontosContext`: contratos dos domínios acionados.
+
+O botão global pode ser arrastado e conserva sua posição em
+`@drogal:assistente-fab-position`. Sugestão e assistente reutilizam o hook
+compartilhado `useFloatingActionPosition`, mas possuem chaves independentes;
+mover um botão não altera a posição do outro.
 
 Nenhuma tela importa a assistente. Ela usa navegação global e APIs públicas dos
 domínios, portanto rotas, pontos, histórico e contatos continuam funcionando
@@ -111,8 +149,9 @@ automaticamente ao abrir o painel.
 
 ## Backend e ambiente
 
-O Strapi expõe `POST /api/assistente-ia/interpretar`, autenticado e limitado
-pelo middleware de rate limit. Configure somente no backend:
+O Strapi expõe `POST /api/assistente-ia/interpretar` e
+`POST /api/assistente-ia/conversar`, autenticados e limitados pelo middleware
+de rate limit. Configure somente no backend:
 
 ```env
 GEMINI_API_KEY=chave_server_side
@@ -125,14 +164,15 @@ Modelo, timeout e cache são opcionais; o timeout aceito fica entre 1 e 4,2
 segundos para permanecer abaixo do limite do APK publicado. A
 chave não pode usar prefixo `EXPO_PUBLIC_` nem entrar no APK. No papel
 `Authenticated`, habilite `Configuracao-app > find` e
-`Assistente-ia > interpretar`. Para medir o uso, habilite também
+`Assistente-ia > interpretar` e `Assistente-ia > conversar`. Para medir o uso,
+habilite também
 `Metrica-assistente > registrar`; não libere CRUD genérico da collection.
 
 ## Métricas de uso
 
 Cada pedido concluído produz no máximo uma métrica, mesmo quando a árvore local
 falha e o Gemini é consultado depois. São enviados somente tela, origem
-`LOCAL`/`GEMINI`/`ATALHO`, resultado, domínio, ação, tempo percebido e versão do
+`LOCAL`/`GEMINI`/`BACKEND`/`ATALHO`, resultado, domínio, ação, tempo percebido e versão do
 app. Usuário e setor são associados pelo JWT no backend.
 
 Transcrição, prompt, resposta, parâmetros, localização e tokens nunca entram no
@@ -159,6 +199,11 @@ Para retirar somente a IA online:
 4. remova `src/api/assistente-ia`, a variável secreta, a permissão e o campo do
    Strapi após o rollout.
 
+Para retirar somente o protocolo V2, defina
+`assistenteOrquestradorAtivo = false`, remova `assistenteOrquestradorApi`, os
+modelos/validadores V2 e a prop `orquestradorHabilitado`. O interpretador local
+e o endpoint legado continuam funcionando.
+
 Para retirar toda a assistente:
 
 1. faça `GlobalSupportAction` retornar apenas `<SugestaoFab />`;
@@ -173,6 +218,7 @@ Para retirar toda a assistente:
 ```bash
 npm run typecheck
 npm run test:assistant
+npm run test:assistant-v2
 ```
 
 Os testes cobrem a árvore local, comandos de rota, contexto, busca, detalhes e

@@ -10,10 +10,14 @@ import SugestaoFab from '../../features/sugestoes/components/SugestaoFab';
  * remover a assistente no futuro, basta manter somente o fallback deste slot.
  */
 export default function GlobalSupportAction(): React.JSX.Element {
-  const {habilitado, iaHabilitada} = useDisponibilidadeAssistente();
+  const {habilitado, iaHabilitada, orquestradorHabilitado} =
+    useDisponibilidadeAssistente();
   const acaoGlobal = definirAcaoGlobal(habilitado);
 
   return acaoGlobal === 'assistente'
-    ? <AssistenteFeature iaHabilitada={iaHabilitada} />
+    ? <AssistenteFeature
+        iaHabilitada={iaHabilitada}
+        orquestradorHabilitado={orquestradorHabilitado}
+      />
     : <SugestaoFab />;
 }

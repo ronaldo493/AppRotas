@@ -157,6 +157,12 @@ registrar a telemetria em `/sessoes`. O `DeviceSessionMonitor` valida a sessão
 no foreground e periodicamente sem bloquear a restauração offline. Respostas de
 revogação passam pelo coordenador de encerramento para preservar a fila de rota.
 
+O POST de telemetria também envia `X-App-Session-Id`, mas continua sendo
+best-effort e não participa da autorização. Reautenticação na mesma instalação
+renova a sessão; somente outra instalação é descrita como “outro aparelho”.
+Expiração, encerramento administrativo e sessão inválida possuem mensagens
+próprias.
+
 ### Primeiro acesso
 
 `core/auth/forcedPasswordChange` contém service, hook, gate e estilos. O hook
@@ -223,10 +229,15 @@ Mantém lista ordenável de destinos, pesquisa de filial e prévia. Responsabili
 - delegar início e rastreamento a `execucaoRota`.
 
 `routePreviewService` envia origem e destinos ao backend. No momento da prévia,
-o GPS é atualizado antes de consultar ou reaproveitar o resultado. O cache usa
-identidade, ordem e coordenadas dos destinos, expira após 10 minutos e só é
-válido até 500 metros da origem anterior. Alterar lista, ordem ou origem além
-desse limite exige nova estimativa. A polyline recebida é decodificada para
+o aplicativo aproveita o snapshot do contexto ou a última leitura nativa
+somente quando ela tem até 30 segundos e precisão de até 100 metros. Fora
+desses limites, uma posição atual é solicitada antes da consulta. Isso evita
+esperar uma segunda leitura do GPS quando a origem já é confiável sem aceitar
+silenciosamente uma posição antiga. A preparação começa quando existe um
+destino e a leitura em andamento é deduplicada com a abertura da prévia. O
+cache usa identidade, ordem e coordenadas dos destinos, expira após 10 minutos
+e só é válido até 500 metros da origem anterior. Alterar lista, ordem ou origem
+além desse limite exige nova estimativa. A polyline recebida é decodificada para
 desenho no mapa.
 
 A pesquisa numérica da tela de Rotas possui um fallback persistente exclusivo.
@@ -299,6 +310,12 @@ GPS e segmentos brutos não chegam ao aplicativo. O painel permanece somente
 leitura e não reutiliza os contextos destinados ao colaborador em rota. A tela
 começa em `Hoje`, destaca estado operacional e usa a última localização apenas
 como evidência de atualização da execução.
+
+O status persistido e o resultado comprovado são conceitos diferentes. O
+backend classifica os registros em confirmado, parcial, interrompido com/sem
+trajeto, trajeto sem visita, evidência insuficiente e não iniciado. Os filtros
+usam essa classificação; detalhes mostram leituras, confiança, sincronização e
+velocidade média em movimento sem esconder valores GPS incompatíveis.
 
 A gestão de senha usa `GET /painel-admin/usuarios` e
 `POST /painel-admin/usuarios/:usuarioId/redefinir-senha`. O app não envia setor, cargo
@@ -393,6 +410,10 @@ Módulo opcional controlado por `configuracao-app.assistenteVozAtivo`. O
 componente `GlobalSupportAction` é o único ponto de composição: monta a
 assistente quando a flag é `true` e `SugestaoFab` nos demais casos.
 
+As duas ações flutuantes usam `shared/hooks/useFloatingActionPosition`. A
+assistente persiste `@drogal:assistente-fab-position` e a sugestão mantém sua
+própria chave, evitando acoplamento de estado entre os módulos.
+
 Reconhecimento, resposta falada, preferências e árvore de intenções ficam
 encapsulados na feature. A permissão do microfone é solicitada somente ao tocar
 no controle de voz. Rotas e pontos são delegados aos contratos públicos dos
@@ -404,9 +425,16 @@ Quando `assistenteIaAtiva` está ligada, apenas frases não reconhecidas usam
 `assistenteIaApi`; a resposta canônica retorna à árvore local e não possui
 autoridade para navegar ou consultar dados diretamente.
 
+Com `assistenteOrquestradorAtivo`, perguntas factuais usam o protocolo V2 em
+`assistenteOrquestradorApi`. O backend planeja uma ferramenta fechada, reaplica
+menus/escopo e calcula a resposta. O cliente apenas valida/apresenta texto e
+sugestões; comandos físicos permanecem nos handlers locais. Essa integração
+continua restrita a `GlobalSupportAction`/`AssistenteFeature`, portanto nenhuma
+tela conhece o módulo e sua remoção não altera os domínios.
+
 `metricaAssistenteApi` é uma saída secundária best effort. O coordenador envia
-uma única métrica ao término da interação, distinguindo árvore local, Gemini e
-atalho. O payload não contém fala, resposta ou parâmetros, e uma falha nessa
+uma única métrica ao término da interação, distinguindo árvore local, backend,
+Gemini e atalho. O payload não contém fala, resposta ou parâmetros, e uma falha nessa
 saída nunca interfere na execução do comando.
 
 O procedimento de remoção está em

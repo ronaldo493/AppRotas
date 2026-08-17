@@ -16,6 +16,7 @@ import RouteList from '../components/RouteList';
 import RoutePreviewModal from '../components/RoutePreviewModal';
 import type {RoutePreview} from '../models/RoutePreview';
 import useFiliaisRotaOffline from '../hooks/useFiliaisRotaOffline';
+import usePrepararOrigemPreviaRota from '../hooks/usePrepararOrigemPreviaRota';
 import {useRotasContext} from '../RotasContext';
 import {iniciarNovaRotaAposInterrupcao} from '../useCases/iniciarNovaRotaAposInterrupcao';
 import HomeStyles from './rotasScreen.styles';
@@ -42,7 +43,8 @@ export default function RotasScreen(): React.JSX.Element {
     loading: loadingLocation,
     ensureLocation,
     openLocationSettings,
-    currentLocation
+    currentLocation,
+    currentLocationSnapshot,
   } = useLocation();
 
   const {
@@ -71,6 +73,10 @@ export default function RotasScreen(): React.JSX.Element {
     useState(false);
 
   const hasRoutes = routes.length > 0;
+  usePrepararOrigemPreviaRota(
+    hasRoutes,
+    currentLocationSnapshot,
+  );
 
   useEffect(() => {
     void ensureLocation();
@@ -564,6 +570,7 @@ export default function RotasScreen(): React.JSX.Element {
       <RoutePreviewModal
         visible={routePreviewVisible}
         origin={currentLocation}
+        originSnapshot={currentLocationSnapshot}
         routes={routes}
         starting={processando}
         onClose={() =>

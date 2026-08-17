@@ -5,15 +5,20 @@ import AssistenteGlobal from './AssistenteGlobal';
 
 interface AssistenteFeatureProps {
   iaHabilitada: boolean;
+  orquestradorHabilitado: boolean;
 }
 
 /** Ponto público único do módulo; providers internos não vazam para o app. */
 export default function AssistenteFeature({
   iaHabilitada,
+  orquestradorHabilitado,
 }: AssistenteFeatureProps): React.JSX.Element {
   return (
     <AssistentePreferencesProvider>
-      <AssistenteGlobal iaHabilitada={iaHabilitada} />
+      <AssistenteGlobal
+        iaHabilitada={iaHabilitada}
+        orquestradorHabilitado={orquestradorHabilitado}
+      />
     </AssistentePreferencesProvider>
   );
 }

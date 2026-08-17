@@ -8,9 +8,9 @@ import type {
   UsuarioAdministravel,
 } from '../models/AdminPasswordManagement';
 import {
-  consultarUsuariosAdministrativos,
   redefinirSenhaAdministrativa,
 } from '../services/adminPasswordManagementApi';
+import {consultarUsuariosAdministrativos} from '../services/adminUsersApi';
 
 const TAMANHO_PAGINA = 20;
 

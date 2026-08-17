@@ -7,4 +7,5 @@ export interface DeviceSession {
 
 export interface DeviceSessionStartResponse extends DeviceSession {
   substituiuOutraSessao: boolean;
+  renovouSessaoExistente?: boolean;
 }

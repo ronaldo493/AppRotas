@@ -262,8 +262,12 @@ O cálculo da prévia só ocorre ao tocar em `Traçar rota`; pesquisar uma filia
 não consulta a Routes API. Se a prévia for fechada, ela permanece em memória e
 é reaproveitada por até 10 minutos enquanto a lista, a ordem dos destinos e a
 origem permanecerem válidas. Antes de decidir entre cache e nova consulta, o
-aplicativo atualiza o GPS; um deslocamento superior a 500 metros invalida a
-estimativa. Ao iniciar o percurso, o mesmo planejamento é enviado à execução,
+aplicativo reutiliza uma leitura do aparelho somente quando ela tem até 30
+segundos e precisão de até 100 metros. Se não houver uma leitura segura, o GPS
+começa a ser atualizado assim que o primeiro destino é selecionado; a abertura
+da prévia compartilha essa mesma solicitação e não inicia outra em paralelo. Um
+deslocamento superior a 500 metros invalida a estimativa. Ao iniciar o percurso,
+o mesmo planejamento é enviado à execução,
 evitando uma segunda consulta ao Google.
 
 ### Rota para ponto de interesse
@@ -425,6 +429,12 @@ reconhecer. Ele não tem efeito com `assistenteVozAtivo = false`. A chave do
 provedor permanece exclusivamente no Strapi e todo comando sugerido pela IA é
 validado novamente pelo executor local antes de qualquer ação.
 
+O campo `assistenteOrquestradorAtivo`, obrigatório e padrão `false`, habilita o
+protocolo V2 server-driven para consultas factuais. O Strapi consulta os dados,
+aplica o escopo e devolve texto e sugestões estruturadas; ações físicas como
+traçar/reordenar rotas e usar GPS continuam locais. Se a flag ou o endpoint
+falhar, o app retorna ao fluxo existente.
+
 O Boolean `painelAdminGestoresAtivo`, obrigatório e padrão `false`, é uma
 política server-side. `false` mantém a rota `Admin` e seus endpoints somente
 para `ADMIN`; `true` inclui `GESTOR`, ainda restrito ao setor do JWT. O
@@ -432,7 +442,8 @@ aplicativo não interpreta essa flag diretamente: a navegação reflete os menus
 já autorizados por `/menus/me`.
 
 No papel `Authenticated`, libere `Configuracao-app > find`. Se usar o fallback
-online, libere também `Assistente-ia > interpretar`. Para registrar métricas de
+online, libere também `Assistente-ia > interpretar`. Para o protocolo V2,
+libere `Assistente-ia > conversar`. Para registrar métricas de
 uso sem conteúdo da conversa, libere `Metrica-assistente > registrar`; o app não
 precisa de CRUD genérico dessa collection.
 

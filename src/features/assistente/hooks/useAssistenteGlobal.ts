@@ -23,6 +23,11 @@ import type {
   ResultadoInterpretacaoAssistente,
   TopicoAjudaAssistente,
 } from '../models/ComandoAssistente';
+import type {MemoriaAssistenteOrquestrador} from '../models/AssistenteOrquestrador';
+import {
+  conversarComAssistenteOrquestrador,
+  limparCacheAssistenteOrquestrador,
+} from '../services/assistenteOrquestradorApi';
 import {
   solicitarInterpretacaoAssistenteIa,
   type InteracaoRecenteAssistenteIa,
@@ -37,6 +42,7 @@ import {
   type ResultadoEsperaAssistente,
 } from '../useCases/aguardarDadosAssistente';
 import {interpretarComandoAssistente} from '../useCases/interpretarComandoAssistente';
+import {deveConsultarOrquestrador} from '../useCases/deveConsultarOrquestrador';
 import useChamadosAssistenteHandler from '../handlers/useChamadosAssistenteHandler';
 import useContatosAssistenteHandler from '../handlers/useContatosAssistenteHandler';
 import useFiliaisAssistenteHandler from '../handlers/useFiliaisAssistenteHandler';
@@ -56,6 +62,7 @@ interface UseAssistenteGlobalReturn {
   mensagem: string;
   sugestaoVisivel: boolean;
   respostasFaladasAtivas: boolean;
+  sugestoesDinamicas: readonly string[];
   abrir: () => void;
   fechar: () => void;
   ouvir: () => Promise<void>;
@@ -70,6 +77,7 @@ interface UseAssistenteGlobalReturn {
 
 interface UseAssistenteGlobalParams {
   iaHabilitada: boolean;
+  orquestradorHabilitado: boolean;
 }
 
 const MENSAGEM_INICIAL =
@@ -250,6 +258,7 @@ const LIMITE_MEMORIA_IA = 4;
  */
 export default function useAssistenteGlobal({
   iaHabilitada,
+  orquestradorHabilitado,
 }: UseAssistenteGlobalParams): UseAssistenteGlobalReturn {
   const client = useStrapiClient();
   const {user} = useAuthContext();
@@ -270,7 +279,9 @@ export default function useAssistenteGlobal({
   const [transcricao, setTranscricao] = useState<string | null>(null);
   const [mensagem, setMensagem] = useState(MENSAGEM_INICIAL);
   const [sugestaoVisivel, setSugestaoVisivel] = useState(false);
+  const [sugestoesDinamicas, setSugestoesDinamicas] = useState<string[]>([]);
   const memoriaIaRef = useRef<InteracaoRecenteAssistenteIa[]>([]);
+  const memoriaOrquestradorRef = useRef<MemoriaAssistenteOrquestrador>({});
 
   /** Registra uma interação concluída sem enviar a frase pronunciada. */
   const registrarMetricaUso = useCallback(
@@ -296,6 +307,9 @@ export default function useAssistenteGlobal({
 
   useEffect(() => {
     memoriaIaRef.current = [];
+    memoriaOrquestradorRef.current = {};
+    setSugestoesDinamicas([]);
+    limparCacheAssistenteOrquestrador();
   }, [user?.username]);
 
   /**
@@ -816,6 +830,44 @@ export default function useAssistenteGlobal({
     [executarComandoGlobal, registrarInteracaoIa, registrarMetricaUso],
   );
 
+  /**
+   * Consulta o backend server-driven. Uma resposta ausente ou inválida não
+   * encerra a interação: o interpretador local e o fallback legado continuam.
+   */
+  const tentarProcessarNoOrquestrador = useCallback(
+    async (
+      transcricoes: readonly string[],
+      iniciadoEm: number,
+    ): Promise<boolean> => {
+      if (!orquestradorHabilitado || !transcricoes[0]?.trim()) return false;
+      const feedbackTimer = setTimeout(() => {
+        setMensagem('Consultando os dados…');
+      }, ATRASO_FEEDBACK_CARREGAMENTO_MS);
+      const resposta = await conversarComAssistenteOrquestrador(client, {
+        transcricoes,
+        telaAtual: getCurrentRouteName(),
+        memoria: memoriaOrquestradorRef.current,
+      }).finally(() => clearTimeout(feedbackTimer));
+      if (!resposta?.processado) return false;
+
+      memoriaOrquestradorRef.current = resposta.memoria;
+      setSugestoesDinamicas(resposta.sugestoes);
+      const mensagemResposta = resposta.precisaEsclarecimento
+        ? resposta.esclarecimento || resposta.texto
+        : resposta.texto;
+      responder(mensagemResposta, resposta.textoFalado || mensagemResposta);
+      registrarMetricaUso(
+        resposta.fonte === 'BACKEND' ? 'BACKEND' : 'GEMINI',
+        resposta.precisaEsclarecimento ? 'ESCLARECIMENTO' : 'SUCESSO',
+        resposta.dominio,
+        resposta.acao,
+        iniciadoEm,
+      );
+      return true;
+    },
+    [client, orquestradorHabilitado, registrarMetricaUso, responder],
+  );
+
   const handleTranscricoes = useCallback(
     (
       transcricoes: readonly string[],
@@ -829,6 +881,17 @@ export default function useAssistenteGlobal({
         setProcessando(true);
 
         try {
+          let orquestradorConsultado = false;
+          if (
+            orquestradorHabilitado &&
+            deveConsultarOrquestrador(primeiraTranscricao)
+          ) {
+            orquestradorConsultado = true;
+            if (await tentarProcessarNoOrquestrador(transcricoes, iniciadoEm)) {
+              return;
+            }
+          }
+
           if (
             await tentarProcessarLocalmente(
               transcricoes,
@@ -836,6 +899,12 @@ export default function useAssistenteGlobal({
               origemEntrada,
               iniciadoEm,
             )
+          ) return;
+
+          if (
+            orquestradorHabilitado &&
+            !orquestradorConsultado &&
+            await tentarProcessarNoOrquestrador(transcricoes, iniciadoEm)
           ) return;
 
           if (iaHabilitada && primeiraTranscricao) {
@@ -946,6 +1015,7 @@ export default function useAssistenteGlobal({
       informarAcessoNegado,
       obterContextoContato,
       obterContextoFilial,
+      orquestradorHabilitado,
       possuiUltimoPonto,
       registrarInteracaoIa,
       registrarMetricaUso,
@@ -953,6 +1023,7 @@ export default function useAssistenteGlobal({
       rotas,
       temAcesso,
       tentarProcessarLocalmente,
+      tentarProcessarNoOrquestrador,
     ],
   );
 
@@ -1014,6 +1085,7 @@ export default function useAssistenteGlobal({
     mensagem,
     sugestaoVisivel,
     respostasFaladasAtivas,
+    sugestoesDinamicas,
     abrir,
     fechar,
     ouvir,

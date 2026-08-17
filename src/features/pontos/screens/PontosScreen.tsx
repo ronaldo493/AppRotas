@@ -38,6 +38,7 @@ import type {
 import type {Filial} from '../../filiais/models/Filial';
 import NavigationAppDialog from '../../rotas/components/NavigationAppDialog';
 import RoutePreviewModal from '../../rotas/components/RoutePreviewModal';
+import usePrepararOrigemPreviaRota from '../../rotas/hooks/usePrepararOrigemPreviaRota';
 import type {RoutePreview} from '../../rotas/models/RoutePreview';
 import usePontos from '../hooks/usePontos';
 import {usePontosContext} from '../PontosContext';
@@ -114,6 +115,7 @@ export default function PontosScreen(): React.JSX.Element {
   } = useNavegacaoMonitorada();
   const {
     currentLocation,
+    currentLocationSnapshot,
     currentCity,
     mapRegion,
     openLocationSettings,
@@ -164,6 +166,10 @@ export default function PontosScreen(): React.JSX.Element {
   const previewPointRoute = useMemo<Filial[]>(
     () => criarRotaPonto(navigationPoint, currentCity),
     [currentCity, navigationPoint],
+  );
+  usePrepararOrigemPreviaRota(
+    navigationPoint !== null,
+    currentLocationSnapshot,
   );
 
   const pontosValidos = useMemo<PontoMapa[]>(() => {
@@ -788,6 +794,7 @@ export default function PontosScreen(): React.JSX.Element {
       <RoutePreviewModal
         visible={routePreviewVisible}
         origin={currentCoordinate}
+        originSnapshot={currentLocationSnapshot}
         routes={previewPointRoute}
         starting={processando}
         onClose={() =>

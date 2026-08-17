@@ -23,6 +23,7 @@ import {
 } from 'react-native-paper';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
+import type {CapturedLocation} from '../../../core/location/models/LocationSnapshot';
 import {useAppTheme} from '../../../core/theme/appTheme';
 import type {Filial} from '../../filiais/models/Filial';
 import {getCoordinates} from '../../../shared/maps/coordinates';
@@ -33,6 +34,7 @@ import styles from './routePreviewModal.styles';
 interface RoutePreviewModalProps {
   visible: boolean;
   origin: LatLng | null;
+  originSnapshot?: CapturedLocation | null;
   routes: readonly Filial[];
   starting?: boolean;
   onClose: () => void;
@@ -55,6 +57,7 @@ const MAP_EDGE_PADDING = {
 export default function RoutePreviewModal({
   visible,
   origin,
+  originSnapshot,
   routes,
   starting = false,
   onClose,
@@ -100,10 +103,15 @@ export default function RoutePreviewModal({
 
     if (!origin) return;
 
-    void loadPreview(origin, routes);
+    void loadPreview(
+      origin,
+      routes,
+      originSnapshot,
+    );
   }, [
     loadPreview,
     origin,
+    originSnapshot,
     resetPreview,
     routes,
     visible,
@@ -139,7 +147,11 @@ export default function RoutePreviewModal({
       return;
     }
 
-    void loadPreview(origin, routes);
+    void loadPreview(
+      origin,
+      routes,
+      originSnapshot,
+    );
   };
   const close = (): void => {
     if (!starting) onClose();

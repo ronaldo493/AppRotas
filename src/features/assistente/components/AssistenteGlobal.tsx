@@ -2,6 +2,7 @@ import {MaterialIcons} from '@expo/vector-icons';
 import React, {memo, useEffect, useState} from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Keyboard,
   Modal,
   Pressable,
@@ -14,10 +15,13 @@ import {
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {useAppTheme} from '../../../core/theme/appTheme';
+import useFloatingActionPosition from '../../../shared/hooks/useFloatingActionPosition';
 import SugestaoFab from '../../sugestoes/components/SugestaoFab';
 import useAssistenteGlobal from '../hooks/useAssistenteGlobal';
 import type {ComandoAssistente} from '../models/ComandoAssistente';
 import styles from './assistenteGlobal.styles';
+
+const ASSISTENTE_POSITION_KEY = '@drogal:assistente-fab-position';
 
 interface AcaoRapida {
   texto: string;
@@ -152,6 +156,39 @@ const AcaoRapidaButton = memo(function AcaoRapidaButton({
   );
 });
 
+const SugestaoDinamicaButton = memo(function SugestaoDinamicaButton({
+  texto,
+  disabled,
+  onPress,
+}: {
+  texto: string;
+  disabled: boolean;
+  onPress: (texto: string) => void;
+}): React.JSX.Element {
+  const {colors} = useAppTheme();
+  return (
+    <TouchableOpacity
+      activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={texto}
+      disabled={disabled}
+      onPress={() => onPress(texto)}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: colors.primarySoft,
+          borderColor: colors.primary,
+          opacity: disabled ? 0.55 : 1,
+        },
+      ]}
+    >
+      <Text style={[styles.dynamicChipText, {color: colors.onSurface}]}>
+        {texto}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
 /**
  * Mantém um único ponto de entrada do assistente sobre toda a navegação
  * autenticada. A interpretação e as regras ficam no hook; este componente
@@ -159,15 +196,23 @@ const AcaoRapidaButton = memo(function AcaoRapidaButton({
  */
 interface AssistenteGlobalProps {
   iaHabilitada: boolean;
+  orquestradorHabilitado: boolean;
 }
 
 export default function AssistenteGlobal({
   iaHabilitada,
+  orquestradorHabilitado,
 }: AssistenteGlobalProps): React.JSX.Element {
   const {colors} = useAppTheme();
   const insets = useSafeAreaInsets();
   const [tecladoVisivel, setTecladoVisivel] = useState(false);
-  const assistente = useAssistenteGlobal({iaHabilitada});
+  const assistente = useAssistenteGlobal({
+    iaHabilitada,
+    orquestradorHabilitado,
+  });
+  const {panHandlers, transform} = useFloatingActionPosition(
+    ASSISTENTE_POSITION_KEY,
+  );
   const ocupado = assistente.ativo || assistente.processando;
 
   useEffect(() => {
@@ -195,7 +240,11 @@ export default function AssistenteGlobal({
   return (
     <>
       {!assistente.visivel && !tecladoVisivel ? (
-        <View style={styles.fabContainer} pointerEvents="box-none">
+        <Animated.View
+          {...panHandlers}
+          style={[styles.fabContainer, {transform}]}
+          pointerEvents="box-none"
+        >
           <TouchableOpacity
             activeOpacity={0.78}
             accessibilityRole="button"
@@ -216,7 +265,7 @@ export default function AssistenteGlobal({
           >
             <MaterialIcons name="graphic-eq" size={26} color={colors.onPrimary} />
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       ) : null}
 
       <Modal
@@ -362,6 +411,14 @@ export default function AssistenteGlobal({
                 showsHorizontalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               >
+                {assistente.sugestoesDinamicas.map(sugestao => (
+                  <SugestaoDinamicaButton
+                    key={`dinamica-${sugestao}`}
+                    texto={sugestao}
+                    disabled={ocupado}
+                    onPress={assistente.executarSugestao}
+                  />
+                ))}
                 {ACOES_RAPIDAS.map(acao => (
                   <AcaoRapidaButton
                     key={acao.texto}

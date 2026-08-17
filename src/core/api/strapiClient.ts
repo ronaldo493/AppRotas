@@ -7,21 +7,32 @@ import {environment} from '../config/environment';
 import {DEVICE_SESSION_HEADER} from '../auth/deviceSession/services/deviceSessionService';
 import {shouldInvalidateLocalSession} from '../auth/deviceSession/domain/deviceSessionPolicy';
 
-const getDeviceSessionErrorCode = (error: unknown): string | null => {
-  if (!axios.isAxiosError(error)) return null;
+interface DeviceSessionErrorDetails {
+  code: string | null;
+  reason: string | null;
+}
+
+const getDeviceSessionErrorDetails = (
+  error: unknown,
+): DeviceSessionErrorDetails => {
+  if (!axios.isAxiosError(error)) return {code: null, reason: null};
 
   const data = error.response?.data as {
-    error?: {details?: {code?: unknown}};
+    error?: {details?: {code?: unknown; reason?: unknown}};
   } | undefined;
   const code = data?.error?.details?.code;
+  const reason = data?.error?.details?.reason;
 
-  return typeof code === 'string' ? code : null;
+  return {
+    code: typeof code === 'string' ? code : null,
+    reason: typeof reason === 'string' ? reason : null,
+  };
 };
 
 export const createApiClientStrapi = (
   token?: string | null,
   deviceSessionCode?: string | null,
-  onSessionInvalidated?: () => Promise<void>,
+  onSessionInvalidated?: (reason?: string | null) => Promise<void>,
 ): AxiosInstance => {
   const conexao = axios.create({
     baseURL: environment.strapiBaseUrl,
@@ -40,10 +51,10 @@ export const createApiClientStrapi = (
     conexao.interceptors.response.use(
       response => response,
       error => {
-        const code = getDeviceSessionErrorCode(error);
+        const details = getDeviceSessionErrorDetails(error);
 
-        if (shouldInvalidateLocalSession(code)) {
-          void onSessionInvalidated();
+        if (shouldInvalidateLocalSession(details.code)) {
+          void onSessionInvalidated(details.reason ?? details.code);
         }
 
         return Promise.reject(error);

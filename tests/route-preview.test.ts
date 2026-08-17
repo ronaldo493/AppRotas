@@ -10,6 +10,10 @@ import {
   ROUTE_PREVIEW_CACHE_MAX_AGE_MS,
   RoutePreviewValidationError,
 } from '../src/features/rotas/services/routePreviewService';
+import {
+  origemPreviaRotaEstaAtualizada,
+  ROUTE_PREVIEW_LOCATION_MAX_AGE_MS,
+} from '../src/features/rotas/useCases/validarOrigemPreviaRota';
 
 test('decodifica a polyline retornada pela Routes API', () => {
   const coordinates = decodeGooglePolyline(
@@ -188,4 +192,43 @@ test('a requisição ativa diferencia origens distintas', () => {
   );
 
   assert.notEqual(first, second);
+});
+
+test('reutiliza somente uma origem recente e precisa na prévia', () => {
+  const now = Date.parse('2026-08-03T12:00:30.000Z');
+  const location = {
+    coordinates: {
+      latitude: -22.72528,
+      longitude: -47.64917,
+    },
+    accuracyMeters: 24,
+    capturedAt: '2026-08-03T12:00:10.000Z',
+  };
+
+  assert.equal(
+    origemPreviaRotaEstaAtualizada(location, now),
+    true,
+  );
+  assert.equal(
+    origemPreviaRotaEstaAtualizada(
+      {
+        ...location,
+        accuracyMeters: 180,
+      },
+      now,
+    ),
+    false,
+  );
+  assert.equal(
+    origemPreviaRotaEstaAtualizada(
+      {
+        ...location,
+        capturedAt: new Date(
+          now - ROUTE_PREVIEW_LOCATION_MAX_AGE_MS - 1,
+        ).toISOString(),
+      },
+      now,
+    ),
+    false,
+  );
 });

@@ -18,6 +18,7 @@ import Toast from 'react-native-toast-message';
 import {appLogger} from '../../shared/logging/appLogger';
 import {prepareSessionTermination} from './sessionTerminationCoordinator';
 import type {DeviceSession} from './deviceSession/models/DeviceSession';
+import {describeDeviceSessionInvalidation} from './deviceSession/domain/deviceSessionPolicy';
 import {closeDeviceSession} from './deviceSession/services/deviceSessionService';
 import type {MenuItem} from '../menu/Menu';
 
@@ -55,7 +56,7 @@ interface AuthContextValue {
   setToken: (newToken: string) => Promise<void>;
   setDeviceSession: (session: DeviceSession | null) => Promise<void>;
   clearToken: () => Promise<void>;
-  handleRemoteSessionInvalidation: () => Promise<void>;
+  handleRemoteSessionInvalidation: (reason?: string | null) => Promise<void>;
   setLoading: Dispatch<SetStateAction<boolean>>;
 
   isLoggedIn: () => boolean;
@@ -240,16 +241,18 @@ export function AuthProvider({children}: AuthProviderProps): React.JSX.Element {
   );
 
   const handleRemoteSessionInvalidation = useCallback(
-    async (): Promise<void> => {
+    async (reason?: string | null): Promise<void> => {
       if (remoteInvalidationInProgressRef.current) return;
 
       remoteInvalidationInProgressRef.current = true;
       try {
         await clearToken();
+        const message = describeDeviceSessionInvalidation(reason);
+
         Toast.show({
           type: 'info',
-          text1: 'Acesso encerrado',
-          text2: 'Sua conta foi acessada em outro aparelho.',
+          text1: message.title,
+          text2: message.description,
           position: 'bottom',
         });
       } finally {

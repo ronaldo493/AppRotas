@@ -16,7 +16,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tabBar: {
-    height: 85,
+    height: 69,
     paddingTop: 8,
     paddingBottom: 8,
     borderTopWidth: 0,

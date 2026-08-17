@@ -18,8 +18,8 @@ import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {useAppTheme} from '../../../core/theme/appTheme';
+import useFloatingActionPosition from '../../../shared/hooks/useFloatingActionPosition';
 import useSugestao from '../hooks/useSugestao';
-import usePosicaoSugestao from '../hooks/usePosicaoSugestao';
 import type {SugestaoTipo} from '../models/Sugestao';
 import styles from './sugestaoFab.styles';
 
@@ -115,7 +115,7 @@ export default function SugestaoFab({
   const { loading, enviarSugestao } = useSugestao();
 
   const {panHandlers, transform} =
-    usePosicaoSugestao(SUGESTAO_POSITION_KEY);
+    useFloatingActionPosition(SUGESTAO_POSITION_KEY);
 
   const [internalVisible, setInternalVisible] = useState(false);
   const [tipo, setTipo] = useState<SugestaoTipo>('SUGESTAO');

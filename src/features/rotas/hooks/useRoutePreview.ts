@@ -7,7 +7,8 @@ import {
 import type {LatLng} from 'react-native-maps';
 
 import useStrapiClient from '../../../core/api/strapiClient';
-import {capturarLocalizacaoAtual} from '../../../core/location/services/locationSnapshotService';
+import type {CapturedLocation} from '../../../core/location/models/LocationSnapshot';
+import {obterLocalizacaoRecente} from '../../../core/location/services/locationSnapshotService';
 import {appLogger} from '../../../shared/logging/appLogger';
 import type {Filial} from '../../filiais/models/Filial';
 import type {RoutePreview} from '../models/RoutePreview';
@@ -18,6 +19,10 @@ import {
   isRoutePreviewCacheValid,
   RoutePreviewValidationError,
 } from '../services/routePreviewService';
+import {
+  ROUTE_PREVIEW_LOCATION_MAX_ACCURACY_METERS,
+  ROUTE_PREVIEW_LOCATION_MAX_AGE_MS,
+} from '../useCases/validarOrigemPreviaRota';
 
 interface UseRoutePreviewReturn {
   preview: RoutePreview | null;
@@ -27,6 +32,7 @@ interface UseRoutePreviewReturn {
   loadPreview: (
     origin: LatLng,
     routes: readonly Filial[],
+    originSnapshot?: CapturedLocation | null,
   ) => Promise<boolean>;
   resetPreview: () => void;
 }
@@ -85,6 +91,7 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
     async (
       origin: LatLng,
       routes: readonly Filial[],
+      originSnapshot?: CapturedLocation | null,
     ): Promise<boolean> => {
       const requestId = ++requestIdRef.current;
       const cacheKey =
@@ -97,9 +104,18 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
       setPreview(null);
 
       try {
+        const locationStartedAt = Date.now();
         try {
           const capturedLocation =
-            await capturarLocalizacaoAtual();
+            await obterLocalizacaoRecente(
+              originSnapshot,
+              {
+                maxAgeMs:
+                  ROUTE_PREVIEW_LOCATION_MAX_AGE_MS,
+                maxAccuracyMeters:
+                  ROUTE_PREVIEW_LOCATION_MAX_ACCURACY_METERS,
+              },
+            );
 
           if (!capturedLocation) {
             throw new Error(
@@ -109,6 +125,10 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
 
           effectiveOrigin =
             capturedLocation.coordinates;
+          appLogger.debug(
+            '[prévia-rota] Origem resolvida em',
+            `${Date.now() - locationStartedAt}ms`,
+          );
         } catch (locationError: unknown) {
           appLogger.error(
             'Erro ao atualizar origem da estimativa:',
@@ -161,7 +181,12 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
             activeRequest;
         }
 
+        const previewStartedAt = Date.now();
         const result = await activeRequest.promise;
+        appLogger.debug(
+          '[prévia-rota] Estimativa recebida em',
+          `${Date.now() - previewStartedAt}ms`,
+        );
 
         if (requestId !== requestIdRef.current) {
           return false;

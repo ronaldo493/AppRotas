@@ -5,6 +5,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 14,
     top: '54%',
+    width: 52,
+    height: 52,
     zIndex: 50,
     elevation: 12,
   },
@@ -137,6 +139,11 @@ const styles = StyleSheet.create({
   },
   chipText: {
     marginLeft: 6,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  dynamicChipText: {
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '600',

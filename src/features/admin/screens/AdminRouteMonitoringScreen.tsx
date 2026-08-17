@@ -107,13 +107,9 @@ export default function AdminRouteMonitoringScreen({
       </View>
 
       <AdminDashboardFilters
-        periodo={painel.periodo}
-        situacao={painel.situacao}
-        busca={painel.busca}
+        filtros={painel.filtros}
         disabled={painel.loading || painel.loadingMore}
-        onPeriodoChange={painel.setPeriodo}
-        onSituacaoChange={painel.setSituacao}
-        onBuscaChange={painel.setBusca}
+        onApply={painel.aplicarFiltros}
       />
 
       {painel.loading && (
@@ -143,7 +139,7 @@ export default function AdminRouteMonitoringScreen({
           Percursos
         </Text>
         <Text style={[styles.sectionAside, {color: theme.colors.onSurfaceVariant}]}>
-          {painel.dados.paginacao.total} encontrados
+          {painel.dados.paginacao.total} {painel.dados.paginacao.total === 1 ? 'registro' : 'registros'}
         </Text>
       </View>
     </>

@@ -2,11 +2,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  criarDatasPeriodoAdmin,
+  criarIntervaloDatasAdmin,
   criarIntervaloPeriodoAdmin,
+  descreverExecucaoRotaAdmin,
   formatarDistanciaAdmin,
   formatarDuracaoAdmin,
+  formatarAlertaOperacionalAdmin,
+  formatarConfiabilidadeAdmin,
   formatarMotivoFinalizacaoAdmin,
+  formatarOrigemFinalizacaoAdmin,
+  formatarResultadoViagemAdmin,
   formatarSituacaoAdmin,
+  formatarStatusOperacionalAdmin,
+  formatarTempoRelativoAdmin,
+  formatarVelocidadeAdmin,
 } from '../src/features/admin/useCases/formatAdminRouteDashboard';
 import {
   limitarCoordenadasAdminRouteMap,
@@ -28,6 +38,46 @@ test('cria períodos inclusivos usando o início do dia local', () => {
   assert.equal(hoje.fim, agora.toISOString());
 });
 
+test('consulta datas explícitas como dias completos e limita períodos inválidos', () => {
+  const agora = new Date(2026, 7, 17, 15, 30, 0);
+  const intervalo = criarIntervaloDatasAdmin(
+    new Date(2026, 7, 10),
+    new Date(2026, 7, 12),
+    agora,
+  );
+
+  const inicio = new Date(intervalo.inicio);
+  const fim = new Date(intervalo.fim);
+  assert.equal(inicio.getDate(), 10);
+  assert.equal(inicio.getHours(), 0);
+  assert.equal(fim.getDate(), 12);
+  assert.equal(fim.getHours(), 23);
+
+  const hoje = criarDatasPeriodoAdmin('hoje', agora);
+  assert.equal(criarIntervaloDatasAdmin(
+    hoje.dataInicial,
+    hoje.dataFinal,
+    agora,
+  ).fim, agora.toISOString());
+
+  assert.throws(
+    () => criarIntervaloDatasAdmin(
+      new Date(2026, 7, 17),
+      new Date(2026, 7, 16),
+      agora,
+    ),
+    /data inicial/,
+  );
+  assert.throws(
+    () => criarIntervaloDatasAdmin(
+      new Date(2026, 6, 1),
+      new Date(2026, 7, 17),
+      agora,
+    ),
+    /período máximo/,
+  );
+});
+
 test('formata métricas e situações sem inventar valores ausentes', () => {
   assert.equal(formatarDistanciaAdmin(550), '550 m');
   assert.match(formatarDistanciaAdmin(12_500), /12,5 km/);
@@ -38,6 +88,46 @@ test('formata métricas e situações sem inventar valores ausentes', () => {
   assert.equal(
     formatarMotivoFinalizacaoAdmin('interrompida_inatividade'),
     'Encerrada por inatividade',
+  );
+  assert.equal(
+    formatarStatusOperacionalAdmin('sem_atualizacao'),
+    'Sem atualização recente',
+  );
+  assert.equal(formatarConfiabilidadeAdmin('media'), 'Média');
+  assert.equal(
+    formatarResultadoViagemAdmin('sem_evidencia_suficiente'),
+    'Evidência insuficiente',
+  );
+  assert.equal(formatarVelocidadeAdmin(42.36), '42,4 km/h');
+  assert.equal(formatarTempoRelativoAdmin(125), 'há 2 min');
+  assert.equal(formatarTempoRelativoAdmin(3_900), 'há 1h 5min');
+  assert.match(
+    formatarAlertaOperacionalAdmin('sincronizacao_atrasada'),
+    /atraso superior a 5 minutos/,
+  );
+  assert.match(
+    formatarAlertaOperacionalAdmin('velocidade_incompativel'),
+    /incompatível/,
+  );
+  assert.equal(
+    formatarOrigemFinalizacaoAdmin('servidor_destino_confirmado'),
+    'Servidor após confirmação do destino',
+  );
+});
+
+test('explica o resultado da viagem em linguagem operacional', () => {
+  const execucao = {
+    resultadoViagem: 'percorrida_parcial',
+    statusOperacional: 'concluida_com_interrupcao',
+    quantidadeDestinosPlanejados: 3,
+    quantidadeDestinosVisitados: 1,
+    quantidadePontos: 42,
+    destinos: [],
+  } as unknown as Parameters<typeof descreverExecucaoRotaAdmin>[0];
+
+  assert.match(
+    descreverExecucaoRotaAdmin(execucao),
+    /confirmou somente 1 de 3 destinos/,
   );
 });
 

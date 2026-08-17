@@ -1,22 +1,7 @@
 import type {AxiosInstance} from 'axios';
 
 import type {StrapiSingleResponse} from '../../../core/api/strapiTypes';
-import type {
-  PaginaUsuariosAdministrativos,
-  UsuarioAdministravel,
-} from '../models/AdminPasswordManagement';
-
-/** Porta HTTP exclusiva da gestão administrativa de senhas. */
-export const consultarUsuariosAdministrativos = async (
-  client: AxiosInstance,
-  params: {busca?: string; pagina: number; tamanhoPagina: number},
-): Promise<PaginaUsuariosAdministrativos> => {
-  const response = await client.get<
-    StrapiSingleResponse<PaginaUsuariosAdministrativos>
-  >('/painel-admin/usuarios', {params});
-
-  return response.data.data;
-};
+import type {UsuarioAdministravel} from '../models/AdminPasswordManagement';
 
 /** O app envia somente o usuário; senha padrão e escopo pertencem ao backend. */
 export const redefinirSenhaAdministrativa = async (

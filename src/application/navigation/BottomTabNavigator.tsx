@@ -3,6 +3,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import type {DrawerScreenProps} from '@react-navigation/drawer';
 import React, { useEffect, useMemo, useState} from 'react';
 import {Text, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {useAuthContext} from '../../core/auth/AuthContext';
 import {useAppTheme} from '../../core/theme/appTheme';
@@ -27,6 +28,7 @@ export default function BottomTabNavigator({navigation}: BottomTabNavigatorProps
   const [modalVisible, setModalVisible] = useState(false);
   const {user} = useAuthContext();
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
 
   const {menus: orderedMenus, unsupportedRoutes} = useMemo(
     () => resolveMenuNavigation(user?.menus ?? []),
@@ -96,6 +98,8 @@ export default function BottomTabNavigator({navigation}: BottomTabNavigatorProps
           tabBarStyle: [
             styles.tabBar,
             {
+              height: 69 + insets.bottom,
+              paddingBottom: Math.max(insets.bottom, 8),
               backgroundColor:
                 theme.colors.tabBarBackground,
             },

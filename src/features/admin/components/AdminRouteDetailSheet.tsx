@@ -16,8 +16,14 @@ import {
   formatarDataHoraAdmin,
   formatarDistanciaAdmin,
   formatarDuracaoAdmin,
+  descreverExecucaoRotaAdmin,
+  formatarAlertaOperacionalAdmin,
+  formatarConfiabilidadeAdmin,
   formatarMotivoFinalizacaoAdmin,
+  formatarOrigemFinalizacaoAdmin,
+  formatarResultadoViagemAdmin,
   formatarSituacaoAdmin,
+  formatarStatusOperacionalAdmin,
 } from '../useCases/formatAdminRouteDashboard';
 
 function DetailRow({label, value}: {label: string; value: string}): React.JSX.Element {
@@ -69,6 +75,16 @@ export default function AdminRouteDetailSheet({
   const destinosVisitados = execucao.quantidadeDestinosVisitados ?? 0;
   const exibirInterrupcao = execucao.teveInterrupcaoLocalizacao
     || (execucao.duracaoLocalizacaoIndisponivelSegundos ?? 0) > 0;
+  const statusOperacional = formatarStatusOperacionalAdmin(
+    execucao.statusOperacional,
+  );
+  const alertas = (execucao.alertasOperacionais ?? []).filter(
+    alerta => alerta !== 'velocidade_incompativel',
+  );
+  const resultadoViagem = formatarResultadoViagemAdmin(
+    execucao.resultadoViagem,
+    execucao.situacaoExecucao,
+  );
 
   return (
     <Modal
@@ -100,14 +116,96 @@ export default function AdminRouteDetailSheet({
               {execucao.username || 'Percurso'}
             </Text>
             <Text style={[styles.sheetSubtitle, {color: theme.colors.onSurfaceVariant}]}>
-              {formatarSituacaoAdmin(execucao.situacaoExecucao)} · {execucao.setor || 'Setor não informado'}
+              {resultadoViagem} · {execucao.setor || 'Setor não informado'}
             </Text>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            <DetailSection title="Percurso">
+            <View
+              style={[
+                styles.detailSummary,
+                {backgroundColor: theme.colors.surfaceVariant},
+              ]}
+            >
+              <Text style={[styles.detailSummaryTitle, {color: theme.colors.onSurface}]}>
+                O que aconteceu
+              </Text>
+              <Text style={[styles.detailSummaryText, {color: theme.colors.onSurfaceVariant}]}>
+                {descreverExecucaoRotaAdmin(execucao)}
+              </Text>
+            </View>
+
+            {alertas.length > 0 && (
+              <DetailSection title="Pontos de atenção">
+                {alertas.map(alerta => (
+                  <Text
+                    key={alerta}
+                    style={[
+                      styles.detailNotice,
+                      {color: theme.colors.onSurfaceVariant},
+                    ]}
+                  >
+                    {formatarAlertaOperacionalAdmin(alerta)}
+                  </Text>
+                ))}
+              </DetailSection>
+            )}
+
+            <DetailSection title="Situação do registro">
+              <DetailRow label="Resultado" value={resultadoViagem} />
+              <DetailRow
+                label="Situação técnica"
+                value={formatarSituacaoAdmin(execucao.situacaoExecucao)}
+              />
+              {statusOperacional && (
+                <DetailRow label="Estado operacional" value={statusOperacional} />
+              )}
+              <DetailRow
+                label="Confiabilidade das evidências"
+                value={formatarConfiabilidadeAdmin(execucao.confiabilidade)}
+              />
+              <DetailRow
+                label="Leituras de localização"
+                value={String(execucao.quantidadePontos ?? 0)}
+              />
+              {(execucao.atrasoUltimaSincronizacaoSegundos ?? 0) > 0 && (
+                <DetailRow
+                  label="Atraso do último envio"
+                  value={formatarDuracaoAdmin(
+                    execucao.atrasoUltimaSincronizacaoSegundos ?? null,
+                  )}
+                />
+              )}
+              {(execucao.maiorAtrasoSincronizacaoSegundos ?? 0) > 0 && (
+                <DetailRow
+                  label="Maior atraso registrado"
+                  value={formatarDuracaoAdmin(
+                    execucao.maiorAtrasoSincronizacaoSegundos ?? null,
+                  )}
+                />
+              )}
+            </DetailSection>
+
+            <DetailSection title="Horários">
               <DetailRow label="Início" value={formatarDataHoraAdmin(execucao.iniciadaEm)} />
+              <DetailRow
+                label="Última leitura GPS"
+                value={formatarDataHoraAdmin(execucao.ultimaLocalizacaoEm)}
+              />
+              <DetailRow
+                label="Recebida pelo servidor"
+                value={formatarDataHoraAdmin(execucao.ultimaSincronizacaoEm ?? null)}
+              />
+              {execucao.conclusaoConfirmadaEm && (
+                <DetailRow
+                  label="Destino final confirmado"
+                  value={formatarDataHoraAdmin(execucao.conclusaoConfirmadaEm)}
+                />
+              )}
               <DetailRow label="Fim" value={formatarDataHoraAdmin(execucao.finalizadaEm)} />
+            </DetailSection>
+
+            <DetailSection title="Origem e destinos">
               <DetailRow label="Origem" value={execucao.cidadeOrigem || 'Não informada'} />
               <DetailRow
                 label="Destinos confirmados"
@@ -115,7 +213,7 @@ export default function AdminRouteDetailSheet({
               />
             </DetailSection>
 
-            <DetailSection title="Resultado">
+            <DetailSection title="Medidas da viagem">
               <DetailRow
                 label="Distância estimada"
                 value={formatarDistanciaAdmin(execucao.distanciaPlanejadaMetros)}
@@ -146,6 +244,12 @@ export default function AdminRouteDetailSheet({
                 label="Encerramento"
                 value={formatarMotivoFinalizacaoAdmin(execucao.motivoFinalizacao) ?? '—'}
               />
+              {execucao.finalizadaEm && (
+                <DetailRow
+                  label="Registrado por"
+                  value={formatarOrigemFinalizacaoAdmin(execucao.origemFinalizacao)}
+                />
+              )}
             </DetailSection>
 
             {exibirInterrupcao && (

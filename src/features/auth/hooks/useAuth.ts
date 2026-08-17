@@ -5,7 +5,10 @@ import useStrapiClient from '../../../core/api/strapiClient';
 import {capturarSnapshotLocalizacaoAtual} from '../../../core/location/services/locationSnapshotService';
 import {appLogger} from '../../../shared/logging/appLogger';
 import useAuthMenus from '../../menus/hooks/useAuthMenus';
-import {startDeviceSession} from '../../../core/auth/deviceSession/services/deviceSessionService';
+import {
+  DEVICE_SESSION_HEADER,
+  startDeviceSession,
+} from '../../../core/auth/deviceSession/services/deviceSessionService';
 
 interface LoginResponse {
   jwt: string;
@@ -50,6 +53,7 @@ export default function useAuth():
     async (
       userData: AuthUser,
       jwt: string,
+      deviceSessionCode: string,
     ): Promise<void> => {
       if (!userData.username) {
         appLogger.warn(
@@ -92,6 +96,7 @@ export default function useAuth():
             headers: {
               Authorization:
                 `Bearer ${jwt}`,
+              [DEVICE_SESSION_HEADER]: deviceSessionCode,
             },
           },
         );
@@ -182,6 +187,7 @@ export default function useAuth():
         void monitorarSessao(
           userWithMenus,
           jwt,
+          deviceSession.codigoSessao,
         );
 
         return true;

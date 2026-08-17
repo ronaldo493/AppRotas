@@ -3,12 +3,14 @@ import {useCallback, useEffect, useRef, useState} from 'react';
 import useStrapiClient from '../../../core/api/strapiClient';
 import type {StrapiRequestError} from '../../../core/api/strapiTypes';
 import type {
-  FiltroSituacaoAdmin,
+  FiltrosPainelAdmin,
   PainelAdminRotas,
-  PeriodoPainelAdmin,
 } from '../models/AdminRouteDashboard';
 import {consultarPainelAdminRotas} from '../services/adminRouteDashboardApi';
-import {criarIntervaloPeriodoAdmin} from '../useCases/formatAdminRouteDashboard';
+import {
+  criarDatasPeriodoAdmin,
+  criarIntervaloDatasAdmin,
+} from '../useCases/formatAdminRouteDashboard';
 
 const TAMANHO_PAGINA = 15;
 
@@ -29,15 +31,20 @@ const obterMensagemErro = (erro: unknown): string => {
  */
 export default function useAdminRouteDashboard() {
   const client = useStrapiClient();
-  const [periodo, setPeriodo] = useState<PeriodoPainelAdmin>('hoje');
-  const [situacao, setSituacao] = useState<FiltroSituacaoAdmin>('todas');
-  const [busca, setBusca] = useState('');
+  const [filtros, setFiltros] = useState<FiltrosPainelAdmin>(() => ({
+    ...criarDatasPeriodoAdmin('hoje'),
+    resultado: 'todas',
+    busca: '',
+  }));
   const [dados, setDados] = useState<PainelAdminRotas | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const intervaloRef = useRef(criarIntervaloPeriodoAdmin('hoje'));
+  const intervaloRef = useRef(criarIntervaloDatasAdmin(
+    filtros.dataInicial,
+    filtros.dataFinal,
+  ));
   const requestIdRef = useRef(0);
 
   const consultarPagina = useCallback(
@@ -55,8 +62,10 @@ export default function useAdminRouteDashboard() {
       try {
         const resposta = await consultarPainelAdminRotas(client, {
           ...intervalo,
-          ...(situacao !== 'todas' ? {situacao} : {}),
-          ...(busca ? {busca} : {}),
+          ...(filtros.resultado !== 'todas'
+            ? {resultado: filtros.resultado}
+            : {}),
+          ...(filtros.busca ? {busca: filtros.busca} : {}),
           pagina,
           tamanhoPagina: TAMANHO_PAGINA,
         });
@@ -108,20 +117,26 @@ export default function useAdminRouteDashboard() {
         }
       }
     },
-    [busca, client, situacao],
+    [client, filtros.busca, filtros.resultado],
   );
 
   const carregarPrimeiraPagina = useCallback(async (): Promise<void> => {
-    const intervalo = criarIntervaloPeriodoAdmin(periodo);
+    const intervalo = criarIntervaloDatasAdmin(
+      filtros.dataInicial,
+      filtros.dataFinal,
+    );
     intervaloRef.current = intervalo;
     await consultarPagina(1, intervalo, 'inicial');
-  }, [consultarPagina, periodo]);
+  }, [consultarPagina, filtros.dataFinal, filtros.dataInicial]);
 
   const atualizar = useCallback(async (): Promise<void> => {
-    const intervalo = criarIntervaloPeriodoAdmin(periodo);
+    const intervalo = criarIntervaloDatasAdmin(
+      filtros.dataInicial,
+      filtros.dataFinal,
+    );
     intervaloRef.current = intervalo;
     await consultarPagina(1, intervalo, 'atualizar');
-  }, [consultarPagina, periodo]);
+  }, [consultarPagina, filtros.dataFinal, filtros.dataInicial]);
 
   const carregarMais = useCallback((): void => {
     if (!dados || loading || refreshing || loadingMore) return;
@@ -139,17 +154,13 @@ export default function useAdminRouteDashboard() {
   }, [carregarPrimeiraPagina]);
 
   return {
-    periodo,
-    situacao,
-    busca,
+    filtros,
     dados,
     loading,
     refreshing,
     loadingMore,
     error,
-    setPeriodo,
-    setSituacao,
-    setBusca,
+    aplicarFiltros: setFiltros,
     atualizar,
     carregarMais,
     tentarNovamente: carregarPrimeiraPagina,

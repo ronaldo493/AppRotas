@@ -6,15 +6,18 @@ import type {StrapiSingleResponse} from '../../../core/api/strapiTypes';
 interface ConfiguracaoApp {
   assistenteVozAtivo?: boolean | null;
   assistenteIaAtiva?: boolean | null;
+  assistenteOrquestradorAtivo?: boolean | null;
   attributes?: {
     assistenteVozAtivo?: boolean | null;
     assistenteIaAtiva?: boolean | null;
+    assistenteOrquestradorAtivo?: boolean | null;
   };
 }
 
 export interface DisponibilidadeAssistente {
   habilitado: boolean;
   iaHabilitada: boolean;
+  orquestradorHabilitado: boolean;
   atualizadoEm: number;
   origem: 'servidor' | 'cache' | 'indisponivel';
 }
@@ -23,6 +26,7 @@ interface ConfiguracaoPersistida {
   serverKey: string;
   habilitado: boolean;
   iaHabilitada: boolean;
+  orquestradorHabilitado: boolean;
   atualizadoEm: number;
 }
 
@@ -39,11 +43,12 @@ const getServerKey = (client: AxiosInstance): string =>
 
 const readFlags = (
   configuration: ConfiguracaoApp | null,
-): Pick<DisponibilidadeAssistente, 'habilitado' | 'iaHabilitada'> => {
+): Pick<DisponibilidadeAssistente, 'habilitado' | 'iaHabilitada' | 'orquestradorHabilitado'> => {
   const data = configuration?.attributes ?? configuration;
   return {
     habilitado: data?.assistenteVozAtivo === true,
     iaHabilitada: data?.assistenteIaAtiva === true,
+    orquestradorHabilitado: data?.assistenteOrquestradorAtivo === true,
   };
 };
 
@@ -69,6 +74,7 @@ const readStored = async (
       habilitado: stored.habilitado,
       // Caches criados antes do fallback online permanecem locais por padrão.
       iaHabilitada: stored.iaHabilitada === true,
+      orquestradorHabilitado: stored.orquestradorHabilitado === true,
       atualizadoEm: stored.atualizadoEm,
       origem: 'cache',
     };
@@ -88,6 +94,7 @@ const persist = async (
         serverKey,
         habilitado: result.habilitado,
         iaHabilitada: result.iaHabilitada,
+        orquestradorHabilitado: result.orquestradorHabilitado,
         atualizadoEm: result.atualizadoEm,
       } satisfies ConfiguracaoPersistida),
     );
@@ -144,6 +151,7 @@ export async function obterDisponibilidadeAssistente(
         const unavailable: DisponibilidadeAssistente = {
           habilitado: false,
           iaHabilitada: false,
+          orquestradorHabilitado: false,
           atualizadoEm: Date.now(),
           origem: 'indisponivel',
         };
@@ -165,6 +173,7 @@ export async function obterDisponibilidadeAssistente(
       return {
         habilitado: false,
         iaHabilitada: false,
+        orquestradorHabilitado: false,
         atualizadoEm: Date.now(),
         origem: 'indisponivel',
       };

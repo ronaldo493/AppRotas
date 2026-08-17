@@ -13,10 +13,15 @@ import Toast from 'react-native-toast-message';
 import type { LatLng, Region,} from 'react-native-maps';
 
 import {appLogger} from '../../shared/logging/appLogger';
-import {resolverCidadePorCoordenadas} from './services/locationSnapshotService';
+import type {CapturedLocation} from './models/LocationSnapshot';
+import {
+  converterLocalizacaoEmLeitura,
+  resolverCidadePorCoordenadas,
+} from './services/locationSnapshotService';
 
 export interface LocationContextValue {
   currentLocation: LatLng | null;
+  currentLocationSnapshot: CapturedLocation | null;
   currentCity: string | null;
   mapRegion: Region | null;
   error: string | null;
@@ -30,6 +35,7 @@ export interface LocationContextValue {
 
 export interface MapLocationContextValue {
   currentLocation: LatLng | null;
+  currentLocationSnapshot: CapturedLocation | null;
   currentCity: string | null;
   mapRegion: Region | null;
   loading: boolean;
@@ -59,6 +65,8 @@ const getPermissionMessage = ( canAskAgain: boolean): string =>
 
 export function LocationProvider({children}: LocationProviderProps): React.JSX.Element {
   const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null);
+  const [currentLocationSnapshot, setCurrentLocationSnapshot] =
+    useState<CapturedLocation | null>(null);
   const [currentCity, setCurrentCity] = useState<string | null>(null);
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -131,12 +139,13 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
       location: Location.LocationObject,
       resolveCity = true,
     ): LatLng => {
-      const coordinates: LatLng = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
+      const snapshot =
+        converterLocalizacaoEmLeitura(location);
+      const coordinates: LatLng =
+        snapshot.coordinates;
 
       setCurrentLocation(coordinates);
+      setCurrentLocationSnapshot(snapshot);
 
       setMapRegion({
         ...coordinates,
@@ -414,6 +423,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
   const value = useMemo<LocationContextValue>(
     () => ({
       currentLocation,
+      currentLocationSnapshot,
       currentCity,
       mapRegion,
       error,
@@ -426,6 +436,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
     }),
     [
       currentLocation,
+      currentLocationSnapshot,
       currentCity,
       mapRegion,
       error,
@@ -441,6 +452,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
   const mapValue = useMemo<MapLocationContextValue>(
     () => ({
       currentLocation,
+      currentLocationSnapshot,
       currentCity,
       mapRegion,
       loading,
@@ -448,6 +460,7 @@ export function LocationProvider({children}: LocationProviderProps): React.JSX.E
     }),
     [
       currentLocation,
+      currentLocationSnapshot,
       currentCity,
       mapRegion,
       loading,
