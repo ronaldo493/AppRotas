@@ -36,5 +36,12 @@ yarn-error.*
 .env.*
 !.env.example
 
+# Ferramenta administrativa de sincronização
+tools/data-sync/.env.local
+tools/data-sync/input/*
+tools/data-sync/output/*
+!tools/data-sync/input/*.example.json
+!tools/data-sync/output/.gitkeep
+
 # typescript
 *.tsbuildinfo

@@ -13,12 +13,14 @@ em uma intenção estruturada já permitida pelo aplicativo.
    cinco alternativas da fala, a tela, a rota atual e até quatro interações
    recentes sem incluir respostas ou dados consultados;
 4. o Strapi monta um contexto mínimo com os módulos liberados para o usuário e
-   pede ao provedor uma intenção com domínio, ação e parâmetros tipados;
-5. respostas com confiança mínima de 65% voltam ao app; pedidos realmente
+   um pré-roteador local seleciona até quatro contratos relevantes;
+5. o Strapi monta um prompt apenas com esses domínios e pede ao provedor uma
+   intenção com domínio, ação e parâmetros tipados em uma única chamada;
+6. respostas com confiança mínima de 65% voltam ao app; pedidos realmente
    ambíguos podem gerar uma pergunta curta de esclarecimento;
-6. o app reconstrói o comando por uma lista fechada e o envia aos mesmos handlers
+7. o app reconstrói o comando por uma lista fechada e o envia aos mesmos handlers
    locais e verificações de acesso usados pela árvore determinística;
-7. timeout, falta de internet, limite do provedor, erro HTTP ou resposta inválida
+8. timeout, falta de internet, limite do provedor, erro HTTP ou resposta inválida
    usam o fallback local sem bloquear o colaborador.
 
 Comandos complexos de adicionar, remover e reordenar filiais mantêm um texto
@@ -115,10 +117,12 @@ pelo middleware de rate limit. Configure somente no backend:
 ```env
 GEMINI_API_KEY=chave_server_side
 GEMINI_ASSISTANT_MODEL=gemini-3.1-flash-lite
-GEMINI_ASSISTANT_TIMEOUT_MS=3500
+GEMINI_ASSISTANT_TIMEOUT_MS=3800
+GEMINI_ASSISTANT_CACHE_TTL_MS=600000
 ```
 
-Modelo e timeout são opcionais; o timeout aceito fica entre 1 e 8 segundos. A
+Modelo, timeout e cache são opcionais; o timeout aceito fica entre 1 e 4,2
+segundos para permanecer abaixo do limite do APK publicado. A
 chave não pode usar prefixo `EXPO_PUBLIC_` nem entrar no APK. No papel
 `Authenticated`, habilite `Configuracao-app > find` e
 `Assistente-ia > interpretar`. Para medir o uso, habilite também
