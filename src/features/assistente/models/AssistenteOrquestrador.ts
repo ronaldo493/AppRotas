@@ -26,8 +26,11 @@ export type ResultadoRotaAssistenteOrquestrador =
 
 export interface MemoriaAssistenteOrquestrador {
   ultimoDominio?: Exclude<DominioAssistenteOrquestrador, 'sistema'>;
+  ultimaAcao?: string;
+  ultimoCampo?: string;
   ultimoTermo?: string;
   ultimoColaborador?: string;
+  ultimoColaboradorId?: number;
   ultimoPeriodo?: PeriodoAssistenteOrquestrador;
   ultimoResultadoRota?: ResultadoRotaAssistenteOrquestrador;
 }

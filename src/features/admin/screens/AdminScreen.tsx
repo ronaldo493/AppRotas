@@ -6,8 +6,9 @@ import {useAppTheme} from '../../../core/theme/appTheme';
 import styles from '../styles/adminHome.styles';
 import AdminPasswordManagementScreen from './AdminPasswordManagementScreen';
 import AdminRouteMonitoringScreen from './AdminRouteMonitoringScreen';
+import AdminCollaboratorMapScreen from './AdminCollaboratorMapScreen';
 
-type ModuloAdmin = 'inicio' | 'monitoramento' | 'senhas';
+type ModuloAdmin = 'inicio' | 'monitoramento' | 'mapa' | 'senhas';
 
 interface AdminOptionProps {
   title: string;
@@ -68,6 +69,10 @@ export default function AdminScreen(): React.JSX.Element {
     return <AdminPasswordManagementScreen onBack={() => setModulo('inicio')} />;
   }
 
+  if (modulo === 'mapa') {
+    return <AdminCollaboratorMapScreen onBack={() => setModulo('inicio')} />;
+  }
+
   const cargo = String(user?.cargo ?? '').trim().toUpperCase();
   const escopo = cargo === 'ADMIN'
     ? 'Acesso a todos os setores'
@@ -89,6 +94,11 @@ export default function AdminScreen(): React.JSX.Element {
           title="Monitoramento de rotas"
           description="Acompanhe execuções, confirmações por GPS e trajetos concluídos."
           onPress={() => setModulo('monitoramento')}
+        />
+        <AdminOption
+          title="Mapa de colaboradores"
+          description="Veja a última posição recebida nos últimos 60 minutos."
+          onPress={() => setModulo('mapa')}
         />
         <AdminOption
           title="Trocar senha"

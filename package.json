@@ -1,6 +1,6 @@
 {
   "name": "appdrogal",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "main": "expo/AppEntry.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -37,7 +37,7 @@
     "build-android": "npx eas-cli@latest build --platform android --profile preview_android",
     "build-android:preview": "npx eas-cli@latest build --platform android --profile preview_android",
     "build-android:production-apk": "npx eas-cli@latest build --platform android --profile production_apk",
-    "build-android:store": "npx eas-cli@latest build --platform android --profile production",
+    "build-android:store": "npx eas-cliy@latest build --platform android --profile production",
     "start": "npx expo start",
     "start-lan": "npx expo start --lan --clear",
     "android": "expo run:android",

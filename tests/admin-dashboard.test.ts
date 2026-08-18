@@ -22,6 +22,11 @@ import {
   limitarCoordenadasAdminRouteMap,
   prepararAdminRouteMap,
 } from '../src/features/admin/useCases/prepareAdminRouteMap';
+import {
+  descreverLocalizacaoColaborador,
+  formatarIdadeLocalizacao,
+  obterIniciaisColaborador,
+} from '../src/features/admin/useCases/formatAdminCollaboratorMap';
 
 test('cria períodos inclusivos usando o início do dia local', () => {
   const agora = new Date(2026, 7, 3, 15, 30, 0);
@@ -176,9 +181,40 @@ test('prepara o mapa sem renderizar uma quantidade ilimitada de coordenadas', ()
     trajetoPlanejado: null,
     rotaConfirmadaPorGps: true,
     teveInterrupcaoLocalizacao: false,
+    quantidadePontos: 20,
+    ultimaLocalizacaoEm: '2026-08-03T12:59:00.000Z',
+    ultimaSincronizacaoEm: '2026-08-03T13:00:00.000Z',
+    atualizadoEmServidor: '2026-08-03T13:00:00.000Z',
   });
 
   assert.equal(preparado.trajetoReal.length, 3);
   assert.equal(preparado.destinos.length, 1);
   assert.equal(preparado.enquadramento.length, 2);
+});
+
+test('descreve a última posição sem afirmar que o colaborador está online', () => {
+  const agora = new Date('2026-08-17T12:00:00.000Z').getTime();
+  assert.equal(
+    formatarIdadeLocalizacao('2026-08-17T11:57:30.000Z', agora),
+    'há 2 minutos',
+  );
+  assert.equal(obterIniciaisColaborador('Ana Maria Silva'), 'AS');
+  const descricao = descreverLocalizacaoColaborador({
+    usuarioId: 7,
+    username: 'Ana Silva',
+    setor: 'Tecnologia',
+    cargo: null,
+    latitude: -22.72,
+    longitude: -47.64,
+    precisaoMetros: 25,
+    capturadaEm: '2026-08-17T11:57:30.000Z',
+    recebidaEm: '2026-08-17T11:58:00.000Z',
+    idadeSegundos: 150,
+    estado: 'recente',
+    sessaoAtiva: true,
+    origem: 'aplicativo',
+  }, agora);
+  assert.match(descricao, /Tecnologia/);
+  assert.match(descricao, /há 2 minutos/);
+  assert.doesNotMatch(descricao, /online/i);
 });

@@ -27,7 +27,7 @@ Crie uma Collection Type com:
 | `origem` | JSON | obrigatório |
 | `destinos` | JSON | obrigatório |
 | `trajetoPlanejado` | Text (Long text) | opcional; polyline codificada |
-| `trajetoReal` | Text (Long text) | opcional; polyline codificada |
+| `trajetoReal` | Text (Long text) | opcional; polyline codificada, atualizada também a cada segmento aceito |
 | `distanciaPlanejadaMetros` | Number (decimal) | opcional |
 | `duracaoPlanejadaSegundos` | Number (big integer) | opcional |
 | `distanciaPercorridaMetros` | Number (decimal) | opcional |

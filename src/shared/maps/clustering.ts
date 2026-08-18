@@ -337,4 +337,14 @@ export class MapClusterIndex<T> {
   getClusterExpansionZoom(clusterId: number): number {
     return this.index.getClusterExpansionZoom(clusterId);
   }
+
+  /** Recupera os itens de um agrupamento para telas que exibem uma lista. */
+  getClusterItems(clusterId: number, limit = 200): T[] {
+    return this.index
+      .getLeaves(clusterId, limit, 0)
+      .flatMap(feature => {
+        const item = this.itemsByKey.get(feature.properties.itemKey);
+        return item ? [item] : [];
+      });
+  }
 }

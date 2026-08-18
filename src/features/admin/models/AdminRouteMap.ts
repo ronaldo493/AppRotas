@@ -33,4 +33,8 @@ export interface AdminRouteMapData {
   trajetoReal: string | null;
   rotaConfirmadaPorGps: boolean;
   teveInterrupcaoLocalizacao: boolean;
+  quantidadePontos: number;
+  ultimaLocalizacaoEm: string | null;
+  ultimaSincronizacaoEm: string | null;
+  atualizadoEmServidor: string;
 }

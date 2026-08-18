@@ -294,17 +294,17 @@ export default function AdminRouteDetailSheet({
             </DetailSection>
 
             <View style={styles.detailActions}>
-              {execucao.situacaoExecucao !== 'em_andamento' && (
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={onViewMap}
-                  style={[styles.mapButton, {borderColor: theme.colors.primary}]}
-                >
-                  <Text style={[styles.mapButtonText, {color: theme.colors.primary}]}>
-                    Ver trajeto no mapa
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={onViewMap}
+                style={[styles.mapButton, {borderColor: theme.colors.primary}]}
+              >
+                <Text style={[styles.mapButtonText, {color: theme.colors.primary}]}>
+                  {execucao.situacaoExecucao === 'em_andamento'
+                    ? 'Acompanhar trajeto no mapa'
+                    : 'Ver trajeto no mapa'}
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={onClose}

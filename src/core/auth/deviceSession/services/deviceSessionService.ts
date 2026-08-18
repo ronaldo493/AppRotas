@@ -8,6 +8,7 @@ import type {
   DeviceSessionStartResponse,
 } from '../models/DeviceSession';
 import {getOrCreateInstallationId} from './deviceInstallationService';
+import type {CapturedLocation} from '../../../location/models/LocationSnapshot';
 
 export const DEVICE_SESSION_HEADER = 'X-App-Session-Id';
 
@@ -57,6 +58,26 @@ export async function validateDeviceSession(
     timeout: 5_000,
     'axios-retry': {retries: 0},
   });
+}
+
+/** Envia somente a coordenada já capturada; dados de usuário vêm do JWT. */
+export async function registerDeviceLocation(
+  client: AxiosInstance,
+  location: CapturedLocation,
+): Promise<void> {
+  await client.post(
+    '/sessoes-dispositivo/localizacao',
+    {
+      latitude: location.coordinates.latitude,
+      longitude: location.coordinates.longitude,
+      precisaoMetros: location.accuracyMeters,
+      capturadaEm: location.capturedAt,
+    },
+    {
+      timeout: 5_000,
+      'axios-retry': {retries: 0},
+    },
+  );
 }
 
 /** Encerra a sessão no servidor sem impedir o logout quando não houver rede. */

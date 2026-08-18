@@ -14,6 +14,7 @@ import useAdminRouteMap from '../hooks/useAdminRouteMap';
 import styles from '../styles/adminRouteMap.styles';
 import {formatarSituacaoAdmin} from '../useCases/formatAdminRouteDashboard';
 import {prepararAdminRouteMap} from '../useCases/prepareAdminRouteMap';
+import {formatarIdadeLocalizacao} from '../useCases/formatAdminCollaboratorMap';
 
 interface Props {
   codigoSessao: string | null;
@@ -30,17 +31,25 @@ export default function AdminRouteMapScreen({
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
+  const fittedSessionRef = useRef<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  const {data, loading, error, retry} = useAdminRouteMap(codigoSessao);
+  const {data, loading, refreshing, error, retry} = useAdminRouteMap(codigoSessao);
   const preparado = useMemo(
     () => data ? prepararAdminRouteMap(data) : null,
     [data],
   );
 
-  useEffect(() => setMapReady(false), [codigoSessao]);
+  useEffect(() => {
+    setMapReady(false);
+    fittedSessionRef.current = null;
+  }, [codigoSessao]);
 
   useEffect(() => {
-    if (!mapReady || !preparado || preparado.enquadramento.length === 0) return;
+    if (
+      !mapReady || !preparado || preparado.enquadramento.length === 0 ||
+      fittedSessionRef.current === codigoSessao
+    ) return;
+    fittedSessionRef.current = codigoSessao;
 
     if (preparado.enquadramento.length === 1) {
       mapRef.current?.animateToRegion({
@@ -56,6 +65,11 @@ export default function AdminRouteMapScreen({
       edgePadding: {top: 44, right: 44, bottom: 44, left: 44},
     });
   }, [mapReady, preparado]);
+
+  const ultimaPosicao = preparado?.trajetoReal[
+    (preparado?.trajetoReal.length ?? 0) - 1
+  ];
+  const emAndamento = data?.situacaoExecucao === 'em_andamento';
 
   const coordenadaInicial = data?.origem
     ?? preparado?.trajetoReal[0]
@@ -77,7 +91,7 @@ export default function AdminRouteMapScreen({
         <View style={[styles.header, {borderBottomColor: theme.colors.outline}]}>
           <View style={styles.headerContent}>
             <Text numberOfLines={1} style={[styles.title, {color: theme.colors.onBackground}]}>
-              Trajeto realizado
+              {emAndamento ? 'Acompanhamento do trajeto' : 'Trajeto realizado'}
             </Text>
             <Text numberOfLines={1} style={[styles.subtitle, {color: theme.colors.onSurfaceVariant}]}>
               {data?.username || nomeColaborador || 'Carregando percurso...'}
@@ -210,6 +224,28 @@ export default function AdminRouteMapScreen({
                   </View>
                 </Marker>
               ))}
+
+              {ultimaPosicao && emAndamento && (
+                <Marker
+                  coordinate={ultimaPosicao}
+                  title="Última posição recebida"
+                  description={data.ultimaLocalizacaoEm
+                    ? formatarIdadeLocalizacao(data.ultimaLocalizacaoEm)
+                    : 'Horário indisponível'}
+                >
+                  <View
+                    style={[
+                      styles.marker,
+                      {
+                        backgroundColor: theme.colors.success,
+                        borderColor: theme.colors.onPrimary,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.markerText, {color: theme.colors.onPrimary}]}>●</Text>
+                  </View>
+                </Marker>
+              )}
             </MapView>
 
             <View
@@ -224,14 +260,20 @@ export default function AdminRouteMapScreen({
             >
               <Text style={[styles.footerTitle, {color: theme.colors.onSurface}]}>
                 {formatarSituacaoAdmin(data.situacaoExecucao)}
+                {refreshing ? ' · atualizando' : ''}
               </Text>
               <Text style={[styles.footerMeta, {color: theme.colors.onSurfaceVariant}]}>
-                {data.setor || 'Setor não informado'} · {preparado.destinos.length} destinos no mapa
+                {data.setor || 'Setor não informado'} · {data.quantidadePontos} leituras
+                {data.ultimaLocalizacaoEm
+                  ? ` · ${formatarIdadeLocalizacao(data.ultimaLocalizacaoEm)}`
+                  : ''}
               </Text>
 
               {preparado.trajetoReal.length <= 1 && (
                 <Text style={[styles.notice, {color: theme.colors.warning}]}>
-                  O trajeto realizado não está disponível. O mapa mostra apenas o planejamento e os destinos sincronizados.
+                  {emAndamento
+                    ? 'Aguardando os primeiros pontos da rota serem sincronizados.'
+                    : 'O trajeto realizado não está disponível. O mapa mostra apenas o planejamento e os destinos sincronizados.'}
                 </Text>
               )}
 

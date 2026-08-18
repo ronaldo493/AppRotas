@@ -1,11 +1,14 @@
 # Painel administrativo
 
-Entrada das funções administrativas de monitoramento e redefinição de senha.
+Entrada das funções administrativas de monitoramento, mapa de colaboradores e
+redefinição de senha.
 A feature não acessa collections genéricas: o resumo de rotas passa por
 `GET /api/painel-admin/rotas/resumo` e a geometria de uma única execução por
 `GET /api/painel-admin/rotas/:codigoSessao/trajeto`; usuários são consultados
 por `GET /api/painel-admin/usuarios` e redefinidos por
 `POST /api/painel-admin/usuarios/:usuarioId/redefinir-senha`.
+O mapa operacional usa exclusivamente
+`GET /api/painel-admin/colaboradores/localizacoes`.
 
 ## Acesso
 
@@ -21,7 +24,7 @@ setor para ampliar a consulta.
 
 ## Entrada
 
-A primeira tela contém somente dois acessos: `Monitoramento de rotas` e
+A primeira tela contém `Monitoramento de rotas`, `Mapa de colaboradores` e
 `Trocar senha`. Cada módulo possui retorno próprio para essa entrada, mantendo
 filtros e estados técnicos fora da navegação global.
 
@@ -42,8 +45,15 @@ filtros e estados técnicos fora da navegação global.
 - **Detalhe**: começa com uma explicação em linguagem comum sobre o que aconteceu
   e mantém horários, planejamento, localização, sincronização, encerramento e
   destinos como evidências consultáveis;
-- **Mapa**: aberto sob demanda para execuções encerradas, compara o trajeto
-  real ao planejado e diferencia os destinos confirmados por GPS.
+- **Mapa do trajeto**: aberto sob demanda também para uma execução em andamento.
+  A tela consulta o servidor a cada 15 segundos e desenha a polyline parcial
+  consolidada a cada lote recebido, sem reposicionar a câmera a cada atualização;
+- **Mapa de colaboradores**: mostra uma posição por usuário, atualiza a cada
+  30 segundos e nunca chama uma sessão ativa de presença online. Até 2 minutos
+  é `Atual`, até 15 é `Recente`, de 15 a 60 é `Última posição`; depois disso o
+  backend exclui o marcador. Somente usuários sem `cargo` preenchido aparecem;
+  ADMIN, GESTOR, SUB_GESTOR e quaisquer cargos futuros são excluídos no
+  servidor. Pontos sobrepostos abrem uma lista.
 
 O resumo nunca devolve coordenadas, pontos GPS ou polylines. O endpoint do mapa
 entrega somente origem, destinos e polylines consolidadas da execução solicitada;
@@ -111,6 +121,7 @@ No papel real usado pelo usuário móvel, habilite somente:
 Painel-admin
 ├── resumoRotas ✅
 ├── trajetoRota ✅
+├── localizacoesColaboradores ✅
 ├── listarUsuarios ✅
 └── redefinirSenha ✅
 ```
@@ -118,7 +129,7 @@ Painel-admin
 Não habilite `find` genérico de `execucao-rota`,
 `segmento-execucao-rota` ou `historico-visita` para viabilizar o painel. Também
 não habilite `Users-permissions User > find/update` para a troca de senha.
-Papéis customizados precisam receber essas quatro ações individualmente; a
+Papéis customizados precisam receber essas cinco ações individualmente; a
 flag e o cargo continuam sendo revalidados mesmo quando a rota está habilitada.
 `listarUsuarios` também alimenta as sugestões do filtro de colaborador, mas uma
 falha nessa consulta não impede a pesquisa digitada nem o monitoramento.

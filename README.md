@@ -512,9 +512,14 @@ Para a edição comum, habilite `Perfil > atualizarEmail` e
 `Audit-log > create`. Mantenha essas permissões antigas apenas durante o
 rollout se ainda houver APK anterior em uso.
 
-O módulo `Admin` oferece `Monitoramento de rotas` e `Trocar senha`. Para a
+O módulo `Admin` oferece `Monitoramento de rotas`, `Mapa de colaboradores` e
+`Trocar senha`. O mapa usa a última posição válida de cada sessão nas últimas
+1 hora; ele não afirma que o colaborador está online. Para a
 redefinição administrativa, habilite `Painel-admin > listarUsuarios` e
-`Painel-admin > redefinirSenha`. ADMIN alcança todos os setores; GESTOR fica
+`Painel-admin > redefinirSenha`. Habilite também
+`Painel-admin > localizacoesColaboradores` e
+`Sessao-dispositivo > registrarLocalizacao` para o mapa. ADMIN alcança todos os
+setores; GESTOR fica
 restrito ao próprio setor, somente quando `painelAdminGestoresAtivo=true`, e
 não pode redefinir um ADMIN. A senha volta ao
 padrão temporário no backend e `deveAlterarSenha=true`; o aplicativo do titular

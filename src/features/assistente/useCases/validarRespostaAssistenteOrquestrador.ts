@@ -34,8 +34,13 @@ const validarMemoria = (valor: unknown): MemoriaAssistenteOrquestrador => {
     ...(pertence(item.ultimoDominio, DOMINIOS.filter(dominio => dominio !== 'sistema'))
       ? {ultimoDominio: item.ultimoDominio as MemoriaAssistenteOrquestrador['ultimoDominio']}
       : {}),
+    ...(textoSeguro(item.ultimaAcao, 50) ? {ultimaAcao: textoSeguro(item.ultimaAcao, 50)} : {}),
+    ...(textoSeguro(item.ultimoCampo, 40) ? {ultimoCampo: textoSeguro(item.ultimoCampo, 40)} : {}),
     ...(textoSeguro(item.ultimoTermo, 100) ? {ultimoTermo: textoSeguro(item.ultimoTermo, 100)} : {}),
     ...(textoSeguro(item.ultimoColaborador, 100) ? {ultimoColaborador: textoSeguro(item.ultimoColaborador, 100)} : {}),
+    ...(Number.isInteger(Number(item.ultimoColaboradorId)) && Number(item.ultimoColaboradorId) > 0
+      ? {ultimoColaboradorId: Number(item.ultimoColaboradorId)}
+      : {}),
     ...(pertence(item.ultimoPeriodo, PERIODOS) ? {ultimoPeriodo: item.ultimoPeriodo} : {}),
     ...(pertence(item.ultimoResultadoRota, RESULTADOS) ? {ultimoResultadoRota: item.ultimoResultadoRota} : {}),
   };
