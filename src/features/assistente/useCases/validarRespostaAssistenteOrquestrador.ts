@@ -11,7 +11,7 @@ const DOMINIOS: readonly DominioAssistenteOrquestrador[] = [
   'filiais', 'contatos', 'pontos', 'historico',
   'monitoramento_rotas', 'ajuda_aplicativo', 'sistema',
 ];
-const PERIODOS = ['hoje', 'ontem', 'ultimos_7_dias', 'mes_atual', 'geral'] as const;
+const PERIODOS = ['hoje', 'ontem', 'ultimos_7_dias', 'ultimos_30_dias', 'mes_atual', 'geral'] as const;
 const RESULTADOS = [
   'todas', 'em_acompanhamento', 'percorrida_confirmada',
   'percorrida_parcial', 'interrompida', 'evidencia_insuficiente',

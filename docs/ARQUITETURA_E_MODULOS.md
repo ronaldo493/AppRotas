@@ -282,10 +282,16 @@ a sessão antiga autorizada apenas para sincronização.
 
 A tarefa `drogal-route-location-tracking` usa `BestForNavigation`, 20 m, 10 s e
 deferimento de 50 m/30 s. No Android, mantém foreground service durante a rota.
+Cada entrega primeiro entra no SQLite e, em seguida, faz uma tentativa curta de
+sincronização sem depender de componentes React. Portanto, abrir Maps ou Waze
+não interrompe o envio ao Strapi. Se a rede falhar, o ponto continua pendente e
+será reenviado pela próxima entrega, ao voltar ao aplicativo ou pelo ciclo de
+sincronização em primeiro plano.
 
 Sincronização:
 
 - somente dados do proprietário autenticado;
+- mesma sessão de aparelho que iniciou a execução na tarefa em segundo plano;
 - início antes dos lotes;
 - lotes de até 100 pontos com `codigoLote` único;
 - finalização somente após os dados necessários;
@@ -296,8 +302,8 @@ Sincronização:
 
 ### 9.3 `admin`
 
-É a entrada de duas funções independentes: `Monitoramento de rotas` e `Trocar
-senha`. Administradores recebem todos os setores; gestores são limitados pelo
+É a entrada de três funções independentes: `Monitoramento de rotas`, `Rotas em
+andamento` e `Trocar senha`. Administradores recebem todos os setores; gestores são limitados pelo
 backend ao próprio setor e só entram no rollout quando
 `configuracao-app.painelAdminGestoresAtivo` está ativa. A mesma política filtra
 `/menus/me` e protege os endpoints administrativos. A feature separa modelos,
@@ -310,6 +316,12 @@ GPS e segmentos brutos não chegam ao aplicativo. O painel permanece somente
 leitura e não reutiliza os contextos destinados ao colaborador em rota. A tela
 começa em `Hoje`, destaca estado operacional e usa a última localização apenas
 como evidência de atualização da execução.
+
+`Rotas em andamento` é liberado separadamente por
+`configuracao-app.mapaRotasEmAndamentoAtivo`. O mapa geral consulta uma única
+posição consolidada por execução ativa e nunca usa a presença global como
+marcador. Usuários com qualquer `cargo` ficam fora da equipe exibida. O mapa
+detalhado continua disponível pelo monitoramento independentemente dessa flag.
 
 O status persistido e o resultado comprovado são conceitos diferentes. O
 backend classifica os registros em confirmado, parcial, interrompido com/sem

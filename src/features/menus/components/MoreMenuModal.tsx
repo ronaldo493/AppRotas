@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import type {MenuItem} from '../../../core/menu/Menu';
 import {useAppTheme} from '../../../core/theme/appTheme';
@@ -41,6 +42,7 @@ export default function MoreMenuModal({
   menuItems,
 }: MoreMenuModalProps): React.JSX.Element {
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
   const slideAnimation =
     useRef(new Animated.Value(screenHeight)).current;
 
@@ -92,6 +94,7 @@ export default function MoreMenuModal({
             styles.modalContent,
             {
               backgroundColor:theme.colors.tabBarBackground,
+              paddingBottom: Math.max(insets.bottom + 12, 24),
               transform: [{
                 translateY: slideAnimation,
               }],

@@ -38,6 +38,10 @@ As ferramentas atuais são `filiais`, `contatos`, `pontos`, `historico`,
 reutiliza o read model do painel: ADMIN consulta todos os setores, GESTOR apenas
 o próprio setor quando liberado e os demais usuários não recebem a ferramenta.
 O histórico comum consulta somente o username derivado do JWT.
+Consultas da assistente não herdam o período, colaborador ou status selecionados
+nos filtros visuais do painel. A mensagem e a memória curta definem a consulta;
+o Strapi aplica novamente o escopo autorizado. Por exemplo, “últimas rotas dos
+30 dias” consulta 30 dias mesmo que a tela esteja filtrada em hoje.
 
 O app valida novamente protocolo, domínio, blocos, memória e sugestões. A
 resposta V2 não possui contrato para executar código ou ação física. Traçar,
@@ -101,9 +105,11 @@ O single type `configuracao-app` possui:
 - `assistenteIaAtiva`: libera somente o fallback online; desligado mantém toda
   a interpretação local.
 - `assistenteOrquestradorAtivo`: libera o protocolo V2 para consultas factuais;
-  nasce `false` e pode ser desligado sem remover o fluxo atual.
+  nasce `false` e pode ser desligado sem remover o fluxo atual;
+- `assistenteSugestoesAtivas`: libera somente a apresentação inicial e as dicas
+  contextuais temporárias; desligá-la não desativa a assistente.
 
-Ambas têm padrão `false`. A IA nunca é montada quando
+As quatro têm padrão `false`. A IA nunca é montada quando
 `assistenteVozAtivo` está desligado. A configuração é atualizada ao abrir o
 app, ao voltar ao primeiro plano e a cada cinco minutos. Offline, usa-se a
 última decisão conhecida; uma instalação sem cache mantém tudo desligado.
@@ -113,6 +119,7 @@ app, ao voltar ao primeiro plano e a cada cinco minutos. Offline, usa-se a
 - `GlobalSupportAction`: único ponto que escolhe Assistente ou Sugestão;
 - `AssistenteFeature`: fronteira pública da feature e de seus providers;
 - `AssistenteGlobal`: somente interface e acessibilidade;
+- `adoption`: onboarding, catálogo editorial por tela e limite local de dicas;
 - `useAssistenteGlobal`: coordena conversa, permissões e executores;
 - `handlers`: casos de filiais, pontos/GPS, contatos, histórico e chamados;
 - `formatarDetalhesFilialAssistente`: apresenta fatos do cadastro sem IA;
@@ -168,12 +175,32 @@ chave não pode usar prefixo `EXPO_PUBLIC_` nem entrar no APK. No papel
 habilite também
 `Metrica-assistente > registrar`; não libere CRUD genérico da collection.
 
+## Adoção, texto e áudio
+
+Antes da primeira abertura, `assistenteSugestoesAtivas = true` permite uma dica
+geral após quatro segundos. Ela dura sete segundos e aparece no máximo duas
+vezes, em dias diferentes. Ao abrir a assistente, a descoberta é encerrada e o
+usuário recebe uma apresentação curta com três exemplos clicáveis. Depois
+disso, no máximo três telas distintas exibem uma dica contextual por 6,5
+segundos. Esse estado é isolado por usuário e versão do aplicativo. As dicas
+não leem conteúdo da tela e não bloqueiam toques depois que desaparecem.
+
+A pergunta digitada entra no mesmo coordenador, validações, permissões e
+handlers da voz. O microfone só solicita permissão quando tocado. Para
+instalações novas, respostas automáticas em voz começam desligadas; a
+preferência já salva é preservada e o botão `Ouvir resposta` reproduz apenas a
+resposta atual sob demanda.
+
 ## Métricas de uso
 
 Cada pedido concluído produz no máximo uma métrica, mesmo quando a árvore local
 falha e o Gemini é consultado depois. São enviados somente tela, origem
 `LOCAL`/`GEMINI`/`BACKEND`/`ATALHO`, resultado, domínio, ação, tempo percebido e versão do
-app. Usuário e setor são associados pelo JWT no backend.
+app. Usuário e setor são associados pelo JWT no backend. Eventos técnicos do
+domínio `adocao` distinguem abertura, onboarding, exibição/clique de dica,
+clique em exemplo e pergunta digitada/falada. Em conjunto com os resultados já
+existentes, isso permite calcular usuários únicos, conversão em pergunta,
+sucesso, retorno por dia, domínios utilizados e tempo de resposta.
 
 Transcrição, prompt, resposta, parâmetros, localização e tokens nunca entram no
 payload. O envio não é aguardado pela interface, usa timeout curto, não repete e

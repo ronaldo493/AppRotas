@@ -26,6 +26,18 @@ import {
   formatarStatusOperacionalAdmin,
 } from '../useCases/formatAdminRouteDashboard';
 
+const DESCRICOES_TELEMETRIA: Record<string, string> = {
+  rastreamento_iniciado: 'Inicialização solicitada',
+  rastreamento_confirmado: 'Serviço de localização ativo',
+  localizacao_recebida: 'Localização recebida no aparelho',
+  gps_indisponivel: 'GPS indisponível',
+  permissao_revogada: 'Permissão de localização removida',
+  servico_interrompido: 'Serviço de rastreamento interrompido',
+  aplicativo_primeiro_plano: 'Aplicativo aberto novamente',
+  sincronizacao_pendente: 'Dados aguardando envio',
+  lote_enviado: 'Último lote enviado',
+};
+
 function DetailRow({label, value}: {label: string; value: string}): React.JSX.Element {
   const theme = useAppTheme();
   return (
@@ -185,6 +197,30 @@ export default function AdminRouteDetailSheet({
                 />
               )}
             </DetailSection>
+
+            {execucao.ultimoEventoRastreamento && (
+              <DetailSection title="Diagnóstico do aparelho">
+                <DetailRow
+                  label="Último evento"
+                  value={
+                    DESCRICOES_TELEMETRIA[execucao.ultimoEventoRastreamento] ??
+                    execucao.ultimoEventoRastreamento
+                  }
+                />
+                <DetailRow
+                  label="Ocorreu em"
+                  value={formatarDataHoraAdmin(execucao.ultimoEventoRastreamentoEm ?? null)}
+                />
+                <DetailRow
+                  label="Recebido pelo servidor"
+                  value={formatarDataHoraAdmin(execucao.telemetriaRecebidaEm ?? null)}
+                />
+                <DetailRow
+                  label="Pontos aguardando envio"
+                  value={String(execucao.pontosPendentesDispositivo ?? 0)}
+                />
+              </DetailSection>
+            )}
 
             <DetailSection title="Horários">
               <DetailRow label="Início" value={formatarDataHoraAdmin(execucao.iniciadaEm)} />

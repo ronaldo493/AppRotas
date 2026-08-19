@@ -23,10 +23,10 @@ import {
   prepararAdminRouteMap,
 } from '../src/features/admin/useCases/prepareAdminRouteMap';
 import {
-  descreverLocalizacaoColaborador,
+  descreverRotaAtiva,
   formatarIdadeLocalizacao,
   obterIniciaisColaborador,
-} from '../src/features/admin/useCases/formatAdminCollaboratorMap';
+} from '../src/features/admin/useCases/formatAdminActiveRoutesMap';
 
 test('cria períodos inclusivos usando o início do dia local', () => {
   const agora = new Date(2026, 7, 3, 15, 30, 0);
@@ -192,27 +192,29 @@ test('prepara o mapa sem renderizar uma quantidade ilimitada de coordenadas', ()
   assert.equal(preparado.enquadramento.length, 2);
 });
 
-test('descreve a última posição sem afirmar que o colaborador está online', () => {
+test('descreve a rota ativa sem afirmar que o colaborador está online', () => {
   const agora = new Date('2026-08-17T12:00:00.000Z').getTime();
   assert.equal(
     formatarIdadeLocalizacao('2026-08-17T11:57:30.000Z', agora),
     'há 2 minutos',
   );
   assert.equal(obterIniciaisColaborador('Ana Maria Silva'), 'AS');
-  const descricao = descreverLocalizacaoColaborador({
+  const descricao = descreverRotaAtiva({
+    codigoSessao: 'rota-ativa-7',
     usuarioId: 7,
     username: 'Ana Silva',
     setor: 'Tecnologia',
-    cargo: null,
+    iniciadaEm: '2026-08-17T11:30:00.000Z',
     latitude: -22.72,
     longitude: -47.64,
     precisaoMetros: 25,
     capturadaEm: '2026-08-17T11:57:30.000Z',
     recebidaEm: '2026-08-17T11:58:00.000Z',
     idadeSegundos: 150,
-    estado: 'recente',
-    sessaoAtiva: true,
-    origem: 'aplicativo',
+    estado: 'atrasada',
+    quantidadePontos: 18,
+    quantidadeDestinosPlanejados: 2,
+    quantidadeDestinosVisitados: 1,
   }, agora);
   assert.match(descricao, /Tecnologia/);
   assert.match(descricao, /há 2 minutos/);

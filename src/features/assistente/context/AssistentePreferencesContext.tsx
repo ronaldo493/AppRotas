@@ -33,9 +33,9 @@ const AssistentePreferencesContext = createContext<
 export function AssistentePreferencesProvider({
   children,
 }: PropsWithChildren): React.JSX.Element {
-  const [respostasFaladasAtivas, setRespostasFaladasAtivas] = useState(true);
+  const [respostasFaladasAtivas, setRespostasFaladasAtivas] = useState(false);
   const [preferenciasCarregadas, setPreferenciasCarregadas] = useState(false);
-  const respostasFaladasAtivasRef = useRef(true);
+  const respostasFaladasAtivasRef = useRef(false);
 
   useEffect(() => {
     const carregarPreferencias = async (): Promise<void> => {

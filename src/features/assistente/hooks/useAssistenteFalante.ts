@@ -5,6 +5,7 @@ import {useAssistentePreferences} from '../context/AssistentePreferencesContext'
 
 interface UseAssistenteFalanteReturn {
   falar: (texto: string) => Promise<void>;
+  ouvirMesmoDesativado: (texto: string) => Promise<void>;
   parar: () => Promise<void>;
 }
 
@@ -102,6 +103,22 @@ export default function useAssistenteFalante(): UseAssistenteFalanteReturn {
     respostasFaladasAtivas,
   ]);
 
+  /** Reproduz sob demanda sem alterar a preferência de respostas automáticas. */
+  const ouvirMesmoDesativado = useCallback(async (texto: string): Promise<void> => {
+    const conteudo = texto.trim();
+    if (!conteudo) return;
+    const versaoFala = ++versaoFalaRef.current;
+    await Speech.stop();
+    if (versaoFala !== versaoFalaRef.current) return;
+    const voz = vozPreferidaRef.current;
+    if (!voz) void obterVozPreferida();
+    Speech.speak(conteudo, {
+      language: 'pt-BR',
+      rate: 1.1,
+      pitch: 1,
+      voice: voz ?? undefined,
+    });
+  }, [obterVozPreferida]);
   useEffect(() => {
     if (preferenciasCarregadas && respostasFaladasAtivas) {
       void obterVozPreferida();
@@ -119,6 +136,7 @@ export default function useAssistenteFalante(): UseAssistenteFalanteReturn {
 
   return {
     falar,
+    ouvirMesmoDesativado,
     parar,
   };
 }

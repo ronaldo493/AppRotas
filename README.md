@@ -289,6 +289,14 @@ quando o app volta ao primeiro plano e a cada 15 segundos enquanto permanece
 aberto. Se GPS ou permissão forem desativados, a continuidade fica bloqueada
 até a correção e a ocorrência é anexada ao resumo da execução.
 
+O serviço nativo grava cada lote primeiro no SQLite e tenta enviá-lo ao Strapi
+na mesma entrega de segundo plano. Assim, os pontos podem alimentar o mapa
+administrativo enquanto Maps ou Waze está aberto. Ausência de internet não
+interrompe a navegação nem elimina dados: a fila local permanece pendente até
+uma tentativa posterior. Antes de entregar a navegação externa, o início e o
+primeiro ponto recebem uma janela curta de sincronização; esse prazo nunca
+transforma a conexão com o servidor em requisito para começar a viagem.
+
 ### Retenção do SQLite
 
 Pontos pendentes nunca são apagados. Depois que o servidor confirma todos os
@@ -435,6 +443,11 @@ aplica o escopo e devolve texto e sugestões estruturadas; ações físicas como
 traçar/reordenar rotas e usar GPS continuam locais. Se a flag ou o endpoint
 falhar, o app retorna ao fluxo existente.
 
+O campo `assistenteSugestoesAtivas`, obrigatório e padrão `false`, controla a
+descoberta inicial em até dois dias distintos, a apresentação e até três dicas
+contextuais temporárias por usuário e versão. Desligá-lo mantém voz, digitação
+e interpretação disponíveis.
+
 O Boolean `painelAdminGestoresAtivo`, obrigatório e padrão `false`, é uma
 política server-side. `false` mantém a rota `Admin` e seus endpoints somente
 para `ADMIN`; `true` inclui `GESTOR`, ainda restrito ao setor do JWT. O
@@ -512,13 +525,16 @@ Para a edição comum, habilite `Perfil > atualizarEmail` e
 `Audit-log > create`. Mantenha essas permissões antigas apenas durante o
 rollout se ainda houver APK anterior em uso.
 
-O módulo `Admin` oferece `Monitoramento de rotas`, `Mapa de colaboradores` e
-`Trocar senha`. O mapa usa a última posição válida de cada sessão nas últimas
-1 hora; ele não afirma que o colaborador está online. Para a
+O módulo `Admin` oferece `Monitoramento de rotas`, `Rotas em andamento` e
+`Trocar senha`. A opção do mapa aparece somente com
+`mapaRotasEmAndamentoAtivo=true` no `configuracao-app` e usa exclusivamente a
+última posição recebida de execuções monitoradas ainda abertas. Não consulta
+presença geral, não exibe localização fora de uma rota e não transforma a
+origem planejada em posição real. Para a
 redefinição administrativa, habilite `Painel-admin > listarUsuarios` e
 `Painel-admin > redefinirSenha`. Habilite também
-`Painel-admin > localizacoesColaboradores` e
-`Sessao-dispositivo > registrarLocalizacao` para o mapa. ADMIN alcança todos os
+`Painel-admin > localizacoesColaboradores` para o mapa. O envio de posições
+continua usando os lotes da execução de rota. ADMIN alcança todos os
 setores; GESTOR fica
 restrito ao próprio setor, somente quando `painelAdminGestoresAtivo=true`, e
 não pode redefinir um ADMIN. A senha volta ao

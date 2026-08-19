@@ -4,17 +4,22 @@ import {
   ActivityIndicator,
   Animated,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {useAppTheme} from '../../../core/theme/appTheme';
+import useAssistenteAdocao from '../adoption/hooks/useAssistenteAdocao';
+import {EXEMPLOS_INICIAIS_ASSISTENTE} from '../adoption/useCases/obterSugestaoContextualAssistente';
 import useFloatingActionPosition from '../../../shared/hooks/useFloatingActionPosition';
 import SugestaoFab from '../../sugestoes/components/SugestaoFab';
 import useAssistenteGlobal from '../hooks/useAssistenteGlobal';
@@ -197,15 +202,18 @@ const SugestaoDinamicaButton = memo(function SugestaoDinamicaButton({
 interface AssistenteGlobalProps {
   iaHabilitada: boolean;
   orquestradorHabilitado: boolean;
+  sugestoesHabilitadas: boolean;
 }
 
 export default function AssistenteGlobal({
   iaHabilitada,
   orquestradorHabilitado,
+  sugestoesHabilitadas,
 }: AssistenteGlobalProps): React.JSX.Element {
   const {colors} = useAppTheme();
   const insets = useSafeAreaInsets();
   const [tecladoVisivel, setTecladoVisivel] = useState(false);
+  const [textoDigitado, setTextoDigitado] = useState('');
   const assistente = useAssistenteGlobal({
     iaHabilitada,
     orquestradorHabilitado,
@@ -214,6 +222,25 @@ export default function AssistenteGlobal({
     ASSISTENTE_POSITION_KEY,
   );
   const ocupado = assistente.ativo || assistente.processando;
+  const adocao = useAssistenteAdocao({
+    habilitada: sugestoesHabilitadas,
+    assistenteVisivel: assistente.visivel,
+    tecladoVisivel,
+  });
+
+  const abrirAssistente = (textoInicial?: string): void => {
+    if (textoInicial) setTextoDigitado(textoInicial);
+    adocao.registrarAbertura();
+    assistente.abrir();
+  };
+
+  const enviarTexto = (): void => {
+    const pergunta = textoDigitado.trim();
+    if (!pergunta || ocupado) return;
+    assistente.enviarTexto(pergunta);
+    setTextoDigitado('');
+    Keyboard.dismiss();
+  };
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
@@ -245,13 +272,40 @@ export default function AssistenteGlobal({
           style={[styles.fabContainer, {transform}]}
           pointerEvents="box-none"
         >
+          {adocao.dica ? (
+            <TouchableOpacity
+              activeOpacity={0.82}
+              accessibilityRole="button"
+              accessibilityLabel={adocao.dica.mensagem}
+              onPress={() => {
+                const pergunta = adocao.selecionarDica();
+                if (pergunta !== null) abrirAssistente(pergunta || undefined);
+              }}
+              style={[
+                styles.contextHint,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.outline,
+                  shadowColor: colors.shadow,
+                },
+              ]}
+            >
+              <Text style={[styles.contextHintText, {color: colors.onSurface}]}>
+                {adocao.dica.mensagem}
+              </Text>
+              <Text style={[styles.contextHintAction, {color: colors.primary}]}>
+                Toque para experimentar
+              </Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             activeOpacity={0.78}
             accessibilityRole="button"
             accessibilityLabel="Abrir assistente do aplicativo"
             accessibilityHint="Abre opções de ajuda e comando de voz"
-            onPress={assistente.abrir}
+            onPress={() => abrirAssistente()}
             onLongPress={() => {
+              adocao.registrarAbertura();
               void assistente.ouvir();
             }}
             style={[
@@ -284,6 +338,10 @@ export default function AssistenteGlobal({
             onPress={assistente.fechar}
           />
 
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardAvoiding}
+          >
           <View
             style={[
               styles.panel,
@@ -301,19 +359,6 @@ export default function AssistenteGlobal({
             />
 
             <View style={styles.header}>
-              <View
-                style={[
-                  styles.headerIcon,
-                  {backgroundColor: colors.primarySoft},
-                ]}
-              >
-                <MaterialIcons
-                  name="graphic-eq"
-                  size={22}
-                  color={colors.primary}
-                />
-              </View>
-
               <View style={styles.headerText}>
                 <Text style={[styles.title, {color: colors.onSurface}]}>
                   Assistente Drogal
@@ -348,6 +393,32 @@ export default function AssistenteGlobal({
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.scrollContent}
             >
+              {adocao.apresentacaoVisivel ? (
+                <View style={[styles.onboardingCard, {backgroundColor: colors.primarySoft, borderColor: colors.outline}]}>
+                  <Text style={[styles.onboardingTitle, {color: colors.onSurface}]}>
+                    Faça perguntas sobre filiais, contatos, pontos e suas rotas.
+                  </Text>
+                  <Text style={[styles.onboardingDescription, {color: colors.onSurfaceVariant}]}>
+                    Você pode digitar ou tocar no microfone quando quiser falar.
+                  </Text>
+                  {EXEMPLOS_INICIAIS_ASSISTENTE.map(exemplo => (
+                    <TouchableOpacity
+                      key={exemplo}
+                      accessibilityRole="button"
+                      onPress={() => setTextoDigitado(adocao.selecionarExemplo(exemplo))}
+                      style={[styles.onboardingExample, {borderColor: colors.outline}]}
+                    >
+                      <Text style={[styles.onboardingExampleText, {color: colors.onSurface}]}>
+                        {exemplo}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity accessibilityRole="button" onPress={adocao.fecharApresentacao} style={styles.onboardingClose}>
+                    <Text style={[styles.onboardingCloseText, {color: colors.primary}]}>Entendi</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
               {assistente.transcricao ? (
                 <>
                   <Text
@@ -380,23 +451,45 @@ export default function AssistenteGlobal({
               >
                 <View style={styles.responseRow}>
                   {assistente.processando ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <MaterialIcons
-                      name="assistant"
-                      size={20}
+                    <ActivityIndicator
+                      style={styles.responseLoader}
+                      size="small"
                       color={colors.primary}
                     />
-                  )}
-                  <Text
-                    style={[
-                      styles.responseText,
-                      {color: colors.onSurface},
-                    ]}
-                  >
+                  ) : null}
+                  <Text style={[styles.responseText, {color: colors.onSurface}]}>
                     {assistente.mensagem}
                   </Text>
                 </View>
+              </View>
+
+              {!assistente.respostasFaladasAtivas && assistente.mensagem ? (
+                <TouchableOpacity accessibilityRole="button" onPress={() => { void assistente.ouvirResposta(); }} style={styles.listenButton}>
+                  <Text style={[styles.listenButtonText, {color: colors.primary}]}>Ouvir resposta</Text>
+                </TouchableOpacity>
+              ) : null}
+
+              <View style={[styles.inputRow, {backgroundColor: colors.surfaceVariant, borderColor: colors.outline}]}>
+                <TextInput
+                  accessibilityLabel="Digite sua pergunta para a assistente"
+                  value={textoDigitado}
+                  onChangeText={setTextoDigitado}
+                  onSubmitEditing={enviarTexto}
+                  editable={!ocupado}
+                  placeholder="Ex.: qual o telefone da filial 25?"
+                  placeholderTextColor={colors.onSurfaceVariant}
+                  returnKeyType="send"
+                  blurOnSubmit
+                  style={[styles.textInput, {color: colors.onSurface}]}
+                />
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  disabled={!textoDigitado.trim() || ocupado}
+                  onPress={enviarTexto}
+                  style={[styles.sendButton, {backgroundColor: colors.actionBackground, opacity: !textoDigitado.trim() || ocupado ? 0.5 : 1}]}
+                >
+                  <Text style={[styles.sendButtonText, {color: colors.actionForeground}]}>Enviar</Text>
+                </TouchableOpacity>
               </View>
 
               <Text
@@ -442,17 +535,9 @@ export default function AssistenteGlobal({
                       {color: colors.onSurface},
                     ]}
                   >
-                    Respostas faladas
+                    Responder em voz
                   </Text>
-                  <Text
-                    style={[
-                      styles.voicePreferenceDescription,
-                      {color: colors.onSurfaceVariant},
-                    ]}
-                  >
-                    O microfone continua disponível quando esta opção estiver
-                    desativada.
-                  </Text>
+
                 </View>
                 <Switch
                   accessibilityLabel="Ativar respostas faladas do assistente"
@@ -527,6 +612,7 @@ export default function AssistenteGlobal({
               </View>
             </ScrollView>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 

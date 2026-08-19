@@ -21,10 +21,11 @@ import type {DeviceSession} from './deviceSession/models/DeviceSession';
 import {describeDeviceSessionInvalidation} from './deviceSession/domain/deviceSessionPolicy';
 import {closeDeviceSession} from './deviceSession/services/deviceSessionService';
 import type {MenuItem} from '../menu/Menu';
+import {AUTH_STORAGE_KEYS} from './authStorageKeys';
 
-const TOKEN_STORAGE_KEY = 'userToken';
-const USER_STORAGE_KEY = 'userData';
-const DEVICE_SESSION_STORAGE_KEY = 'deviceSession';
+const TOKEN_STORAGE_KEY = AUTH_STORAGE_KEYS.token;
+const USER_STORAGE_KEY = AUTH_STORAGE_KEYS.user;
+const DEVICE_SESSION_STORAGE_KEY = AUTH_STORAGE_KEYS.deviceSession;
 
 interface JwtPayload {
   iat?: number;

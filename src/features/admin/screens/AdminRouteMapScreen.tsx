@@ -14,7 +14,10 @@ import useAdminRouteMap from '../hooks/useAdminRouteMap';
 import styles from '../styles/adminRouteMap.styles';
 import {formatarSituacaoAdmin} from '../useCases/formatAdminRouteDashboard';
 import {prepararAdminRouteMap} from '../useCases/prepareAdminRouteMap';
-import {formatarIdadeLocalizacao} from '../useCases/formatAdminCollaboratorMap';
+import {
+  formatarIdadeLocalizacao,
+  formatarInicioRota,
+} from '../useCases/formatAdminActiveRoutesMap';
 
 interface Props {
   codigoSessao: string | null;
@@ -32,16 +35,30 @@ export default function AdminRouteMapScreen({
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const fittedSessionRef = useRef<string | null>(null);
+  const followedLocationRef = useRef<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [followLatest, setFollowLatest] = useState(true);
   const {data, loading, refreshing, error, retry} = useAdminRouteMap(codigoSessao);
   const preparado = useMemo(
     () => data ? prepararAdminRouteMap(data) : null,
     [data],
   );
+  const ultimaPosicao = preparado?.trajetoReal[
+    (preparado?.trajetoReal.length ?? 0) - 1
+  ];
+  const emAndamento = data?.situacaoExecucao === 'em_andamento';
+  const ultimaPosicaoKey = ultimaPosicao
+    ? `${ultimaPosicao.latitude}:${ultimaPosicao.longitude}:${data?.ultimaLocalizacaoEm ?? ''}`
+    : null;
+  const destinosConfirmados = data?.destinos.filter(
+    destino => destino.visitado,
+  ).length ?? 0;
 
   useEffect(() => {
     setMapReady(false);
+    setFollowLatest(true);
     fittedSessionRef.current = null;
+    followedLocationRef.current = null;
   }, [codigoSessao]);
 
   useEffect(() => {
@@ -50,6 +67,16 @@ export default function AdminRouteMapScreen({
       fittedSessionRef.current === codigoSessao
     ) return;
     fittedSessionRef.current = codigoSessao;
+
+    if (emAndamento && ultimaPosicao) {
+      followedLocationRef.current = ultimaPosicaoKey;
+      mapRef.current?.animateToRegion({
+        ...ultimaPosicao,
+        latitudeDelta: 0.025,
+        longitudeDelta: 0.025,
+      }, 350);
+      return;
+    }
 
     if (preparado.enquadramento.length === 1) {
       mapRef.current?.animateToRegion({
@@ -64,12 +91,39 @@ export default function AdminRouteMapScreen({
       animated: true,
       edgePadding: {top: 44, right: 44, bottom: 44, left: 44},
     });
-  }, [mapReady, preparado]);
+  }, [codigoSessao, emAndamento, mapReady, preparado, ultimaPosicao, ultimaPosicaoKey]);
 
-  const ultimaPosicao = preparado?.trajetoReal[
-    (preparado?.trajetoReal.length ?? 0) - 1
-  ];
-  const emAndamento = data?.situacaoExecucao === 'em_andamento';
+  useEffect(() => {
+    if (
+      !mapReady ||
+      !emAndamento ||
+      !followLatest ||
+      !ultimaPosicao ||
+      !ultimaPosicaoKey ||
+      followedLocationRef.current === ultimaPosicaoKey
+    ) {
+      return;
+    }
+
+    followedLocationRef.current = ultimaPosicaoKey;
+    mapRef.current?.animateToRegion({
+      ...ultimaPosicao,
+      latitudeDelta: 0.025,
+      longitudeDelta: 0.025,
+    }, 500);
+  }, [emAndamento, followLatest, mapReady, ultimaPosicao, ultimaPosicaoKey]);
+
+  const centralizarUltimaPosicao = (): void => {
+    if (!ultimaPosicao) return;
+
+    setFollowLatest(true);
+    followedLocationRef.current = ultimaPosicaoKey;
+    mapRef.current?.animateToRegion({
+      ...ultimaPosicao,
+      latitudeDelta: 0.025,
+      longitudeDelta: 0.025,
+    }, 350);
+  };
 
   const coordenadaInicial = data?.origem
     ?? preparado?.trajetoReal[0]
@@ -156,6 +210,7 @@ export default function AdminRouteMapScreen({
               toolbarEnabled={false}
               moveOnMarkerPress={false}
               onMapReady={() => setMapReady(true)}
+              onPanDrag={() => setFollowLatest(false)}
             >
               {preparado.trajetoPlanejado.length > 1 && (
                 <Polyline
@@ -227,6 +282,7 @@ export default function AdminRouteMapScreen({
 
               {ultimaPosicao && emAndamento && (
                 <Marker
+                  key={ultimaPosicaoKey ?? 'ultima-posicao'}
                   coordinate={ultimaPosicao}
                   title="Última posição recebida"
                   description={data.ultimaLocalizacaoEm
@@ -258,16 +314,39 @@ export default function AdminRouteMapScreen({
                 },
               ]}
             >
-              <Text style={[styles.footerTitle, {color: theme.colors.onSurface}]}>
-                {formatarSituacaoAdmin(data.situacaoExecucao)}
-                {refreshing ? ' · atualizando' : ''}
-              </Text>
+              <View style={styles.footerHeading}>
+                <Text style={[styles.footerTitle, {color: theme.colors.onSurface}]}>
+                  {formatarSituacaoAdmin(data.situacaoExecucao)}
+                  {refreshing ? ' · atualizando' : ''}
+                </Text>
+                {emAndamento && ultimaPosicao && (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Centralizar a última posição recebida"
+                    onPress={centralizarUltimaPosicao}
+                    style={styles.followButton}
+                  >
+                    <Text style={[styles.followButtonText, {color: theme.colors.primary}]}>
+                      {followLatest ? 'Acompanhando' : 'Centralizar'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               <Text style={[styles.footerMeta, {color: theme.colors.onSurfaceVariant}]}>
                 {data.setor || 'Setor não informado'} · {data.quantidadePontos} leituras
                 {data.ultimaLocalizacaoEm
-                  ? ` · ${formatarIdadeLocalizacao(data.ultimaLocalizacaoEm)}`
+                  ? ` · posição ${formatarIdadeLocalizacao(data.ultimaLocalizacaoEm)}`
                   : ''}
               </Text>
+              <Text style={[styles.footerMeta, {color: theme.colors.onSurfaceVariant}]}>
+                {formatarInicioRota(data.iniciadaEm)} · {destinosConfirmados} de {data.destinos.length} destinos confirmados
+              </Text>
+              {emAndamento && data.ultimaSincronizacaoEm && (
+                <Text style={[styles.footerMeta, {color: theme.colors.onSurfaceVariant}]}>
+                  Último lote {formatarIdadeLocalizacao(data.ultimaSincronizacaoEm)}
+                </Text>
+              )}
 
               {preparado.trajetoReal.length <= 1 && (
                 <Text style={[styles.notice, {color: theme.colors.warning}]}>

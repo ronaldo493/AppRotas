@@ -103,6 +103,10 @@ export interface ExecucaoRotaAdmin {
   motivoFinalizacao: string | null;
   ultimaLocalizacaoEm: string | null;
   ultimaSincronizacaoEm?: string | null;
+  ultimoEventoRastreamento?: string | null;
+  ultimoEventoRastreamentoEm?: string | null;
+  telemetriaRecebidaEm?: string | null;
+  pontosPendentesDispositivo?: number | null;
   atrasoUltimaSincronizacaoSegundos?: number | null;
   maiorAtrasoSincronizacaoSegundos?: number | null;
   origemFinalizacao?: string | null;

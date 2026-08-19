@@ -50,6 +50,28 @@ export interface ExecucaoRotaApi {
     execution: ExecucaoRota,
     summary: ResumoExecucaoRota,
   ) => Promise<void>;
+  enviarTelemetria: (
+    codigoSessao: string,
+    evento: TelemetriaOperacionalRota,
+    deviceSessionCode?: string | null,
+  ) => Promise<void>;
+}
+
+export type TipoTelemetriaOperacionalRota =
+  | 'rastreamento_iniciado'
+  | 'rastreamento_confirmado'
+  | 'localizacao_recebida'
+  | 'gps_indisponivel'
+  | 'permissao_revogada'
+  | 'servico_interrompido'
+  | 'aplicativo_primeiro_plano'
+  | 'sincronizacao_pendente'
+  | 'lote_enviado';
+
+export interface TelemetriaOperacionalRota {
+  tipo: TipoTelemetriaOperacionalRota;
+  ocorridoEm: string;
+  pontosPendentes: number;
 }
 
 /**
@@ -149,6 +171,20 @@ export function criarExecucaoRotaApi(
                 [DEVICE_SESSION_HEADER]: deviceSessionCode,
               },
             }
+          : undefined,
+      );
+    },
+
+    enviarTelemetria: async (
+      codigoSessao,
+      evento,
+      deviceSessionCode,
+    ) => {
+      await client.post(
+        `/execucoes-rotas/${encodeURIComponent(codigoSessao)}/telemetria`,
+        evento,
+        deviceSessionCode
+          ? {headers: {[DEVICE_SESSION_HEADER]: deviceSessionCode}}
           : undefined,
       );
     },

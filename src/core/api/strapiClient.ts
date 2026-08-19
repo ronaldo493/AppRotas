@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
 import axios, { type AxiosInstance } from 'axios';
-import axiosRetry from 'axios-retry';
 
 import {useAuthContext} from '../auth/AuthContext';
-import {environment} from '../config/environment';
-import {DEVICE_SESSION_HEADER} from '../auth/deviceSession/services/deviceSessionService';
 import {shouldInvalidateLocalSession} from '../auth/deviceSession/domain/deviceSessionPolicy';
+import {createApiClientStrapi as createBaseStrapiClient} from './createStrapiClient';
 
 interface DeviceSessionErrorDetails {
   code: string | null;
@@ -34,18 +32,7 @@ export const createApiClientStrapi = (
   deviceSessionCode?: string | null,
   onSessionInvalidated?: (reason?: string | null) => Promise<void>,
 ): AxiosInstance => {
-  const conexao = axios.create({
-    baseURL: environment.strapiBaseUrl,
-    timeout: 15000,
-    headers: {
-      ...(token ? {Authorization: `Bearer ${token}`} : {}),
-      ...(deviceSessionCode
-        ? {[DEVICE_SESSION_HEADER]: deviceSessionCode}
-        : {}),
-    },
-  });
-
-  axiosRetry(conexao, {retries: 4,});
+  const conexao = createBaseStrapiClient(token, deviceSessionCode);
 
   if (onSessionInvalidated) {
     conexao.interceptors.response.use(

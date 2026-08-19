@@ -7,10 +7,12 @@ interface ConfiguracaoApp {
   assistenteVozAtivo?: boolean | null;
   assistenteIaAtiva?: boolean | null;
   assistenteOrquestradorAtivo?: boolean | null;
+  assistenteSugestoesAtivas?: boolean | null;
   attributes?: {
     assistenteVozAtivo?: boolean | null;
     assistenteIaAtiva?: boolean | null;
     assistenteOrquestradorAtivo?: boolean | null;
+  assistenteSugestoesAtivas?: boolean | null;
   };
 }
 
@@ -18,6 +20,7 @@ export interface DisponibilidadeAssistente {
   habilitado: boolean;
   iaHabilitada: boolean;
   orquestradorHabilitado: boolean;
+  sugestoesHabilitadas: boolean;
   atualizadoEm: number;
   origem: 'servidor' | 'cache' | 'indisponivel';
 }
@@ -27,6 +30,7 @@ interface ConfiguracaoPersistida {
   habilitado: boolean;
   iaHabilitada: boolean;
   orquestradorHabilitado: boolean;
+  sugestoesHabilitadas: boolean;
   atualizadoEm: number;
 }
 
@@ -43,12 +47,13 @@ const getServerKey = (client: AxiosInstance): string =>
 
 const readFlags = (
   configuration: ConfiguracaoApp | null,
-): Pick<DisponibilidadeAssistente, 'habilitado' | 'iaHabilitada' | 'orquestradorHabilitado'> => {
+): Pick<DisponibilidadeAssistente, 'habilitado' | 'iaHabilitada' | 'orquestradorHabilitado' | 'sugestoesHabilitadas'> => {
   const data = configuration?.attributes ?? configuration;
   return {
     habilitado: data?.assistenteVozAtivo === true,
     iaHabilitada: data?.assistenteIaAtiva === true,
     orquestradorHabilitado: data?.assistenteOrquestradorAtivo === true,
+    sugestoesHabilitadas: data?.assistenteSugestoesAtivas === true,
   };
 };
 
@@ -75,6 +80,7 @@ const readStored = async (
       // Caches criados antes do fallback online permanecem locais por padrão.
       iaHabilitada: stored.iaHabilitada === true,
       orquestradorHabilitado: stored.orquestradorHabilitado === true,
+      sugestoesHabilitadas: stored.sugestoesHabilitadas === true,
       atualizadoEm: stored.atualizadoEm,
       origem: 'cache',
     };
@@ -95,6 +101,7 @@ const persist = async (
         habilitado: result.habilitado,
         iaHabilitada: result.iaHabilitada,
         orquestradorHabilitado: result.orquestradorHabilitado,
+        sugestoesHabilitadas: result.sugestoesHabilitadas,
         atualizadoEm: result.atualizadoEm,
       } satisfies ConfiguracaoPersistida),
     );
@@ -152,6 +159,7 @@ export async function obterDisponibilidadeAssistente(
           habilitado: false,
           iaHabilitada: false,
           orquestradorHabilitado: false,
+          sugestoesHabilitadas: false,
           atualizadoEm: Date.now(),
           origem: 'indisponivel',
         };
@@ -174,6 +182,7 @@ export async function obterDisponibilidadeAssistente(
         habilitado: false,
         iaHabilitada: false,
         orquestradorHabilitado: false,
+        sugestoesHabilitadas: false,
         atualizadoEm: Date.now(),
         origem: 'indisponivel',
       };

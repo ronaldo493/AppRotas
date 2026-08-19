@@ -1,13 +1,13 @@
 # Painel administrativo
 
-Entrada das funções administrativas de monitoramento, mapa de colaboradores e
+Entrada das funções administrativas de monitoramento, rotas em andamento e
 redefinição de senha.
 A feature não acessa collections genéricas: o resumo de rotas passa por
 `GET /api/painel-admin/rotas/resumo` e a geometria de uma única execução por
 `GET /api/painel-admin/rotas/:codigoSessao/trajeto`; usuários são consultados
 por `GET /api/painel-admin/usuarios` e redefinidos por
 `POST /api/painel-admin/usuarios/:usuarioId/redefinir-senha`.
-O mapa operacional usa exclusivamente
+O mapa operacional de rotas ativas usa exclusivamente
 `GET /api/painel-admin/colaboradores/localizacoes`.
 
 ## Acesso
@@ -24,9 +24,11 @@ setor para ampliar a consulta.
 
 ## Entrada
 
-A primeira tela contém `Monitoramento de rotas`, `Mapa de colaboradores` e
-`Trocar senha`. Cada módulo possui retorno próprio para essa entrada, mantendo
-filtros e estados técnicos fora da navegação global.
+A primeira tela contém `Monitoramento de rotas`, `Rotas em andamento` e
+`Trocar senha`. A opção do mapa só aparece quando o Strapi confirma
+`mapaRotasEmAndamentoAtivo=true`; flag ausente, indisponível ou desligada oculta
+o módulo. Cada módulo possui retorno próprio para essa entrada, mantendo filtros
+e estados técnicos fora da navegação global.
 
 ## Monitoramento
 
@@ -47,16 +49,22 @@ filtros e estados técnicos fora da navegação global.
   destinos como evidências consultáveis;
 - **Mapa do trajeto**: aberto sob demanda também para uma execução em andamento.
   A tela consulta o servidor a cada 15 segundos e desenha a polyline parcial
-  consolidada a cada lote recebido, sem reposicionar a câmera a cada atualização;
-- **Mapa de colaboradores**: mostra uma posição por usuário, atualiza a cada
-  30 segundos e nunca chama uma sessão ativa de presença online. Até 2 minutos
-  é `Atual`, até 15 é `Recente`, de 15 a 60 é `Última posição`; depois disso o
-  backend exclui o marcador. Somente usuários sem `cargo` preenchido aparecem;
-  ADMIN, GESTOR, SUB_GESTOR e quaisquer cargos futuros são excluídos no
-  servidor. Pontos sobrepostos abrem uma lista.
+  consolidada a cada lote recebido. Enquanto o gestor não arrastar o mapa, a
+  câmera acompanha a última posição; depois disso, `Centralizar` retoma o
+  acompanhamento;
+- **Rotas em andamento**: mostra uma posição por execução ativa e atualiza a
+  cada 15 segundos. O mapa não consulta presença geral do aplicativo nem exibe
+  localização fora de um percurso iniciado. Até 2 minutos é atualização atual,
+  entre 2 e 15 é atrasada e acima de 15 é sinalizada como sem atualização
+  recente. Uma rota iniciada sem lote GPS entra na contagem como aguardando, mas
+  sua origem planejada nunca vira um marcador falso. O toque no marcador abre o
+  trajeto parcial da execução. Não há agrupamento: cada rota com leitura válida
+  mantém seu próprio marcador. O backend continua responsável por excluir
+  ADMIN, GESTOR, SUB_GESTOR e quaisquer usuários com `cargo` preenchido.
 
-O resumo nunca devolve coordenadas, pontos GPS ou polylines. O endpoint do mapa
-entrega somente origem, destinos e polylines consolidadas da execução solicitada;
+O resumo nunca devolve coordenadas, pontos GPS ou polylines. O mapa geral recebe
+somente a última coordenada consolidada de cada execução ativa. O detalhe entrega
+origem, destinos e polylines consolidadas apenas da execução solicitada;
 segmentos, pontos brutos e coordenadas de confirmação permanecem no backend.
 
 `execucao-rota` é a fonte operacional. `segmento-execucao-rota` guarda lotes de
@@ -140,3 +148,9 @@ falha nessa consulta não impede a pesquisa digitada nem o monitoramento.
 yarn typecheck
 yarn test:admin
 ```
+# Diagnóstico operacional
+
+O detalhe da execução apresenta, quando disponível, o último evento técnico do
+aparelho, horário observado, horário recebido e pontos aguardando envio. Essa
+informação complementa o painel; os segmentos GPS permanecem como evidência do
+trajeto realizado.

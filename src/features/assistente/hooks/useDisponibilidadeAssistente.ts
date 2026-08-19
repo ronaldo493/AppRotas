@@ -11,6 +11,7 @@ interface UseDisponibilidadeAssistenteReturn {
   habilitado: boolean;
   iaHabilitada: boolean;
   orquestradorHabilitado: boolean;
+  sugestoesHabilitadas: boolean;
   carregando: boolean;
   origem: DisponibilidadeAssistente['origem'] | null;
   atualizar: () => Promise<void>;
@@ -65,6 +66,8 @@ export default function useDisponibilidadeAssistente(): UseDisponibilidadeAssist
       result?.habilitado === true && result?.iaHabilitada === true,
     orquestradorHabilitado:
       result?.habilitado === true && result?.orquestradorHabilitado === true,
+    sugestoesHabilitadas:
+      result?.habilitado === true && result?.sugestoesHabilitadas === true,
     carregando,
     origem: result?.origem ?? null,
     atualizar,

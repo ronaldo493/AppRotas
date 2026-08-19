@@ -7,6 +7,7 @@ import {
 } from '../src/core/auth/sessionTerminationCoordinator';
 import {isTransientSqliteLock, runRouteDatabaseWrite} from '../src/features/execucaoRota/services/execucaoRotaDatabaseWriteQueue';
 import {definirFluxoMonitoramentoRota} from '../src/features/execucaoRota/useCases/definirFluxoMonitoramentoRota';
+import {canSynchronizeRouteInBackground} from '../src/features/execucaoRota/domain/backgroundRouteSyncPolicy';
 
 test('mantém o monitoramento conhecido quando o Strapi fica offline', () => {
   assert.deepEqual(
@@ -21,6 +22,38 @@ test('mantém o monitoramento conhecido quando o Strapi fica offline', () => {
       exibirPrevia: false,
       configuracaoOffline: true,
     },
+  );
+});
+
+test('sincroniza lote em segundo plano somente na sessão que iniciou a rota', () => {
+  assert.equal(
+    canSynchronizeRouteInBackground({
+      executionOwnerKey: 'id:25',
+      authenticatedOwnerKey: 'id:25',
+      executionDeviceSessionCode: 'aparelho-a',
+      activeDeviceSessionCode: 'aparelho-a',
+    }),
+    true,
+  );
+
+  assert.equal(
+    canSynchronizeRouteInBackground({
+      executionOwnerKey: 'id:25',
+      authenticatedOwnerKey: 'id:25',
+      executionDeviceSessionCode: 'aparelho-a',
+      activeDeviceSessionCode: 'aparelho-b',
+    }),
+    false,
+  );
+
+  assert.equal(
+    canSynchronizeRouteInBackground({
+      executionOwnerKey: 'id:25',
+      authenticatedOwnerKey: 'id:48',
+      executionDeviceSessionCode: 'aparelho-a',
+      activeDeviceSessionCode: 'aparelho-a',
+    }),
+    false,
   );
 });
 

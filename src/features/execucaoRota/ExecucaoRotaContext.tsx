@@ -41,6 +41,7 @@ import {
   verificarDisponibilidadeRastreamento,
 } from './services/backgroundLocationTask';
 import {criarExecucaoRotaApi} from './services/execucaoRotaApi';
+import {registrarTelemetriaRota} from './services/backgroundRouteSynchronization';
 import {obterConfiguracaoMonitoramentoRota} from './services/configuracaoMonitoramentoRotaApi';
 import {
   adicionarPontosRastreamento,
@@ -74,6 +75,30 @@ const ExecucaoRotaContext =
   createContext<ExecucaoRotaContextValue | null>(
     null,
   );
+
+const INITIAL_SYNCHRONIZATION_GRACE_MS = 1_500;
+
+/**
+ * Dá à rede uma janela curta para registrar o início e o primeiro ponto antes
+ * de abrir Maps/Waze. O prazo nunca bloqueia o uso offline da navegação.
+ */
+async function waitForInitialSynchronization(
+  operation: Promise<void>,
+): Promise<void> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  await Promise.race([
+    operation.catch(() => undefined),
+    new Promise<void>(resolve => {
+      timeoutId = setTimeout(
+        resolve,
+        INITIAL_SYNCHRONIZATION_GRACE_MS,
+      );
+    }),
+  ]);
+
+  if (timeoutId) clearTimeout(timeoutId);
+}
 
 
 export function ExecucaoRotaProvider({
@@ -390,6 +415,12 @@ export function ExecucaoRotaProvider({
           setIndisponibilidadeLocalizacao(
             availability,
           );
+          void registrarTelemetriaRota(
+            active.codigoSessao,
+            availability.motivo === 'localizacao_desativada'
+              ? 'gps_indisponivel'
+              : 'permissao_revogada',
+          );
           return;
         }
 
@@ -400,7 +431,15 @@ export function ExecucaoRotaProvider({
 
         try {
           await iniciarRastreamentoLocalizacao();
+          void registrarTelemetriaRota(
+            active.codigoSessao,
+            'aplicativo_primeiro_plano',
+          );
         } catch (error: unknown) {
+          void registrarTelemetriaRota(
+            active.codigoSessao,
+            'servico_interrompido',
+          );
           appLogger.warn(
             'Não foi possível restaurar o registro do percurso:',
             error,
@@ -639,7 +678,15 @@ export function ExecucaoRotaProvider({
           }
 
           await iniciarRastreamentoLocalizacao();
+          void registrarTelemetriaRota(
+            execution.codigoSessao,
+            'rastreamento_confirmado',
+          );
         } catch (trackingError: unknown) {
+          void registrarTelemetriaRota(
+            execution.codigoSessao,
+            'servico_interrompido',
+          );
           await finishLocalExecution(
             execution,
             STATUS_EXECUCAO_ROTA.INTERROMPIDA,
@@ -657,6 +704,10 @@ export function ExecucaoRotaProvider({
         }
 
         setExecucaoAtiva(execution);
+
+        await waitForInitialSynchronization(
+          synchronizeOwner(owner),
+        );
         scheduleSynchronization(owner);
 
         return {
@@ -685,6 +736,7 @@ export function ExecucaoRotaProvider({
       deviceSession?.codigoSessao,
       owner,
       scheduleSynchronization,
+      synchronizeOwner,
     ],
   );
 

@@ -5,6 +5,10 @@ import {Platform} from 'react-native';
 import {appLogger} from '../../../shared/logging/appLogger';
 import type {NovoPontoRastreamento} from '../models/ExecucaoRota';
 import {registrarPontosExecucaoRota} from '../useCases/registrarPontosExecucaoRota';
+import {
+  registrarTelemetriaRota,
+  sincronizarRotaEmSegundoPlano,
+} from './backgroundRouteSynchronization';
 
 export const ROUTE_LOCATION_TASK =
   'drogal-route-location-tracking';
@@ -163,10 +167,20 @@ if (!TaskManager.isTaskDefined(ROUTE_LOCATION_TASK)) {
         if (result.concluidaAutomaticamente) {
           await pararRastreamentoLocalizacao();
         }
-      } catch (storageError: unknown) {
+
+        if (result.codigoSessao) {
+          await registrarTelemetriaRota(
+            result.codigoSessao,
+            'localizacao_recebida',
+          );
+          await sincronizarRotaEmSegundoPlano(
+            result.codigoSessao,
+          );
+        }
+      } catch (processingError: unknown) {
         appLogger.error(
-          'Erro ao armazenar pontos da rota:',
-          storageError,
+          'Erro ao processar o lote de localização da rota:',
+          processingError,
         );
       }
     },

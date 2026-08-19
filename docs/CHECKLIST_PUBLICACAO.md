@@ -79,6 +79,10 @@ yarn build-android:store
 - monitoramento desligado: somente Maps/Waze;
 - monitoramento ligado: prévia, início, segundo plano, perda de rede, retorno,
   finalização integral/parcial e sincronização;
+- com Maps/Waze aberto, confirmar no Strapi que `POST /segmentos` continua
+  chegando e que o marcador do painel muda sem reabrir o AppRotas;
+- sem rede, confirmar que nenhum ponto é perdido e que os lotes aparecem após
+  a reconexão;
 - histórico contém somente o usuário autenticado;
 - localização negada/desligada abre configurações;
 - atualização obrigatória baixa e instala o artefato correto.

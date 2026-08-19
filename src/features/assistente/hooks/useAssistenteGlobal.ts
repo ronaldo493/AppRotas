@@ -66,6 +66,8 @@ interface UseAssistenteGlobalReturn {
   abrir: () => void;
   fechar: () => void;
   ouvir: () => Promise<void>;
+  ouvirResposta: () => Promise<void>;
+  enviarTexto: (texto: string) => void;
   alterarRespostasFaladas: (ativas: boolean) => Promise<void>;
   executarAcaoRapida: (
     texto: string,
@@ -272,7 +274,7 @@ export default function useAssistenteGlobal({
     setRotas,
     solicitarTracado,
   } = useRotasContext();
-  const {falar, parar: pararFala} = useAssistenteFalante();
+  const {falar, ouvirMesmoDesativado, parar: pararFala} = useAssistenteFalante();
 
   const [visivel, setVisivel] = useState(false);
   const [processando, setProcessando] = useState(false);
@@ -872,9 +874,19 @@ export default function useAssistenteGlobal({
     (
       transcricoes: readonly string[],
       origemEntrada: OrigemMetricaAssistente = 'LOCAL',
+      tipoEntrada: 'voz' | 'texto' | 'atalho' = 'voz',
     ): void => {
       const primeiraTranscricao = transcricoes[0]?.trim() ?? '';
       setTranscricao(primeiraTranscricao);
+      if (primeiraTranscricao && tipoEntrada !== 'atalho') {
+        registrarMetricaUso(
+          'LOCAL',
+          'SUCESSO',
+          'adocao',
+          tipoEntrada === 'texto' ? 'pergunta_digitada' : 'pergunta_falada',
+          Date.now(),
+        );
+      }
 
       void (async () => {
         const iniciadoEm = Date.now();
@@ -1071,10 +1083,20 @@ export default function useAssistenteGlobal({
 
   const executarSugestao = useCallback(
     (texto: string): void => {
-      handleTranscricoes([texto], 'ATALHO');
+      handleTranscricoes([texto], 'ATALHO', 'atalho');
     },
     [handleTranscricoes],
   );
+
+  const enviarTexto = useCallback((texto: string): void => {
+    const pergunta = texto.replace(/\s+/g, ' ').trim().slice(0, 320);
+    if (!pergunta || processando) return;
+    handleTranscricoes([pergunta], 'LOCAL', 'texto');
+  }, [handleTranscricoes, processando]);
+
+  const ouvirResposta = useCallback(async (): Promise<void> => {
+    await ouvirMesmoDesativado(mensagem);
+  }, [mensagem, ouvirMesmoDesativado]);
 
   return {
     visivel,
@@ -1089,6 +1111,8 @@ export default function useAssistenteGlobal({
     abrir,
     fechar,
     ouvir,
+    ouvirResposta,
+    enviarTexto,
     alterarRespostasFaladas,
     executarAcaoRapida,
     executarSugestao,

@@ -13,6 +13,7 @@ export type PeriodoAssistenteOrquestrador =
   | 'hoje'
   | 'ontem'
   | 'ultimos_7_dias'
+  | 'ultimos_30_dias'
   | 'mes_atual'
   | 'geral';
 export type ResultadoRotaAssistenteOrquestrador =

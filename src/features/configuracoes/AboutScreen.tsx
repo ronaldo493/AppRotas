@@ -2,6 +2,7 @@ import type {DrawerScreenProps} from '@react-navigation/drawer';
 import Constants from 'expo-constants';
 import React from 'react';
 import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import type {DrawerParamList} from '../../application/navigation/navigationTypes';
 import {useAppTheme} from '../../core/theme/appTheme';
@@ -11,12 +12,16 @@ type AboutProps = DrawerScreenProps<DrawerParamList, 'Sobre'>;
 
 export default function AboutScreen({ navigation }: AboutProps): React.JSX.Element {
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
   const currentVersion = Constants.expoConfig?.version ?? 'Não informada';
 
   return (
     <ScrollView
       style={{ backgroundColor: theme.colors.background }}
-      contentContainerStyle={AboutStyles.container}
+      contentContainerStyle={[
+        AboutStyles.container,
+        {paddingBottom: Math.max(insets.bottom + 20, 28)},
+      ]}
       showsVerticalScrollIndicator={false}
     >
       <View style={AboutStyles.header}>

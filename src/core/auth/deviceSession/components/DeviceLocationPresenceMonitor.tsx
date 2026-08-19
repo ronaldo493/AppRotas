@@ -13,7 +13,7 @@ const MAX_LOCATION_ACCURACY_METERS = 500;
 
 /**
  * Atualiza a última posição conhecida apenas enquanto o aplicativo está em
- * primeiro plano. Uma rota ativa continua usando seu rastreamento próprio.
+ * primeiro plano. A rota ativa e o mapa administrativo usam seus segmentos.
  */
 export default function DeviceLocationPresenceMonitor(): React.JSX.Element | null {
   const {token, user, deviceSession} = useAuthContext();
