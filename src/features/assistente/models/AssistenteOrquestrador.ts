@@ -25,6 +25,21 @@ export type ResultadoRotaAssistenteOrquestrador =
   | 'evidencia_insuficiente'
   | 'nao_iniciada';
 
+export interface EsclarecimentoPendenteAssistenteOrquestrador {
+  ferramenta: Exclude<DominioAssistenteOrquestrador, 'sistema'>;
+  acao: string;
+  parametro: 'termo' | 'termoComparacao';
+  parametros: {
+    termo?: string;
+    termoComparacao?: string;
+    campo?: string;
+    periodo?: PeriodoAssistenteOrquestrador;
+    resultado?: ResultadoRotaAssistenteOrquestrador;
+    quantidade?: number;
+  };
+  opcoes: Array<{valor: string; rotulo: string}>;
+}
+
 export interface MemoriaAssistenteOrquestrador {
   ultimoDominio?: Exclude<DominioAssistenteOrquestrador, 'sistema'>;
   ultimaAcao?: string;
@@ -32,8 +47,11 @@ export interface MemoriaAssistenteOrquestrador {
   ultimoTermo?: string;
   ultimoColaborador?: string;
   ultimoColaboradorId?: number;
+  ultimoColaboradorComparacao?: string;
+  ultimoColaboradorComparacaoId?: number;
   ultimoPeriodo?: PeriodoAssistenteOrquestrador;
   ultimoResultadoRota?: ResultadoRotaAssistenteOrquestrador;
+  esclarecimentoPendente?: EsclarecimentoPendenteAssistenteOrquestrador;
 }
 
 export interface BlocoAssistenteOrquestrador {
@@ -55,4 +73,9 @@ export interface RespostaAssistenteOrquestrador {
   memoria: MemoriaAssistenteOrquestrador;
   precisaEsclarecimento: boolean;
   esclarecimento: string | null;
+  resultadoNegocio:
+    | 'ENCONTRADO'
+    | 'SEM_RESULTADO'
+    | 'AMBIGUO'
+    | 'NAO_COMPREENDIDO';
 }

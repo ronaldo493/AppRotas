@@ -17,6 +17,7 @@ import LocalizacaoRotaGuard from '../../features/execucaoRota/components/Localiz
 import ForcedPasswordChangeGate from '../../core/auth/forcedPasswordChange/components/ForcedPasswordChangeGate';
 import DeviceSessionMonitor from '../../core/auth/deviceSession/components/DeviceSessionMonitor';
 import DeviceLocationPresenceMonitor from '../../core/auth/deviceSession/components/DeviceLocationPresenceMonitor';
+import AppUsageMonitor from '../../core/metrics/appUsage/components/AppUsageMonitor';
 
 function AppWithTheme() {
   const { isDarkMode } = useThemeContext();
@@ -30,6 +31,7 @@ function AppWithTheme() {
     <PaperProvider theme={theme}>
       <DeviceSessionMonitor />
       <DeviceLocationPresenceMonitor />
+      <AppUsageMonitor />
       <ForcedPasswordChangeGate>
         <AppDataProviders>
           <LocationProvider>

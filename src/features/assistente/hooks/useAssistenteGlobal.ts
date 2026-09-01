@@ -12,6 +12,7 @@ import type {MenuRouteName} from '../../../application/navigation/menuRegistry';
 import type {Filial} from '../../filiais/models/Filial';
 import useStrapiClient from '../../../core/api/strapiClient';
 import {useAuthContext} from '../../../core/auth/AuthContext';
+import {getAuthUserKey} from '../../../core/auth/getAuthUserKey';
 import {useAssistentePreferences} from '../context/AssistentePreferencesContext';
 import {useThemeContext} from '../../../core/theme/ThemeContext';
 import {resolveMenuNavigation} from '../../../application/navigation/menuRegistry';
@@ -29,12 +30,12 @@ import {
   limparCacheAssistenteOrquestrador,
 } from '../services/assistenteOrquestradorApi';
 import {
-  solicitarInterpretacaoAssistenteIa,
-  type InteracaoRecenteAssistenteIa,
-} from '../services/assistenteIaApi';
-import {
+  criarCodigoInteracaoAssistente,
   registrarMetricaAssistente,
+  type CanalEntradaAssistente,
+  type MotorResolucaoAssistente,
   type OrigemMetricaAssistente,
+  type ResultadoNegocioAssistente,
   type ResultadoMetricaAssistente,
 } from '../services/metricaAssistenteApi';
 import {
@@ -43,7 +44,6 @@ import {
 } from '../useCases/aguardarDadosAssistente';
 import {interpretarComandoAssistente} from '../useCases/interpretarComandoAssistente';
 import {deveConsultarOrquestrador} from '../useCases/deveConsultarOrquestrador';
-import useChamadosAssistenteHandler from '../handlers/useChamadosAssistenteHandler';
 import useContatosAssistenteHandler from '../handlers/useContatosAssistenteHandler';
 import useFiliaisAssistenteHandler from '../handlers/useFiliaisAssistenteHandler';
 import useHistoricoAssistenteHandler from '../handlers/useHistoricoAssistenteHandler';
@@ -55,6 +55,7 @@ import useReconhecimentoVoz, {
 
 interface UseAssistenteGlobalReturn {
   visivel: boolean;
+  capturaCompacta: boolean;
   ativo: boolean;
   ouvindo: boolean;
   processando: boolean;
@@ -66,6 +67,7 @@ interface UseAssistenteGlobalReturn {
   abrir: () => void;
   fechar: () => void;
   ouvir: () => Promise<void>;
+  ouvirSemAbrir: () => Promise<void>;
   ouvirResposta: () => Promise<void>;
   enviarTexto: (texto: string) => void;
   alterarRespostasFaladas: (ativas: boolean) => Promise<void>;
@@ -78,7 +80,6 @@ interface UseAssistenteGlobalReturn {
 }
 
 interface UseAssistenteGlobalParams {
-  iaHabilitada: boolean;
   orquestradorHabilitado: boolean;
 }
 
@@ -87,15 +88,13 @@ const MENSAGEM_INICIAL =
 
 const ORIENTACOES: Record<TopicoAjudaAssistente, string> = {
   rotas:
-    'Diga os números na ordem da visita, por exemplo: primeiro 25, depois 35 e por fim 48. Você também pode reorganizar a rota, contar filiais por cidade e consultar endereço, telefone, horário, gerente, supervisor e CNPJ de uma loja.',
+    'Diga os números na ordem da visita, por exemplo: trace uma rota para 25, 35 e 48 pelo Google Maps. Eu calculo tempo e distância, abro o navegador e também posso reorganizar, consultar ou desfazer alterações na lista.',
   pontos:
     'Peça o restaurante ou posto mais próximo, ou procure pelo nome e pela cidade. Para iniciar uma rota, eu sempre mostro uma confirmação antes de continuar.',
   contatos:
     'Peça pelo nome, departamento, ramal, DDR ou e-mail. Também posso listar departamentos e pessoas. Depois de um resultado, continue com: e o ramal dela? ou quem mais trabalha nesse departamento?',
   historico:
     'Consulte hoje, ontem, os últimos sete dias, este mês ou a visita mais recente. Você também pode filtrar por filiais, restaurantes ou postos.',
-  chamados:
-    'Eu posso informar um resumo dos chamados do seu setor ou abrir a tela de chamados. A alteração dos chamados continua sendo feita no fluxo próprio da tela.',
   preventiva:
     'Abra Patrimônio, selecione a filial e preencha o registro do serviço e dos equipamentos.',
   perfil:
@@ -138,11 +137,6 @@ const CAPACIDADES_POR_MENU: readonly CapacidadeAssistente[] = [
     descricao:
       'Consultar períodos, tipos de destino e a visita mais recente.',
     resumoFalado: 'resumir seu histórico',
-  },
-  {
-    rota: 'Chamados',
-    descricao: 'Consultar o resumo dos chamados do seu setor.',
-    resumoFalado: 'consultar chamados',
   },
   {
     rota: 'Patrimonio',
@@ -233,7 +227,6 @@ const DESTINO_PARA_ROTA: Partial<
   historico: 'Historico',
   pontos: 'Pontos',
   preventiva: 'Patrimonio',
-  chamados: 'Chamados',
   contatos: 'Contatos',
   admin: 'Admin',
 };
@@ -244,7 +237,6 @@ const ROTULO_DESTINO: Record<DestinoAssistente, string> = {
   historico: 'histórico',
   pontos: 'pontos de interesse',
   preventiva: 'patrimônio',
-  chamados: 'chamados',
   contatos: 'contatos',
   admin: 'área administrativa',
   perfil: 'perfil',
@@ -253,17 +245,16 @@ const ROTULO_DESTINO: Record<DestinoAssistente, string> = {
 
 const LIMITE_ESPERA_INTERATIVA_MS = 10_000;
 const ATRASO_FEEDBACK_CARREGAMENTO_MS = 600;
-const LIMITE_MEMORIA_IA = 4;
 
 /**
  * Centraliza a conversa e distribui cada intenção para o módulo responsável.
  */
 export default function useAssistenteGlobal({
-  iaHabilitada,
   orquestradorHabilitado,
 }: UseAssistenteGlobalParams): UseAssistenteGlobalReturn {
   const client = useStrapiClient();
   const {user} = useAuthContext();
+  const userKey = getAuthUserKey(user);
   const {isDarkMode, toggleTheme} = useThemeContext();
   const {
     respostasFaladasAtivas,
@@ -277,12 +268,13 @@ export default function useAssistenteGlobal({
   const {falar, ouvirMesmoDesativado, parar: pararFala} = useAssistenteFalante();
 
   const [visivel, setVisivel] = useState(false);
+  const [capturaCompacta, setCapturaCompacta] = useState(false);
+  const capturaCompactaRef = useRef(false);
   const [processando, setProcessando] = useState(false);
   const [transcricao, setTranscricao] = useState<string | null>(null);
   const [mensagem, setMensagem] = useState(MENSAGEM_INICIAL);
   const [sugestaoVisivel, setSugestaoVisivel] = useState(false);
   const [sugestoesDinamicas, setSugestoesDinamicas] = useState<string[]>([]);
-  const memoriaIaRef = useRef<InteracaoRecenteAssistenteIa[]>([]);
   const memoriaOrquestradorRef = useRef<MemoriaAssistenteOrquestrador>({});
 
   /** Registra uma interação concluída sem enviar a frase pronunciada. */
@@ -293,6 +285,14 @@ export default function useAssistenteGlobal({
       dominio: string,
       acao: string,
       iniciadoEm: number,
+      detalhes: {
+        codigoInteracao?: string;
+        etapa?: 'CLIENTE_ADOCAO' | 'CLIENTE_ENTRADA' | 'CLIENTE_RESPOSTA';
+        canalEntrada?: CanalEntradaAssistente;
+        motorResolucao?: MotorResolucaoAssistente;
+        resultadoNegocio?: ResultadoNegocioAssistente;
+        motivoFalha?: string;
+      } = {},
     ): void => {
       registrarMetricaAssistente(client, {
         tela: getCurrentRouteName() ?? 'Desconhecida',
@@ -302,40 +302,18 @@ export default function useAssistenteGlobal({
         acao,
         tempoRespostaMs: Date.now() - iniciadoEm,
         versaoApp: Constants.expoConfig?.version,
-      });
+        resultadoTecnico: resultado === 'ERRO' ? 'ERRO' : 'SUCESSO',
+        ...detalhes,
+      }, userKey);
     },
-    [client],
+    [client, userKey],
   );
 
   useEffect(() => {
-    memoriaIaRef.current = [];
     memoriaOrquestradorRef.current = {};
     setSugestoesDinamicas([]);
     limparCacheAssistenteOrquestrador();
   }, [user?.username]);
-
-  /**
-   * Mantém somente a fala e a intenção recente em memória volátil. Respostas,
-   * e-mails, telefones e outros dados consultados nunca são enviados à IA.
-   */
-  const registrarInteracaoIa = useCallback(
-    (texto: string, comando?: ComandoAssistente): void => {
-      const textoUsuario = texto.replace(/\s+/g, ' ').trim().slice(0, 320);
-      if (!textoUsuario) return;
-
-      memoriaIaRef.current = [
-        ...memoriaIaRef.current,
-        {
-          textoUsuario,
-          ...(comando ? {
-            dominio: comando.dominio,
-            acao: comando.acao,
-          } : {}),
-        },
-      ].slice(-LIMITE_MEMORIA_IA);
-    },
-    [],
-  );
 
   const menusPermitidos = useMemo(
     () =>
@@ -348,10 +326,24 @@ export default function useAssistenteGlobal({
   const responder = useCallback(
     (texto: string, textoFalado = texto): void => {
       setMensagem(texto);
-      setVisivel(true);
+      if (!capturaCompactaRef.current) setVisivel(true);
       if (textoFalado) void falar(textoFalado);
     },
     [falar],
+  );
+
+  /**
+   * Feedback de uma rota solicitada à assistente deve ser audível mesmo que a
+   * preferência de respostas automáticas esteja desligada. O pedido explícito
+   * de navegação funciona como consentimento para essa resposta pontual.
+   */
+  const responderFluxoRota = useCallback(
+    (texto: string, textoFalado = texto): void => {
+      setMensagem(texto);
+      if (!capturaCompactaRef.current) setVisivel(true);
+      if (textoFalado) void ouvirMesmoDesativado(textoFalado);
+    },
+    [ouvirMesmoDesativado],
   );
 
   const aguardarComFeedback = useCallback(
@@ -375,7 +367,9 @@ export default function useAssistenteGlobal({
     [responder],
   );
 
-  const solicitarFluxoRota = useCallback((): void => {
+  const solicitarFluxoRota = useCallback((opcoes?: {
+    navegador?: 'google' | 'waze';
+  }): void => {
     const aberto = navigateToMenu('Home');
 
     if (!aberto) {
@@ -383,9 +377,14 @@ export default function useAssistenteGlobal({
       return;
     }
 
-    solicitarTracado();
-    setVisivel(false);
-  }, [responder, solicitarTracado]);
+    solicitarTracado({
+      modo: 'direto',
+      ...(opcoes?.navegador
+        ? {navegador: opcoes.navegador}
+        : {}),
+      onFeedback: responderFluxoRota,
+    });
+  }, [responder, responderFluxoRota, solicitarTracado]);
 
   const atualizarRota = useCallback(
     (proximasRotas: readonly Filial[]): void => {
@@ -503,12 +502,6 @@ export default function useAssistenteGlobal({
     temAcesso,
     informarAcessoNegado,
   });
-  const {consultarChamados} = useChamadosAssistenteHandler({
-    responder,
-    temAcesso,
-    informarAcessoNegado,
-  });
-
   /** Persiste a preferência de áudio sem acoplar o assistente à Sidebar. */
   const alterarRespostasFaladas = useCallback(
     async (ativas: boolean): Promise<void> => {
@@ -626,11 +619,6 @@ export default function useAssistenteGlobal({
         return true;
       }
 
-      if (comando.dominio === 'chamados') {
-        await consultarChamados();
-        return true;
-      }
-
       if (comando.dominio === 'preferencias') {
         if (comando.acao === 'consultar_voz') {
           responder(
@@ -704,7 +692,6 @@ export default function useAssistenteGlobal({
       buscarPontoPorNome,
       cancelarAcaoPendente,
       confirmarRotaPonto,
-      consultarChamados,
       consultarFiliais,
       consultarContato,
       consultarHistorico,
@@ -732,9 +719,10 @@ export default function useAssistenteGlobal({
   const tentarProcessarLocalmente = useCallback(
     async (
       transcricoes: readonly string[],
-      textoMemoria = transcricoes[0] ?? '',
       origemMetrica: OrigemMetricaAssistente = 'LOCAL',
       iniciadoEm = Date.now(),
+      codigoInteracao = criarCodigoInteracaoAssistente(),
+      canalEntrada: CanalEntradaAssistente = 'VOZ',
     ): Promise<boolean> => {
       const contextoContato = obterContextoContato();
       const contextoFilial = obterContextoFilial();
@@ -751,13 +739,19 @@ export default function useAssistenteGlobal({
       if (interpretacaoGlobal) {
         const processado = await executarComandoGlobal(interpretacaoGlobal);
         if (processado) {
-          registrarInteracaoIa(textoMemoria, interpretacaoGlobal.comando);
           registrarMetricaUso(
             origemMetrica,
             'SUCESSO',
             interpretacaoGlobal.comando.dominio,
             interpretacaoGlobal.comando.acao,
             iniciadoEm,
+            {
+              codigoInteracao,
+              etapa: 'CLIENTE_RESPOSTA',
+              canalEntrada,
+              motorResolucao: 'REACT_NATIVE_LOCAL',
+              resultadoNegocio: 'ENCONTRADO',
+            },
           );
           return true;
         }
@@ -767,13 +761,19 @@ export default function useAssistenteGlobal({
         ? comandosRota.tentarProcessarTranscricoes(transcricoes)
         : false;
       if (processadoComoRota) {
-        registrarInteracaoIa(textoMemoria);
         registrarMetricaUso(
           origemMetrica,
           'SUCESSO',
           'rotas',
           'comando_voz',
           iniciadoEm,
+          {
+            codigoInteracao,
+            etapa: 'CLIENTE_RESPOSTA',
+            canalEntrada,
+            motorResolucao: 'REACT_NATIVE_LOCAL',
+            resultadoNegocio: 'ENCONTRADO',
+          },
         );
       }
       return processadoComoRota;
@@ -784,7 +784,6 @@ export default function useAssistenteGlobal({
       obterContextoContato,
       obterContextoFilial,
       possuiUltimoPonto,
-      registrarInteracaoIa,
       registrarMetricaUso,
       temAcesso,
     ],
@@ -800,6 +799,7 @@ export default function useAssistenteGlobal({
 
       void (async () => {
         const iniciadoEm = Date.now();
+        const codigoInteracao = criarCodigoInteracaoAssistente();
         setProcessando(true);
         try {
           const processado = await executarComandoGlobal({
@@ -807,13 +807,19 @@ export default function useAssistenteGlobal({
             transcricao: texto,
           });
           if (processado) {
-            registrarInteracaoIa(texto, comando);
             registrarMetricaUso(
               'ATALHO',
               'SUCESSO',
               comando.dominio,
               comando.acao,
               iniciadoEm,
+              {
+                codigoInteracao,
+                etapa: 'CLIENTE_RESPOSTA',
+                canalEntrada: 'ATALHO',
+                motorResolucao: 'REACT_NATIVE_LOCAL',
+                resultadoNegocio: 'ENCONTRADO',
+              },
             );
           } else {
             registrarMetricaUso(
@@ -822,6 +828,13 @@ export default function useAssistenteGlobal({
               comando.dominio,
               comando.acao,
               iniciadoEm,
+              {
+                codigoInteracao,
+                etapa: 'CLIENTE_RESPOSTA',
+                canalEntrada: 'ATALHO',
+                motorResolucao: 'REACT_NATIVE_LOCAL',
+                resultadoNegocio: 'NAO_COMPREENDIDO',
+              },
             );
           }
         } finally {
@@ -829,23 +842,30 @@ export default function useAssistenteGlobal({
         }
       })();
     },
-    [executarComandoGlobal, registrarInteracaoIa, registrarMetricaUso],
+    [executarComandoGlobal, registrarMetricaUso],
   );
 
   /**
    * Consulta o backend server-driven. Uma resposta ausente ou inválida não
-   * encerra a interação: o interpretador local e o fallback legado continuam.
+   * encerra a interação: o interpretador local continua disponível.
    */
   const tentarProcessarNoOrquestrador = useCallback(
     async (
       transcricoes: readonly string[],
       iniciadoEm: number,
+      codigoInteracao: string,
+      canalEntrada: CanalEntradaAssistente,
     ): Promise<boolean> => {
       if (!orquestradorHabilitado || !transcricoes[0]?.trim()) return false;
       const feedbackTimer = setTimeout(() => {
         setMensagem('Consultando os dados…');
       }, ATRASO_FEEDBACK_CARREGAMENTO_MS);
       const resposta = await conversarComAssistenteOrquestrador(client, {
+        codigoInteracao,
+        canalEntrada:
+          canalEntrada === 'SUGESTAO' || canalEntrada === 'SISTEMA'
+            ? 'ATALHO'
+            : canalEntrada,
         transcricoes,
         telaAtual: getCurrentRouteName(),
         memoria: memoriaOrquestradorRef.current,
@@ -864,6 +884,16 @@ export default function useAssistenteGlobal({
         resposta.dominio,
         resposta.acao,
         iniciadoEm,
+        {
+          codigoInteracao,
+          etapa: 'CLIENTE_RESPOSTA',
+          canalEntrada,
+          motorResolucao:
+            resposta.fonte === 'GEMINI'
+              ? 'GEMINI'
+              : 'STRAPI_DETERMINISTICO',
+          resultadoNegocio: resposta.resultadoNegocio,
+        },
       );
       return true;
     },
@@ -877,6 +907,13 @@ export default function useAssistenteGlobal({
       tipoEntrada: 'voz' | 'texto' | 'atalho' = 'voz',
     ): void => {
       const primeiraTranscricao = transcricoes[0]?.trim() ?? '';
+      const codigoInteracao = criarCodigoInteracaoAssistente();
+      const canalEntrada: CanalEntradaAssistente =
+        tipoEntrada === 'texto'
+          ? 'TEXTO'
+          : tipoEntrada === 'atalho'
+            ? 'ATALHO'
+            : 'VOZ';
       setTranscricao(primeiraTranscricao);
       if (primeiraTranscricao && tipoEntrada !== 'atalho') {
         registrarMetricaUso(
@@ -885,6 +922,12 @@ export default function useAssistenteGlobal({
           'adocao',
           tipoEntrada === 'texto' ? 'pergunta_digitada' : 'pergunta_falada',
           Date.now(),
+          {
+            codigoInteracao,
+            etapa: 'CLIENTE_ENTRADA',
+            canalEntrada,
+            resultadoNegocio: 'NAO_APLICAVEL',
+          },
         );
       }
 
@@ -896,10 +939,18 @@ export default function useAssistenteGlobal({
           let orquestradorConsultado = false;
           if (
             orquestradorHabilitado &&
-            deveConsultarOrquestrador(primeiraTranscricao)
+            (
+              Boolean(memoriaOrquestradorRef.current.esclarecimentoPendente) ||
+              deveConsultarOrquestrador(primeiraTranscricao)
+            )
           ) {
             orquestradorConsultado = true;
-            if (await tentarProcessarNoOrquestrador(transcricoes, iniciadoEm)) {
+            if (await tentarProcessarNoOrquestrador(
+              transcricoes,
+              iniciadoEm,
+              codigoInteracao,
+              canalEntrada,
+            )) {
               return;
             }
           }
@@ -907,112 +958,57 @@ export default function useAssistenteGlobal({
           if (
             await tentarProcessarLocalmente(
               transcricoes,
-              primeiraTranscricao,
               origemEntrada,
               iniciadoEm,
+              codigoInteracao,
+              canalEntrada,
             )
           ) return;
 
           if (
             orquestradorHabilitado &&
             !orquestradorConsultado &&
-            await tentarProcessarNoOrquestrador(transcricoes, iniciadoEm)
+            await tentarProcessarNoOrquestrador(
+              transcricoes,
+              iniciadoEm,
+              codigoInteracao,
+              canalEntrada,
+            )
           ) return;
-
-          if (iaHabilitada && primeiraTranscricao) {
-            const feedbackTimer = setTimeout(() => {
-              setMensagem('Estou interpretando o seu pedido…');
-            }, ATRASO_FEEDBACK_CARREGAMENTO_MS);
-
-            try {
-              const contextoContatoIa = obterContextoContato();
-              const contextoFilialIa = obterContextoFilial();
-              const respostaIa = await solicitarInterpretacaoAssistenteIa(
-                client,
-                {
-                  transcricoes,
-                  telaAtual: getCurrentRouteName(),
-                  contextoConversa: {
-                    interacoesRecentes: memoriaIaRef.current,
-                    rotaAtual: rotas.map(filial => filial.codigofilial),
-                    possuiUltimoPonto: possuiUltimoPonto(),
-                    possuiUltimoContato:
-                      contextoContatoIa.possuiUltimoContato === true,
-                    possuiUltimaFilial:
-                      contextoFilialIa.possuiUltimaFilial === true,
-                    ultimoDepartamento: contextoContatoIa.ultimoDepartamento,
-                  },
-                },
-              );
-
-              if (respostaIa.interpretado && respostaIa.comando) {
-                const processado = await executarComandoGlobal({
-                  comando: respostaIa.comando,
-                  transcricao: primeiraTranscricao,
-                });
-                if (processado) {
-                  registrarInteracaoIa(
-                    primeiraTranscricao,
-                    respostaIa.comando,
-                  );
-                  registrarMetricaUso(
-                    'GEMINI',
-                    'SUCESSO',
-                    respostaIa.comando.dominio,
-                    respostaIa.comando.acao,
-                    iniciadoEm,
-                  );
-                  return;
-                }
-              }
-
-              if (
-                respostaIa.interpretado &&
-                respostaIa.comandoCanonico &&
-                await tentarProcessarLocalmente([
-                  respostaIa.comandoCanonico,
-                ], primeiraTranscricao, 'GEMINI', iniciadoEm)
-              ) {
-                return;
-              }
-
-              if (
-                respostaIa.precisaEsclarecimento &&
-                respostaIa.esclarecimento
-              ) {
-                responder(respostaIa.esclarecimento);
-                registrarMetricaUso(
-                  'GEMINI',
-                  'ESCLARECIMENTO',
-                  'sistema',
-                  'esclarecer',
-                  iniciadoEm,
-                );
-                return;
-              }
-            } finally {
-              clearTimeout(feedbackTimer);
-            }
-          }
 
           if (!temAcesso('Home')) {
             informarAcessoNegado('rotas');
             registrarMetricaUso(
-              iaHabilitada ? 'GEMINI' : origemEntrada,
+              origemEntrada,
               'ERRO',
               'sistema',
               'acesso_negado',
               iniciadoEm,
+              {
+                codigoInteracao,
+                etapa: 'CLIENTE_RESPOSTA',
+                canalEntrada,
+                motorResolucao: 'REACT_NATIVE_LOCAL',
+                resultadoNegocio: 'NAO_AUTORIZADO',
+                motivoFalha: 'acesso_negado',
+              },
             );
             return;
           }
 
           registrarMetricaUso(
-            iaHabilitada ? 'GEMINI' : origemEntrada,
+            origemEntrada,
             'NAO_COMPREENDIDO',
             'sistema',
             'comando_nao_reconhecido',
             iniciadoEm,
+            {
+              codigoInteracao,
+              etapa: 'CLIENTE_RESPOSTA',
+              canalEntrada,
+              motorResolucao: 'FALLBACK',
+              resultadoNegocio: 'NAO_COMPREENDIDO',
+            },
           );
           comandosRota.processarTranscricoes(transcricoes);
         } finally {
@@ -1023,16 +1019,10 @@ export default function useAssistenteGlobal({
     [
       client,
       comandosRota,
-      iaHabilitada,
       informarAcessoNegado,
-      obterContextoContato,
-      obterContextoFilial,
       orquestradorHabilitado,
-      possuiUltimoPonto,
-      registrarInteracaoIa,
       registrarMetricaUso,
       responder,
-      rotas,
       temAcesso,
       tentarProcessarLocalmente,
       tentarProcessarNoOrquestrador,
@@ -1055,6 +1045,14 @@ export default function useAssistenteGlobal({
         'reconhecimento',
         erro,
         Date.now(),
+        {
+          codigoInteracao: criarCodigoInteracaoAssistente(),
+          etapa: 'CLIENTE_RESPOSTA',
+          canalEntrada: 'VOZ',
+          motorResolucao: 'REACT_NATIVE_LOCAL',
+          resultadoNegocio: 'INDISPONIVEL',
+          motivoFalha: erro,
+        },
       );
     },
     [registrarMetricaUso, responder],
@@ -1066,18 +1064,33 @@ export default function useAssistenteGlobal({
   });
 
   const ouvir = useCallback(async (): Promise<void> => {
+    capturaCompactaRef.current = false;
+    setCapturaCompacta(false);
     setVisivel(true);
     await pararFala();
     await reconhecimento.alternarReconhecimento();
   }, [pararFala, reconhecimento.alternarReconhecimento]);
 
+  /** Inicia a captura pelo atalho da tela sem abrir o painel completo. */
+  const ouvirSemAbrir = useCallback(async (): Promise<void> => {
+    capturaCompactaRef.current = true;
+    setCapturaCompacta(true);
+    setVisivel(false);
+    await pararFala();
+    await reconhecimento.alternarReconhecimento();
+  }, [pararFala, reconhecimento.alternarReconhecimento]);
+
   const abrir = useCallback((): void => {
+    capturaCompactaRef.current = false;
+    setCapturaCompacta(false);
     setVisivel(true);
   }, []);
 
   const fechar = useCallback((): void => {
     reconhecimento.cancelarReconhecimento();
     void pararFala();
+    capturaCompactaRef.current = false;
+    setCapturaCompacta(false);
     setVisivel(false);
   }, [pararFala, reconhecimento.cancelarReconhecimento]);
 
@@ -1100,6 +1113,7 @@ export default function useAssistenteGlobal({
 
   return {
     visivel,
+    capturaCompacta,
     ativo: reconhecimento.ativo,
     ouvindo: reconhecimento.ouvindo,
     processando,
@@ -1111,6 +1125,7 @@ export default function useAssistenteGlobal({
     abrir,
     fechar,
     ouvir,
+    ouvirSemAbrir,
     ouvirResposta,
     enviarTexto,
     alterarRespostasFaladas,

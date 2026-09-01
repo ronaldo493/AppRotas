@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import React from 'react';
+import React, {type ReactNode} from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -26,6 +26,7 @@ interface SearchBarProps {
   usandoDadosSalvos: boolean;
   dadosOnlineIndisponiveis: boolean;
   cacheAtualizadoEm: number | null;
+  trailingAction?: ReactNode;
 }
 
 export default function SearchBar({
@@ -37,6 +38,7 @@ export default function SearchBar({
   usandoDadosSalvos,
   dadosOnlineIndisponiveis,
   cacheAtualizadoEm,
+  trailingAction,
 }: SearchBarProps): React.JSX.Element {
   const theme = useAppTheme();
   const cacheDate = cacheAtualizadoEm
@@ -109,6 +111,8 @@ export default function SearchBar({
             />
           </TouchableOpacity>
         )}
+
+        {trailingAction}
       </View>
 
       {loadingFiliais && (

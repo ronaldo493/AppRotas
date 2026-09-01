@@ -37,6 +37,16 @@ export interface SegmentoExecucaoRota {
   pontos: PontoRastreamento[];
 }
 
+export interface ResultadoEnvioSegmentoRota {
+  codigoLote: string;
+  recebido: boolean;
+  duplicado: boolean;
+  finalizadaAutomaticamente?: boolean;
+  situacaoExecucao?: string | null;
+  finalizadaEm?: string | null;
+  motivoFinalizacao?: string | null;
+}
+
 export interface ExecucaoRotaApi {
   iniciar: (
     execution: ExecucaoRota,
@@ -45,7 +55,7 @@ export interface ExecucaoRotaApi {
     codigoSessao: string,
     segment: SegmentoExecucaoRota,
     deviceSessionCode?: string | null,
-  ) => Promise<void>;
+  ) => Promise<ResultadoEnvioSegmentoRota>;
   finalizar: (
     execution: ExecucaoRota,
     summary: ResumoExecucaoRota,
@@ -143,7 +153,7 @@ export function criarExecucaoRotaApi(
       segment,
       deviceSessionCode,
     ) => {
-      await client.post(
+      const response = await client.post(
         `/execucoes-rotas/${encodeURIComponent(
           codigoSessao,
         )}/segmentos`,
@@ -172,6 +182,10 @@ export function criarExecucaoRotaApi(
               },
             }
           : undefined,
+      );
+
+      return unwrapResponse<ResultadoEnvioSegmentoRota>(
+        response.data,
       );
     },
 

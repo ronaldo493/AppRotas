@@ -11,12 +11,26 @@ import React, {
 } from 'react';
 
 import type {Filial} from '../filiais/models/Filial';
+import type {NavegadorRota} from '../execucaoRota/models/ExecucaoRota';
+
+export interface SolicitacaoTracadoRota {
+  id: number;
+  modo: 'previa' | 'direto';
+  navegador?: NavegadorRota;
+  onFeedback?: (texto: string, textoFalado?: string) => void;
+}
+
+export interface OpcoesSolicitacaoTracadoRota {
+  modo?: SolicitacaoTracadoRota['modo'];
+  navegador?: NavegadorRota;
+  onFeedback?: SolicitacaoTracadoRota['onFeedback'];
+}
 
 interface RotasContextValue {
   rotas: Filial[];
   setRotas: Dispatch<SetStateAction<Filial[]>>;
-  solicitacaoTracadoId: number;
-  solicitarTracado: () => void;
+  solicitacaoTracado: SolicitacaoTracadoRota | null;
+  solicitarTracado: (opcoes?: OpcoesSolicitacaoTracadoRota) => void;
 }
 
 const RotasContext = createContext<RotasContextValue | undefined>(undefined);
@@ -29,22 +43,30 @@ export function RotasProvider({
   children,
 }: PropsWithChildren): React.JSX.Element {
   const [rotas, setRotas] = useState<Filial[]>([]);
-  const [solicitacaoTracadoId, setSolicitacaoTracadoId] = useState(0);
+  const [solicitacaoTracado, setSolicitacaoTracado] =
+    useState<SolicitacaoTracadoRota | null>(null);
   const sequenciaRef = useRef(0);
 
-  const solicitarTracado = useCallback((): void => {
+  const solicitarTracado = useCallback((
+    opcoes: OpcoesSolicitacaoTracadoRota = {},
+  ): void => {
     sequenciaRef.current += 1;
-    setSolicitacaoTracadoId(sequenciaRef.current);
+    setSolicitacaoTracado({
+      id: sequenciaRef.current,
+      modo: opcoes.modo ?? 'previa',
+      ...(opcoes.navegador ? {navegador: opcoes.navegador} : {}),
+      ...(opcoes.onFeedback ? {onFeedback: opcoes.onFeedback} : {}),
+    });
   }, []);
 
   const value = useMemo(
     () => ({
       rotas,
       setRotas,
-      solicitacaoTracadoId,
+      solicitacaoTracado,
       solicitarTracado,
     }),
-    [rotas, solicitacaoTracadoId, solicitarTracado],
+    [rotas, solicitacaoTracado, solicitarTracado],
   );
 
   return (

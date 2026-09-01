@@ -20,6 +20,7 @@ export const deveConsultarOrquestrador = (texto: string): boolean => {
     'contato', 'ramal', 'departamento', 'restaurante', 'posto',
     'colaborador', 'funcionario', 'monitoramento', 'rotas de',
     'ultimas rotas', 'rotas dos ultimos', 'rotas nos ultimos',
-    'o que voce faz',
+    'o que voce faz', 'como foi', 'compare', 'comparacao', 'ranking',
+    'execucao', 'alerta', 'sem atualizacao',
   ].some(termo => valor.includes(termo));
 };

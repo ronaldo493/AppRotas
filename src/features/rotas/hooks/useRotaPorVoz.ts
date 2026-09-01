@@ -3,13 +3,18 @@ import Toast from 'react-native-toast-message';
 
 import useFiliais from '../../filiais/hooks/useFiliais';
 import type {Filial} from '../../filiais/models/Filial';
-import type {ReferenciaFilialVoz} from '../useCases/interpretarComandoVozRota';
+import type {
+  NavegadorComandoRota,
+  ReferenciaFilialVoz,
+} from '../useCases/interpretarComandoVozRota';
 import {selecionarComandoVozRota} from '../useCases/selecionarComandoVozRota';
 
 interface UseRotaPorVozOptions {
   rotas: readonly Filial[];
   onAtualizarRota: (rotas: readonly Filial[]) => void;
-  onTracarRota: () => void;
+  onTracarRota: (opcoes?: {
+    navegador?: NavegadorComandoRota;
+  }) => void;
   onResponder: (texto: string, textoFalado?: string) => void;
 }
 
@@ -150,7 +155,11 @@ export default function useRotaPorVoz({
    * Resolve códigos pelo catálogo e preserva a ordem em que foram falados.
    */
   const adicionarFiliais = useCallback(
-    (codigos: readonly number[], tracarDepois = false): void => {
+    (
+      codigos: readonly number[],
+      tracarDepois = false,
+      navegador?: NavegadorComandoRota,
+    ): void => {
       if (filiaisPorCodigo.size === 0) {
         const resposta = carregandoFiliais
           ? 'Ainda estou carregando as filiais. Tente novamente em alguns segundos.'
@@ -182,11 +191,22 @@ export default function useRotaPorVoz({
         }
       });
 
+      const filiaisUnicas = filiaisEncontradas.filter(
+        (filial, indice, todas) =>
+          todas.findIndex(
+            item => item.codigofilial === filial.codigofilial,
+          ) === indice,
+      );
       const codigosAtuais = new Set(rotas.map(route => route.codigofilial));
-      const novasFiliais = filiaisEncontradas.filter(
+      const novasFiliais = filiaisUnicas.filter(
         filial => !codigosAtuais.has(filial.codigofilial),
       );
-      const totalDepois = rotas.length + novasFiliais.length;
+      // Um pedido completo de traçado representa a rota pronunciada. Isso
+      // impede que paradas antigas e invisíveis sejam levadas ao navegador.
+      const proximasRotas = tracarDepois
+        ? filiaisUnicas
+        : [...rotas, ...novasFiliais];
+      const totalDepois = proximasRotas.length;
 
       if (filiaisEncontradas.length === 0) {
         const texto = `Não encontrei a filial ${formatarLista(codigosNaoEncontrados)}.`;
@@ -206,14 +226,12 @@ export default function useRotaPorVoz({
         ultimoCodigo,
       };
 
-      if (novasFiliais.length > 0) {
-        aplicarRota([...rotas, ...novasFiliais]);
+      if (tracarDepois || novasFiliais.length > 0) {
+        aplicarRota(proximasRotas);
       }
 
-      if (novasFiliais.length === 0) {
-        const texto = tracarDepois
-          ? 'Essas filiais já estavam na rota. Abri a etapa de prévia.'
-          : 'As filiais informadas já fazem parte da sua rota.';
+      if (!tracarDepois && novasFiliais.length === 0) {
+        const texto = 'As filiais informadas já fazem parte da sua rota.';
 
         Toast.show({
           type: 'info',
@@ -222,37 +240,39 @@ export default function useRotaPorVoz({
         });
         responder(texto);
 
-        if (tracarDepois && totalDepois > 0) onTracarRota();
         return;
       }
 
-      const codigosAdicionados = novasFiliais.map(
+      const filiaisDescritas = tracarDepois ? filiaisUnicas : novasFiliais;
+      const codigosAdicionados = filiaisDescritas.map(
         filial => filial.codigofilial,
       );
       const descricaoAdicao =
-        novasFiliais.length === 1
-          ? `Adicionei a filial ${codigosAdicionados[0]}.`
-          : `Adicionei as filiais ${formatarLista(codigosAdicionados)}.`;
+        tracarDepois
+          ? `Preparei a rota para ${formatarLista(codigosAdicionados)}.`
+          : novasFiliais.length === 1
+            ? `Adicionei a filial ${codigosAdicionados[0]}.`
+            : `Adicionei as filiais ${formatarLista(codigosAdicionados)}.`;
       const descricaoAusentes =
         codigosNaoEncontrados.length > 0
           ? ` Não encontrei ${formatarLista(codigosNaoEncontrados)}.`
           : '';
       const descricaoRota = tracarDepois
-        ? ` Sua rota tem ${totalDepois} ${totalDepois === 1 ? 'parada' : 'paradas'}. Confira a prévia para continuar.`
+        ? ' Vou calcular o tempo e a distância antes de abrir a navegação.'
         : '';
       const resposta = `${descricaoAdicao}${descricaoAusentes}${descricaoRota}`;
 
       Toast.show({
         type: 'success',
         text1:
-          novasFiliais.length === 1
+          filiaisDescritas.length === 1
             ? 'Filial adicionada por voz'
-            : `${novasFiliais.length} filiais adicionadas por voz`,
+            : `${filiaisDescritas.length} filiais adicionadas por voz`,
         text2: resposta,
       });
       responder(resposta);
 
-      if (tracarDepois && totalDepois > 0) onTracarRota();
+      if (tracarDepois && totalDepois > 0) onTracarRota({navegador});
     },
     [
       aplicarRota,
@@ -571,7 +591,11 @@ export default function useRotaPorVoz({
           adicionarFiliais(comando.codigos);
           return;
         case 'adicionar_e_tracar':
-          adicionarFiliais(comando.codigos, true);
+          adicionarFiliais(
+            comando.codigos,
+            true,
+            comando.navegador,
+          );
           return;
         case 'continuar_contexto':
           if (contextoRef.current.ultimaIntencao === 'adicionar') {
@@ -635,9 +659,9 @@ export default function useRotaPorVoz({
           }
 
           responder(
-            `Sua rota está pronta com ${rotas.length} ${rotas.length === 1 ? 'parada' : 'paradas'}. Confira a prévia para continuar.`,
+            `Sua rota está pronta com ${rotas.length} ${rotas.length === 1 ? 'parada' : 'paradas'}. Vou calcular o tempo e a distância.`,
           );
-          onTracarRota();
+          onTracarRota({navegador: comando.navegador});
           return;
         case 'consultar_rota':
           consultarRota();

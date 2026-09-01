@@ -7,9 +7,6 @@ import {calcularDistanciaMetros} from './calcularDistanciaRota';
 
 const MAX_ACCEPTED_ACCURACY_METERS = 100;
 const DESTINATION_RADIUS_METERS = 120;
-const REQUIRED_CONSECUTIVE_POINTS = 3;
-const MINIMUM_CONFIRMATION_SECONDS = 15;
-const MAXIMUM_INTERVAL_SECONDS = 45;
 
 interface DestinationCandidate {
   codigo: number;
@@ -47,8 +44,9 @@ const createDestinationKey = (
   `${destination.ordem}:${destination.codigo}`;
 
 /**
- * Confirma uma visita somente depois de leituras consecutivas próximas ao
- * destino. Isso reduz falsos positivos quando o veículo apenas passa na via.
+ * Marca o destino como alcançado na primeira leitura GPS utilizável dentro do
+ * raio operacional. A conclusão representa chegada à referência escolhida,
+ * não permanência física no estabelecimento.
  */
 export function processarProgressoVisitasDestinos(
   pontos: readonly PontoRastreamento[],
@@ -134,45 +132,6 @@ export function processarProgressoVisitasDestinos(
         return;
       }
 
-      const currentTime = new Date(
-        point.registradoEm,
-      ).getTime();
-      const previousTime = candidate.lastPointAt
-        ? new Date(candidate.lastPointAt).getTime()
-        : null;
-      const remainsConsecutive =
-        previousTime !== null &&
-        currentTime > previousTime &&
-        (currentTime - previousTime) / 1_000 <=
-          MAXIMUM_INTERVAL_SECONDS;
-      const firstPointAt = remainsConsecutive
-        ? candidate.firstPointAt
-        : point.registradoEm;
-      const consecutivePoints = remainsConsecutive
-        ? candidate.consecutivePoints + 1
-        : 1;
-      const confirmationWindowSeconds = firstPointAt
-        ? (currentTime -
-            new Date(firstPointAt).getTime()) /
-          1_000
-        : 0;
-
-      candidates.set(key, {
-        ...candidate,
-        consecutivePoints,
-        firstPointAt,
-        lastPointAt: point.registradoEm,
-      });
-
-      if (
-        consecutivePoints <
-          REQUIRED_CONSECUTIVE_POINTS ||
-        confirmationWindowSeconds <
-          MINIMUM_CONFIRMATION_SECONDS
-      ) {
-        return;
-      }
-
       const visit: VisitaDestinoRota = {
         codigo: destination.codigo,
         ordemPlanejada: destination.ordem,
@@ -182,12 +141,13 @@ export function processarProgressoVisitasDestinos(
         longitudeConfirmacao: point.longitude,
         distanciaConfirmacaoMetros:
           Math.round(distance),
+        tipoEvidencia: 'proximidade',
       };
 
       candidates.set(key, {
         ...candidate,
-        consecutivePoints,
-        firstPointAt,
+        consecutivePoints: 1,
+        firstPointAt: point.registradoEm,
         lastPointAt: point.registradoEm,
         visita: visit,
       });

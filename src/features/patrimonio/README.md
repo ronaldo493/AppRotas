@@ -22,7 +22,8 @@ associados ao mesmo registro.
    os dados selecionados e coordena os ambientes e equipamentos.
 3. `usePatrimonioForm` mantém todos os campos controlados e solicita a
    persistência após cada alteração.
-4. `createPatrimonioReport` converte o estado da tela no formato legado.
+4. `createPatrimonioReport` converte o estado da tela no formato persistido do
+   relatório.
 5. `patrimonioReportService` agrupa alterações consecutivas, serializa as
    gravações e força a escrita mais recente antes do compartilhamento.
 

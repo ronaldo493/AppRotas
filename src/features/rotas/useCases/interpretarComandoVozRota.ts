@@ -8,9 +8,14 @@ export type ReferenciaFilialVoz =
   | {tipo: 'ultima_mencionada'}
   | {tipo: 'ultima_rota'};
 
+export type NavegadorComandoRota = 'google' | 'waze';
+
 export type ComandoVozRota =
   | ({tipo: 'adicionar_filiais'} & ComandoComCodigos)
-  | ({tipo: 'adicionar_e_tracar'} & ComandoComCodigos)
+  | ({
+      tipo: 'adicionar_e_tracar';
+      navegador?: NavegadorComandoRota;
+    } & ComandoComCodigos)
   | ({tipo: 'remover_filiais'} & ComandoComCodigos)
   | ({tipo: 'continuar_contexto'} & ComandoComCodigos)
   | {
@@ -33,7 +38,7 @@ export type ComandoVozRota =
   | {tipo: 'remover_referencia'; alvo: ReferenciaFilialVoz}
   | {tipo: 'inverter_rota'}
   | {tipo: 'desfazer'}
-  | {tipo: 'tracar_rota'}
+  | {tipo: 'tracar_rota'; navegador?: NavegadorComandoRota}
   | {tipo: 'consultar_rota'}
   | {tipo: 'limpar_rota'}
   | {tipo: 'confirmar'}
@@ -95,11 +100,21 @@ const ACAO_MOVER =
 const ACAO_SUBSTITUIR =
   /\b(altera|alterar|muda|mudar|mude|substitua|substituir|troca|trocar|troque)\b/;
 const ACAO_TRACAR =
-  /\b(traca|tracar|trace)\b|\b(abre|abrir|calcula|calcular|comece|comeca|comecar|cria|criar|crie|faz|fazer|faca|finaliza|finalizar|inicia|iniciar|monta|montar|monte)\b.*\b(navegacao|rota|rotas)\b/;
+  /\b(traca|tracar|trace|rotear|roteie)\b|\b(abre|abrir|calcula|calcular|comece|comeca|comecar|cria|criar|crie|faz|fazer|faca|finaliza|finalizar|inicia|iniciar|manda|mandar|monte|monta|montar)\b.*\b(caminho|maps|navegacao|rota|rotas|trajeto|waze)\b/;
+const PEDIDO_NAVEGACAO_DIRETA =
+  /\b(como chegar|ir ate|ir para|ir pra|manda pro|manda para o|me leva|me leve|leve me|navega|navegar|navegue|quero chegar|quero ir|preciso chegar|preciso ir|vamos para|vamos pra|abre|abrir)\b.*\b(filial|filiais|loja|lojas|maps|waze)\b/;
 const CONTEXTO_FILIAL =
   /\b(filial|filiais|loja|lojas|numero|numeros|parada|paradas|rota|rotas)\b/;
 const CONTEXTO_SEQUENCIA =
   /\b(primeiro|primeira|depois|em seguida|por ultimo|por fim)\b/;
+
+const identificarNavegador = (
+  texto: string,
+): NavegadorComandoRota | undefined => {
+  if (/\bwaze\b/.test(texto)) return 'waze';
+  if (/\b(?:google\s+maps|google|maps|mapas)\b/.test(texto)) return 'google';
+  return undefined;
+};
 
 const POSICOES_POR_EXTENSO: Readonly<Record<string, number>> = {
   primeiro: 1,
@@ -459,10 +474,15 @@ export const interpretarComandoVozRota = (transcricao: string): ComandoVozRota =
 
   const codigos = extrairCodigos(texto);
 
-  if (ACAO_TRACAR.test(texto)) {
+  if (ACAO_TRACAR.test(texto) || PEDIDO_NAVEGACAO_DIRETA.test(texto)) {
+    const navegador = identificarNavegador(texto);
     return codigos.length > 0
-      ? {tipo: 'adicionar_e_tracar', codigos}
-      : {tipo: 'tracar_rota'};
+      ? {
+          tipo: 'adicionar_e_tracar',
+          codigos,
+          ...(navegador ? {navegador} : {}),
+        }
+      : {tipo: 'tracar_rota', ...(navegador ? {navegador} : {})};
   }
 
   if (

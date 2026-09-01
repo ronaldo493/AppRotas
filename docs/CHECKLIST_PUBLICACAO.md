@@ -1,14 +1,12 @@
 # Checklist de publicação do aplicativo
 
-Última revisão técnica: **5 de agosto de 2026**.
+## Critérios de validação
 
-## Estado validado
-
-- Expo Doctor 18/18;
-- typecheck e 72 testes aprovados;
-- exportação Android/Metro concluída com 1.840 módulos;
-- nenhuma dependência circular nos 212 arquivos analisados;
-- dependências nativas compatíveis e `@expo/vector-icons` deduplicado.
+- Expo Doctor sem bloqueios relevantes para a versão fixada;
+- `yarn typecheck` e `yarn test:all` aprovados no commit da publicação;
+- exportação Android/Metro e build EAS concluídos no perfil correto;
+- dependências nativas e identidade do aplicativo revisadas;
+- diferenças do lockfile e auditoria de dependências avaliadas.
 
 Isso ainda não substitui teste no APK. GPS em segundo plano, Maps, voz, câmera
 e atualização só podem ser homologados no artefato nativo instalado.
@@ -22,6 +20,16 @@ e atualização só podem ser homologados no artefato nativo instalado.
   `EXPO_PUBLIC_STRAPI_URL=https://rotas.drogal.com.br/api`;
 - `ALLOW_CLEARTEXT_TRAFFIC=false` ou ausente em produção;
 - restringir a chave Maps pelo package e SHA da assinatura.
+
+No papel `Authenticated`, confirme também as ações que sustentam os fluxos
+novos sem expor CRUD genérico:
+
+- `Sessao-dispositivo > iniciar, validar, encerrar, registrarLocalizacao`;
+- `Execucao-rota > iniciar, adicionarSegmento, registrarTelemetria, finalizar`;
+- `Painel-admin > resumoRotas, trajetoRota, localizacoesColaboradores,
+  listarUsuarios, redefinirSenha`;
+- `Assistente-ia > conversar` e
+  `Metrica-assistente > registrar`, conforme as flags habilitadas.
 
 ## Validação
 
@@ -47,13 +55,13 @@ yarn build-android:store
 
 ## Ordem do rollout
 
-1. publique primeiro o backend aditivo e mantenha permissões do APK anterior;
-2. teste o APK anterior contra o backend novo;
-3. gere e instale o APK de produção em aparelhos físicos;
-4. valide todos os fluxos abaixo;
-5. disponibilize o arquivo/URL;
-6. só então aumente a versão em `update-app`;
-7. monitore falhas e retire permissões antigas numa entrega posterior.
+1. faça backup do banco e dos uploads;
+2. publique o backend e habilite somente as ações customizadas da matriz atual;
+3. remova do Strapi o menu técnico `Chamados`, caso ainda esteja cadastrado;
+4. gere e instale o APK de produção em aparelhos físicos;
+5. valide todos os fluxos abaixo;
+6. disponibilize o arquivo/URL;
+7. só então aumente a versão em `update-app` e monitore falhas.
 
 ## Smoke test do APK
 
@@ -74,19 +82,24 @@ yarn build-android:store
 - redefinição administrativa: com a flag ativa, ADMIN em todos os setores,
   GESTOR somente no próprio setor, bloqueio sobre ADMIN, audit-log e gate do
   titular;
-- contatos, chamados e patrimônio;
-- assistente desligada, local e fallback online, com métrica sem transcrição;
+- contatos e patrimônio;
+- assistente desligada, árvore local e orquestrador determinístico;
+- com Gemini desligado, confirmar que o pré-roteador e as ferramentas V2 ainda
+  respondem; com ele ligado, validar plano rejeitado, esclarecimento e fallback;
+- continuidade por usuário/sessão, ambiguidade de nomes, ajuda versionada,
+  diagnóstico/comparações/ranking e revalidação de escopo;
+- métrica de desfecho e eventos de adoção sem transcrição, prompt ou resposta;
 - monitoramento desligado: somente Maps/Waze;
 - monitoramento ligado: prévia, início, segundo plano, perda de rede, retorno,
   finalização integral/parcial e sincronização;
 - com Maps/Waze aberto, confirmar no Strapi que `POST /segmentos` continua
   chegando e que o marcador do painel muda sem reabrir o AppRotas;
+- confirmar que a telemetria operacional aparece no detalhe, que evento antigo
+  não substitui estado novo e que falha nesse POST não bloqueia os segmentos;
+- no mapa geral, validar flag desligada/ligada, ausência de marcador para origem
+  apenas planejada, atualização periódica e abertura do trajeto parcial;
 - sem rede, confirmar que nenhum ponto é perdido e que os lotes aparecem após
   a reconexão;
 - histórico contém somente o usuário autenticado;
 - localização negada/desligada abre configurações;
 - atualização obrigatória baixa e instala o artefato correto.
-
-O endpoint `/api/chamados` precisa existir no ambiente, embora seu schema não
-esteja versionado no repositório Strapi atual. Consulte a matriz completa no
-projeto backend antes da liberação.

@@ -4,9 +4,12 @@ import { Button, Dialog, Portal,} from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 
+import {useAuthContext} from '../../../core/auth/AuthContext';
+import {getAuthUserKey} from '../../../core/auth/getAuthUserKey';
 import {useAppTheme} from '../../../core/theme/appTheme';
 import useLocation from '../../../core/location/useLocation';
 import ConfirmacaoPermissaoRastreamentoDialog from '../../execucaoRota/components/ConfirmacaoPermissaoRastreamentoDialog';
+import RouteAssistantMic from '../../assistente/integrations/rotas/RouteAssistantMic';
 import useNavegacaoMonitorada from '../../execucaoRota/hooks/useNavegacaoMonitorada';
 import {definirFluxoMonitoramentoRota} from '../../execucaoRota/useCases/definirFluxoMonitoramentoRota';
 import FilialSearch from '../../filiais/components/FilialSearch';
@@ -17,8 +20,15 @@ import RoutePreviewModal from '../components/RoutePreviewModal';
 import type {RoutePreview} from '../models/RoutePreview';
 import useFiliaisRotaOffline from '../hooks/useFiliaisRotaOffline';
 import usePrepararOrigemPreviaRota from '../hooks/usePrepararOrigemPreviaRota';
+import useRoutePreview from '../hooks/useRoutePreview';
 import {useRotasContext} from '../RotasContext';
+import {
+  obterNavegadorPreferido,
+  registrarNavegadorUsado,
+  resolverNavegadorRota,
+} from '../services/navigationPreferenceService';
 import {iniciarNovaRotaAposInterrupcao} from '../useCases/iniciarNovaRotaAposInterrupcao';
+import {formatarEstimativaRotaAssistente} from '../useCases/formatarEstimativaRotaAssistente';
 import HomeStyles from './rotasScreen.styles';
 
 type NavigatorType = 'google' | 'waze';
@@ -26,7 +36,10 @@ type InterruptionDialogMode = 'manage' | 'replace' | null;
 
 export default function RotasScreen(): React.JSX.Element {
   const theme = useAppTheme();
+  const {user} = useAuthContext();
+  const userKey = getAuthUserKey(user);
   const filiaisRota = useFiliaisRotaOffline();
+  const previaAssistida = useRoutePreview();
   const {
     execucaoAtiva,
     processando,
@@ -42,6 +55,7 @@ export default function RotasScreen(): React.JSX.Element {
     error: locationError,
     loading: loadingLocation,
     ensureLocation,
+    getLocation,
     openLocationSettings,
     currentLocation,
     currentLocationSnapshot,
@@ -50,7 +64,7 @@ export default function RotasScreen(): React.JSX.Element {
   const {
     rotas: routes,
     setRotas: setRoutes,
-    solicitacaoTracadoId,
+    solicitacaoTracado,
   } = useRotasContext();
   const solicitacaoTratadaRef = useRef(0);
   const [hasSearchResult, setHasSearchResult] = useState(false);
@@ -71,8 +85,20 @@ export default function RotasScreen(): React.JSX.Element {
     useState<InterruptionDialogMode>(null);
   const [replaceActiveRoute, setReplaceActiveRoute] =
     useState(false);
+  const [processandoFluxoAssistido, setProcessandoFluxoAssistido] =
+    useState(false);
+  const [navegadorDiretoPendente, setNavegadorDiretoPendente] =
+    useState<NavigatorType | null>(null);
+  const feedbackTracadoRef = useRef<
+    ((texto: string, textoFalado?: string) => void) | null
+  >(null);
+  const estimativaTracadoRef = useRef<{
+    visual: string;
+    falada: string;
+  } | null>(null);
 
   const hasRoutes = routes.length > 0;
+  const interfaceOcupada = processando || processandoFluxoAssistido;
   usePrepararOrigemPreviaRota(
     hasRoutes,
     currentLocationSnapshot,
@@ -121,10 +147,22 @@ export default function RotasScreen(): React.JSX.Element {
   };
 
   /** Limpa somente a seleção usada para montar a rota que acabou de abrir. */
-  const handleNavigationStarted = useCallback((): void => {
+  const handleNavigationStarted = useCallback((
+    navegador: NavigatorType,
+  ): void => {
+    void registrarNavegadorUsado(userKey, navegador);
     setRoutes([]);
     setHasSearchResult(false);
-  }, [setRoutes]);
+    const navegadorNome = navegador === 'google' ? 'Google Maps' : 'Waze';
+    const abertura = `Abri a rota no ${navegadorNome}.`;
+    const estimativa = estimativaTracadoRef.current;
+    feedbackTracadoRef.current?.(
+      estimativa ? `${estimativa.visual} ${abertura}` : abertura,
+      estimativa ? `${estimativa.falada} ${abertura}` : abertura,
+    );
+    estimativaTracadoRef.current = null;
+    feedbackTracadoRef.current = null;
+  }, [setRoutes, userKey]);
 
   /**
    * A escolha do navegador confirma o início. A prévia já foi exibida antes,
@@ -132,6 +170,11 @@ export default function RotasScreen(): React.JSX.Element {
    */
   const startNavigation = async (
     navigator: NavigatorType,
+    opcoes: {
+      planejamento?: PlanejamentoExecucaoRota;
+      monitorar?: boolean;
+      substituirExecucaoAtiva?: boolean;
+    } = {},
   ): Promise<void> => {
     if (processando) return;
 
@@ -142,12 +185,17 @@ export default function RotasScreen(): React.JSX.Element {
         rotas: routes,
         navegador: navigator,
         tipoDestino: 'loja',
-        monitorar: monitoringEnabledForFlow,
-        planejamento: selectedPlanning,
-        onStarted: handleNavigationStarted,
+        monitorar:
+          opcoes.monitorar ?? monitoringEnabledForFlow,
+        planejamento:
+          opcoes.planejamento ?? selectedPlanning,
+        onStarted: () => handleNavigationStarted(navigator),
       });
 
-    if (replaceActiveRoute && execucaoAtiva) {
+    if (
+      (opcoes.substituirExecucaoAtiva ?? replaceActiveRoute) &&
+      execucaoAtiva
+    ) {
       const interruptionSucceeded =
         await iniciarNovaRotaAposInterrupcao(
           interromperNavegacao,
@@ -188,7 +236,7 @@ export default function RotasScreen(): React.JSX.Element {
   }, [execucaoAtiva]);
 
   const handleTraceRoute = useCallback(async (): Promise<void> => {
-    if (processando) return;
+    if (interfaceOcupada) return;
 
     if (!hasRoutes) return;
 
@@ -214,25 +262,141 @@ export default function RotasScreen(): React.JSX.Element {
     openStartFlow();
   }, [
     hasRoutes,
+    interfaceOcupada,
     openStartFlow,
-    processando,
+    verificarMonitoramento,
+  ]);
+
+  /**
+   * Atende pedidos explícitos da assistente sem abrir o mapa de prévia. A
+   * estimativa continua usando a mesma regra de localização, cache e quota do
+   * fluxo manual; iniciar o monitoramento ainda exige abrir o navegador.
+   */
+  const handleTraceRouteDirectly = useCallback(async (): Promise<void> => {
+    if (interfaceOcupada || !solicitacaoTracado || !hasRoutes) return;
+
+    setProcessandoFluxoAssistido(true);
+    feedbackTracadoRef.current = solicitacaoTracado.onFeedback ?? null;
+    estimativaTracadoRef.current = null;
+
+    try {
+      const configuracao = await verificarMonitoramento();
+      const fluxo = definirFluxoMonitoramentoRota(configuracao);
+      let planejamento: PlanejamentoExecucaoRota | undefined;
+
+      setMonitoringEnabledForFlow(fluxo.monitorar);
+      setSelectedPlanning(undefined);
+
+      if (fluxo.exibirPrevia) {
+        const origem = currentLocation ?? await getLocation(true);
+        const previa = origem
+          ? await previaAssistida.loadPreview(
+              origem,
+              routes,
+              currentLocationSnapshot,
+            )
+          : null;
+
+        if (previa) {
+          planejamento = {
+            servidorDocumentId: null,
+            trajetoPlanejado: previa.encodedPolyline,
+            distanciaPlanejadaMetros: previa.distanceMeters,
+            duracaoPlanejadaSegundos: previa.durationSeconds,
+          };
+          setSelectedPlanning(planejamento);
+          const descricao = formatarEstimativaRotaAssistente(previa);
+          estimativaTracadoRef.current = descricao;
+        } else {
+          feedbackTracadoRef.current?.(
+            'Não consegui calcular a estimativa agora. Vou continuar com a abertura do navegador.',
+          );
+        }
+      } else {
+        feedbackTracadoRef.current?.(
+          'A estimativa está desativada no momento. Vou abrir a rota no navegador.',
+        );
+      }
+
+      const preferido = await obterNavegadorPreferido(userKey);
+      const decisao = resolverNavegadorRota({
+        quantidadeDestinos: routes.length,
+        navegadorSolicitado: solicitacaoTracado.navegador,
+        navegadorPreferido: preferido,
+      });
+
+      if (decisao.wazeSubstituidoPorGoogle) {
+        feedbackTracadoRef.current?.(
+          'Como esta rota possui várias paradas, vou usar o Google Maps para preservar a ordem completa.',
+        );
+      }
+
+      if (!decisao.navegador) {
+        feedbackTracadoRef.current?.(
+          'Escolha Google Maps ou Waze. Vou lembrar sua preferência nas próximas rotas.',
+        );
+
+        if (execucaoAtiva) {
+          // A rota ativa só pode ser substituída depois de uma confirmação
+          // explícita. A escolha do navegador acontece na etapa seguinte.
+          setReplaceActiveRoute(true);
+          setInterruptionDialogMode('replace');
+          return;
+        }
+
+        setNavigatorDialogVisible(true);
+        return;
+      }
+
+      if (execucaoAtiva) {
+        setNavegadorDiretoPendente(decisao.navegador);
+        setInterruptionDialogMode('replace');
+        return;
+      }
+
+      await startNavigation(decisao.navegador, {
+        planejamento,
+        monitorar: fluxo.monitorar,
+      });
+    } finally {
+      setProcessandoFluxoAssistido(false);
+    }
+  }, [
+    currentLocation,
+    currentLocationSnapshot,
+    execucaoAtiva,
+    getLocation,
+    hasRoutes,
+    interfaceOcupada,
+    previaAssistida,
+    routes,
+    solicitacaoTracado,
+    userKey,
     verificarMonitoramento,
   ]);
 
   useEffect(() => {
     if (
-      solicitacaoTracadoId === 0 ||
-      solicitacaoTratadaRef.current >= solicitacaoTracadoId
+      !solicitacaoTracado ||
+      solicitacaoTratadaRef.current >= solicitacaoTracado.id ||
+      !hasRoutes
     ) {
       return;
     }
 
-    solicitacaoTratadaRef.current = solicitacaoTracadoId;
+    solicitacaoTratadaRef.current = solicitacaoTracado.id;
 
-    if (hasRoutes) {
+    if (solicitacaoTracado.modo === 'direto') {
+      void handleTraceRouteDirectly();
+    } else {
       void handleTraceRoute();
     }
-  }, [handleTraceRoute, hasRoutes, solicitacaoTracadoId]);
+  }, [
+    handleTraceRoute,
+    handleTraceRouteDirectly,
+    hasRoutes,
+    solicitacaoTracado,
+  ]);
 
   /**
    * A prévia é somente consulta. A escolha do navegador acontece depois que
@@ -296,15 +460,36 @@ export default function RotasScreen(): React.JSX.Element {
    */
   const handleConfirmRouteReplacement = (): void => {
     setInterruptionDialogMode(null);
+
+    if (navegadorDiretoPendente) {
+      const navegador = navegadorDiretoPendente;
+      setNavegadorDiretoPendente(null);
+      void startNavigation(navegador, {
+        substituirExecucaoAtiva: true,
+      });
+      return;
+    }
+
     setReplaceActiveRoute(true);
     setNavigatorDialogVisible(true);
   };
 
   const handleCloseNavigatorDialog = (): void => {
-    if (processando) return;
+    if (interfaceOcupada) return;
 
     setNavigatorDialogVisible(false);
     setReplaceActiveRoute(false);
+    estimativaTracadoRef.current = null;
+    feedbackTracadoRef.current = null;
+  };
+
+  const handleCloseInterruptionDialog = (): void => {
+    if (processando) return;
+    setInterruptionDialogMode(null);
+    setNavegadorDiretoPendente(null);
+    setReplaceActiveRoute(false);
+    estimativaTracadoRef.current = null;
+    feedbackTracadoRef.current = null;
   };
 
   return (
@@ -320,6 +505,7 @@ export default function RotasScreen(): React.JSX.Element {
           filiaisRota.dadosOnlineIndisponiveis
         }
         cacheAtualizadoEm={filiaisRota.cacheAtualizadoEm}
+        trailingAction={<RouteAssistantMic />}
       />
 
       <View style={HomeStyles.routeContainer}>
@@ -379,14 +565,14 @@ export default function RotasScreen(): React.JSX.Element {
             void handleTraceRoute();
           }}
           disabled={
-            processando ||
+            interfaceOcupada ||
             !hasRoutes
           }
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityState={{
             disabled:
-              processando ||
+              interfaceOcupada ||
               !hasRoutes,
           }}
           style={[
@@ -401,7 +587,7 @@ export default function RotasScreen(): React.JSX.Element {
                 ? theme.colors.actionBackground
                 : theme.colors.outline,
               opacity:
-                !processando &&
+                !interfaceOcupada &&
                 hasRoutes
                   ? 1
                   : 0.7,
@@ -419,8 +605,10 @@ export default function RotasScreen(): React.JSX.Element {
               },
             ]}
           >
-            {processando
-              ? 'Iniciando viagem...'
+            {processandoFluxoAssistido
+              ? 'Preparando rota...'
+              : processando
+                ? 'Iniciando viagem...'
               : 'Traçar rota'}
           </Text>
         </TouchableOpacity>
@@ -513,11 +701,7 @@ export default function RotasScreen(): React.JSX.Element {
         <Dialog
           visible={interruptionDialogMode !== null}
           dismissable={!processando}
-          onDismiss={() => {
-            if (!processando) {
-              setInterruptionDialogMode(null);
-            }
-          }}
+          onDismiss={handleCloseInterruptionDialog}
           style={{backgroundColor: theme.colors.surface}}
         >
           <Dialog.Title>Rota em andamento</Dialog.Title>
@@ -537,9 +721,7 @@ export default function RotasScreen(): React.JSX.Element {
           <Dialog.Actions>
             <Button
               disabled={processando}
-              onPress={() =>
-                setInterruptionDialogMode(null)
-              }
+              onPress={handleCloseInterruptionDialog}
             >
               Manter rota atual
             </Button>

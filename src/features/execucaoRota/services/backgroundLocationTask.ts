@@ -9,6 +9,7 @@ import {
   registrarTelemetriaRota,
   sincronizarRotaEmSegundoPlano,
 } from './backgroundRouteSynchronization';
+import {criarCoordenadorServicoRastreamento} from '../useCases/coordenarServicoRastreamento';
 
 export const ROUTE_LOCATION_TASK =
   'drogal-route-location-tracking';
@@ -266,20 +267,7 @@ export async function solicitarPermissoesRastreamento(): Promise<ResultadoPermis
   return {concedida: true};
 }
 
-/**
- * Mantém uma notificação visível enquanto o GPS continua ativo no Android.
- */
-export async function iniciarRastreamentoLocalizacao(): Promise<void> {
-  const alreadyStarted =
-    await Location.hasStartedLocationUpdatesAsync(
-      ROUTE_LOCATION_TASK,
-    );
-
-  if (alreadyStarted) return;
-
-  await Location.startLocationUpdatesAsync(
-    ROUTE_LOCATION_TASK,
-    {
+const configuracaoServicoRastreamento: Location.LocationTaskOptions = {
       accuracy: Location.Accuracy.BestForNavigation,
       distanceInterval: 20,
       timeInterval: 10_000,
@@ -297,21 +285,37 @@ export async function iniciarRastreamentoLocalizacao(): Promise<void> {
         notificationColor: '#C4473D',
         killServiceOnDestroy: false,
       },
-    },
-  );
+};
+
+const coordenadorServicoRastreamento =
+  criarCoordenadorServicoRastreamento({
+    estaAtivo: () =>
+      Location.hasStartedLocationUpdatesAsync(
+        ROUTE_LOCATION_TASK,
+      ),
+    iniciar: () =>
+      Location.startLocationUpdatesAsync(
+        ROUTE_LOCATION_TASK,
+        configuracaoServicoRastreamento,
+      ),
+    parar: () =>
+      Location.stopLocationUpdatesAsync(
+        ROUTE_LOCATION_TASK,
+      ),
+  });
+
+/**
+ * Mantém uma notificação visível enquanto o GPS continua ativo no Android.
+ * Chamadas simultâneas compartilham uma fila e falhas transitórias são
+ * repetidas antes de a execução ser considerada inválida.
+ */
+export async function iniciarRastreamentoLocalizacao(): Promise<void> {
+  await coordenadorServicoRastreamento.iniciar();
 }
 
+/** Encerra o mesmo serviço pela fila usada na inicialização. */
 export async function pararRastreamentoLocalizacao(): Promise<void> {
-  const alreadyStarted =
-    await Location.hasStartedLocationUpdatesAsync(
-      ROUTE_LOCATION_TASK,
-    );
-
-  if (!alreadyStarted) return;
-
-  await Location.stopLocationUpdatesAsync(
-    ROUTE_LOCATION_TASK,
-  );
+  await coordenadorServicoRastreamento.parar();
 }
 
 /**

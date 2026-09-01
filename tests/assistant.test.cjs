@@ -54,95 +54,17 @@ const {
   definirAcaoGlobal,
 } = require('../src/features/assistente/useCases/definirAcaoGlobal.ts');
 const {
-  validarRespostaAssistenteIa,
-} = require('../src/features/assistente/useCases/validarRespostaAssistenteIa.ts');
-const {
   selecionarComandoVozRota,
 } = require('../src/features/rotas/useCases/selecionarComandoVozRota.ts');
+const {
+  resolverNavegadorRota,
+} = require('../src/features/rotas/useCases/resolverNavegadorRota.ts');
 
 test('usa sugestão como fallback e habilita assistente somente com flag ativa', () => {
   assert.equal(definirAcaoGlobal(true), 'assistente');
   assert.equal(definirAcaoGlobal(false), 'sugestao');
   assert.equal(definirAcaoGlobal(null), 'sugestao');
   assert.equal(definirAcaoGlobal(undefined), 'sugestao');
-});
-
-test('valida intenção estruturada, esclarecimento e contrato legado da IA', () => {
-  assert.deepEqual(
-    validarRespostaAssistenteIa({
-      interpretado: true,
-      comando: {
-        dominio: 'filiais',
-        acao: 'ranking',
-        agrupamento: 'cidade',
-        ordem: 'mais',
-        quantidade: 3,
-        campoInjetado: 'ignorar',
-      },
-      comandoCanonico: '  cidades   com mais filiais  ',
-      confianca: 0.91,
-    }),
-    {
-      interpretado: true,
-      comando: {
-        dominio: 'filiais',
-        acao: 'ranking',
-        agrupamento: 'cidade',
-        ordem: 'mais',
-        quantidade: 3,
-      },
-      comandoCanonico: 'cidades com mais filiais',
-      confianca: 0.91,
-      precisaEsclarecimento: false,
-      esclarecimento: null,
-    },
-  );
-
-  const legado = validarRespostaAssistenteIa({
-    interpretado: true,
-    comandoCanonico: 'traçar rota para filiais 25 35',
-    confianca: 0.9,
-  });
-  assert.equal(legado.interpretado, true);
-  assert.equal(legado.comando, null);
-
-  assert.deepEqual(
-    validarRespostaAssistenteIa({
-      interpretado: false,
-      comando: null,
-      comandoCanonico: null,
-      confianca: 0.55,
-      precisaEsclarecimento: true,
-      esclarecimento: 'Você quer apenas localizar o posto ou iniciar uma rota?',
-    }),
-    {
-      interpretado: false,
-      comando: null,
-      comandoCanonico: null,
-      confianca: 0.55,
-      precisaEsclarecimento: true,
-      esclarecimento: 'Você quer apenas localizar o posto ou iniciar uma rota?',
-    },
-  );
-
-  assert.equal(
-    validarRespostaAssistenteIa({
-      interpretado: true,
-      comando: {dominio: 'admin', acao: 'apagar_tudo'},
-      comandoCanonico: 'abrir histórico',
-      confianca: 0.4,
-    }).interpretado,
-    false,
-  );
-  assert.equal(
-    validarRespostaAssistenteIa({
-      interpretado: true,
-      comando: null,
-      comandoCanonico: 'x'.repeat(181),
-      confianca: 0.99,
-    }).comandoCanonico,
-    null,
-  );
 });
 
 test('prioriza ponto próximo sobre navegação genérica', () => {
@@ -267,10 +189,6 @@ test('distribui comandos entre os demais ramos globais', () => {
       },
     ],
     [
-      'quantos chamados eu tenho',
-      {dominio: 'chamados', acao: 'resumir'},
-    ],
-    [
       'ativar modo escuro',
       {
         dominio: 'preferencias',
@@ -359,10 +277,10 @@ test('ordena pontos pela distância e respeita a categoria', () => {
     ['Restaurante perto', 'Restaurante distante'],
   );
 
-  const postoLegado = encontrarPontosProximos(
+  const postoComCategoriaSimplificada = encontrarPontosProximos(
     [
       {
-        descricao: 'Posto legado',
+        descricao: 'Posto simplificado',
         categoria: 'Posto',
         latitude: '-22,724',
         longitude: '-47,644',
@@ -372,7 +290,10 @@ test('ordena pontos pela distância e respeita a categoria', () => {
     'Posto de Combustível',
     1,
   );
-  assert.equal(postoLegado[0].ponto.descricao, 'Posto legado');
+  assert.equal(
+    postoComCategoriaSimplificada[0].ponto.descricao,
+    'Posto simplificado',
+  );
 });
 
 test('limita a espera sem cancelar o carregamento original', async () => {
@@ -401,6 +322,70 @@ test('recupera pausas perdidas entre códigos reais de filiais', () => {
     tipo: 'adicionar_e_tracar',
     codigos: [25, 35, 48],
   });
+});
+
+test('entende pedido direto de rota e preserva o navegador pronunciado', () => {
+  assert.deepEqual(
+    selecionarComandoVozRota(
+      ['me leve para as lojas 25, 35 e 48 pelo Maps'],
+      new Set([25, 35, 48]),
+    ).comando,
+    {
+      tipo: 'adicionar_e_tracar',
+      codigos: [25, 35, 48],
+      navegador: 'google',
+    },
+  );
+  assert.deepEqual(
+    selecionarComandoVozRota(
+      ['abrir a filial 25 no Waze'],
+      new Set([25]),
+    ).comando,
+    {
+      tipo: 'adicionar_e_tracar',
+      codigos: [25],
+      navegador: 'waze',
+    },
+  );
+  assert.deepEqual(
+    selecionarComandoVozRota(
+      ['como chegar na filial quarenta e oito'],
+      new Set([48]),
+    ).comando,
+    {
+      tipo: 'adicionar_e_tracar',
+      codigos: [48],
+    },
+  );
+  assert.deepEqual(
+    selecionarComandoVozRota(
+      ['manda pro Google a rota das lojas 25 e 35'],
+      new Set([25, 35]),
+    ).comando,
+    {
+      tipo: 'adicionar_e_tracar',
+      codigos: [25, 35],
+      navegador: 'google',
+    },
+  );
+});
+
+test('usa preferência somente quando segura e preserva todas as paradas', () => {
+  assert.deepEqual(
+    resolverNavegadorRota({
+      quantidadeDestinos: 1,
+      navegadorPreferido: 'waze',
+    }),
+    {navegador: 'waze', wazeSubstituidoPorGoogle: false},
+  );
+  assert.deepEqual(
+    resolverNavegadorRota({
+      quantidadeDestinos: 3,
+      navegadorSolicitado: 'waze',
+      navegadorPreferido: 'waze',
+    }),
+    {navegador: 'google', wazeSubstituidoPorGoogle: true},
+  );
 });
 
 test('pesquisa filiais no mapa por código, cidade e contexto da tela', () => {
@@ -613,26 +598,6 @@ test('entende análises naturais sobre cidades e filiais', () => {
 });
 
 test('consulta dados reais da filial e mantém contexto para continuação', () => {
-  assert.deepEqual(
-    validarRespostaAssistenteIa({
-      interpretado: true,
-      comando: {
-        dominio: 'filiais',
-        acao: 'consultar',
-        termo: '25',
-        campo: 'supervisor',
-        valorInventado: 'ignorar',
-      },
-      comandoCanonico: 'consultar supervisor da filial 25',
-      confianca: 0.96,
-    }).comando,
-    {
-      dominio: 'filiais',
-      acao: 'consultar',
-      termo: '25',
-      campo: 'supervisor',
-    },
-  );
   assert.deepEqual(
     interpretarComandoAssistente(['qual o telefone da filial 25'])?.comando,
     {

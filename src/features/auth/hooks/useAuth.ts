@@ -2,13 +2,9 @@ import axios from 'axios';
 import {useCallback, useState} from 'react';
 import {type AuthUser, useAuthContext} from '../../../core/auth/AuthContext';
 import useStrapiClient from '../../../core/api/strapiClient';
-import {capturarSnapshotLocalizacaoAtual} from '../../../core/location/services/locationSnapshotService';
 import {appLogger} from '../../../shared/logging/appLogger';
 import useAuthMenus from '../../menus/hooks/useAuthMenus';
-import {
-  DEVICE_SESSION_HEADER,
-  startDeviceSession,
-} from '../../../core/auth/deviceSession/services/deviceSessionService';
+import {startDeviceSession} from '../../../core/auth/deviceSession/services/deviceSessionService';
 
 interface LoginResponse {
   jwt: string;
@@ -42,80 +38,6 @@ export default function useAuth():
   const [loading, setLoading] = useState<boolean>(false);
 
   const [error, setError] = useState<string | null>(null);
-
-  /*
-   * Registra o acesso do usuário no Strapi.
-   *
-   * Recebemos o usuário diretamente para não
-   * depender da leitura do AsyncStorage.
-   */
-  const monitorarSessao = useCallback(
-    async (
-      userData: AuthUser,
-      jwt: string,
-      deviceSessionCode: string,
-    ): Promise<void> => {
-      if (!userData.username) {
-        appLogger.warn(
-          'Usuário sem username. Monitoramento não realizado.',
-        );
-
-        return;
-      }
-
-      let cidadeOrigem: string | null = null;
-
-      try {
-        const snapshot =
-          await capturarSnapshotLocalizacaoAtual();
-
-        cidadeOrigem = snapshot?.city ?? null;
-      } catch (locationError: unknown) {
-        appLogger.error(
-          'Erro ao obter localização da sessão:',
-          locationError,
-        );
-      }
-
-      try {
-        await conexao.post(
-          '/sessoes',
-          {
-            data: {
-              user: userData.username,
-              setor: userData.setor ?? null,
-              cidadeOrigem,
-            },
-          },
-          {
-            /*
-             * Envia explicitamente o JWT porque
-             * o estado do contexto pode ainda não
-             * ter sido refletido no StrapiClient.
-             */
-            headers: {
-              Authorization:
-                `Bearer ${jwt}`,
-              [DEVICE_SESSION_HEADER]: deviceSessionCode,
-            },
-          },
-        );
-      } catch (requestError: unknown) {
-        appLogger.error(
-          'Erro ao monitorar sessão:',
-          axios.isAxiosError(requestError)
-            ? requestError.response?.data
-            : requestError,
-        );
-
-        /*
-         * Falhar no monitoramento não deve
-         * impedir o login.
-         */
-      }
-    },
-    [conexao],
-  );
 
   const conexaoLogin = useCallback(
     async (
@@ -181,15 +103,6 @@ export default function useAuth():
         await setUser(userWithMenus);
         await setToken(jwt);
 
-        /*
-         * Não bloqueia a entrada no aplicativo.
-         */
-        void monitorarSessao(
-          userWithMenus,
-          jwt,
-          deviceSession.codigoSessao,
-        );
-
         return true;
       } catch (requestError: unknown) {
         appLogger.error(
@@ -234,7 +147,6 @@ export default function useAuth():
       clearToken,
       conexao,
       loadUserWithMenus,
-      monitorarSessao,
       setToken,
       setDeviceSession,
       setUser,

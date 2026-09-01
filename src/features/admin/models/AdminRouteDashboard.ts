@@ -31,6 +31,7 @@ export interface FiltrosPainelAdmin {
 export type ResultadoViagemRotaAdmin =
   | 'em_acompanhamento'
   | 'percorrida_confirmada'
+  | 'percorrida_com_lacunas'
   | 'percorrida_parcial'
   | 'interrompida_com_trajeto'
   | 'interrompida_sem_trajeto'
@@ -62,7 +63,12 @@ export type AlertaOperacionalRotaAdmin =
   | 'destino_nao_confirmado'
   | 'velocidade_incompativel'
   | 'sincronizacao_atrasada'
-  | 'localizacao_interrompida';
+  | 'localizacao_interrompida'
+  | 'conclusao_com_lacunas_gps'
+  | 'falha_inicializacao'
+  | 'duracao_incompativel'
+  | 'origem_nao_identificada'
+  | 'possivel_chegada_nao_reconhecida';
 
 export interface DestinoExecucaoAdmin {
   codigo: number | null;
@@ -91,6 +97,7 @@ export interface ExecucaoRotaAdmin {
   tempoMovimentoSegundos: number | null;
   tempoParadoSegundos: number | null;
   duracaoSemSinalSegundos: number | null;
+  menorDistanciaDestinoFinalMetros?: number | null;
   quantidadeDesvios: number | null;
   quantidadePontos: number | null;
   quantidadeDestinosPlanejados: number | null;

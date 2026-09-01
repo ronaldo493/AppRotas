@@ -1,8 +1,8 @@
 # AppRotas — Suporte Drogal
 
 Aplicativo mobile para apoiar equipes em campo com criação de rotas entre
-filiais, consulta de lojas no mapa, pontos de interesse, chamados, inventário
-de equipamentos e registro de atividades no Strapi.
+filiais, consulta de lojas no mapa, pontos de interesse, inventário de
+equipamentos e registro de atividades no Strapi.
 
 O projeto utiliza React Native, Expo e TypeScript estrito. A organização é
 orientada a funcionalidades (`feature-first`): cada domínio mantém próximos
@@ -26,11 +26,13 @@ Documentação técnica desta camada:
   bloquear a abertura offline.
 - Verificação automática de novas versões do aplicativo.
 - Menus dinâmicos por cargo e setor, carregados do Strapi.
-- Registro de sessão com usuário, setor e cidade de origem.
+- Métrica diária agregada de uso, com aberturas e tempo em primeiro plano,
+  sem registrar cliques ou telas acessadas.
 - Busca, ordenação e navegação por rotas entre filiais.
-- Assistente global opcional, controlada pelo Strapi, com interpretação local
-  de comandos, consulta factual das filiais e fallback automático para a
-  bolinha de sugestões.
+- Assistente global opcional, controlada pelo Strapi, com comandos locais,
+  consultas factuais autorizadas sobre filiais, contatos, pontos, histórico,
+  monitoramento e ajuda, além da bolinha de sugestões quando o módulo está
+  administrativamente desligado.
 - Abertura de rotas no Google Maps e no Waze.
 - Registro de percursos iniciados pelo usuário, com GPS em segundo plano,
   conclusão automática, execução parcial, fila SQLite por colaborador,
@@ -40,9 +42,8 @@ Documentação técnica desta camada:
 - Cadastro de restaurantes e postos com identificação do usuário criador.
 - Histórico por usuário, período, cidade de origem e tipo de destino.
 - Painel administrativo de execuções, evidências GPS, históricos consolidados
-  e comparação sob demanda entre o trajeto real e o planejado.
-- Fila local para históricos que não puderam ser enviados ao Strapi.
-- Consulta de chamados atribuídos e não atribuídos.
+  e comparação sob demanda entre o trajeto real e o planejado, inclusive
+  atualização periódica das execuções em andamento.
 - Lista de contatos com filtros por texto e departamento.
 - Registro de patrimônio por serviço, com checklist específico de preventiva
   e relatório compartilhável.
@@ -68,6 +69,7 @@ Documentação técnica desta camada:
 ```text
 src/
 ├── application/
+│   ├── components/       # comportamentos globais fora das telas
 │   ├── navigation/       # composição e tipos da navegação
 │   └── providers/        # composição dos providers da aplicação
 ├── core/
@@ -79,9 +81,10 @@ src/
 │   └── theme/            # tema e preferências visuais
 ├── features/
 │   ├── admin/
+│   ├── assistente/       # módulo opcional de voz, texto e orquestração
+│   ├── auditoria/        # contratos auxiliares de auditoria
 │   ├── atualizacao/
 │   ├── auth/
-│   ├── chamados/
 │   ├── contatos/
 │   ├── configuracoes/
 │   ├── execucaoRota/     # execução, GPS, fila local e sincronização
@@ -96,6 +99,7 @@ src/
     ├── components/       # componentes reutilizados entre domínios
     ├── hooks/            # hooks genéricos
     ├── icons/            # utilitários de ícones
+    ├── logging/          # logs condicionais e seguros por ambiente
     └── maps/             # coordenadas e agrupamento de marcadores
 ```
 
@@ -155,7 +159,7 @@ feature/
 - Componentes e telas: `PascalCase`, por exemplo `PontosScreen.tsx`.
 - Hooks: prefixo `use` e `camelCase`, por exemplo `useHistoricoRotas.ts`.
 - Casos de uso: verbo no infinitivo, por exemplo
-  `registrarHistoricoRota.ts`.
+  `prepararExecucaoRota.ts`.
 - Estilos: nome do componente seguido de `.styles.ts`.
 - Modelos: nome do conceito em `PascalCase`.
 - Funções exportadas, hooks e casos de uso devem ter um comentário `/** */`
@@ -172,19 +176,19 @@ feature/
 3. Solicita ao Strapi, em `/menus/me`, somente os menus permitidos para o
    usuário autenticado.
 4. Valida e persiste o JWT, o usuário e a sessão do aparelho.
-5. Resolve a cidade atual quando houver permissão de localização.
-6. Registra a telemetria de acesso em `/sessoes`.
+5. Inicia a métrica agregada de uso do aplicativo sem bloquear o login.
 
-Uma falha no monitoramento da sessão não bloqueia o login.
 Os acessos do menu são sincronizados silenciosamente quando uma sessão salva é
 restaurada, quando o aplicativo volta ao primeiro plano e a cada cinco minutos
 de uso ativo. Se o Strapi estiver indisponível, os últimos acessos válidos são
 preservados.
 
-O monitor de sessão revalida o aparelho ao voltar ao primeiro plano. A regra
-`loginUnicoPorUsuarioAtivo` é remota: desligada apenas observa instalações;
-ligada, o login mais recente encerra o anterior. A especificação completa está
-em [`docs/SESSAO_UNICA_DISPOSITIVO.md`](../docs/SESSAO_UNICA_DISPOSITIVO.md).
+O monitor de sessão revalida o aparelho ao voltar ao primeiro plano. A sessão
+única é aplicada pela flag global `loginUnicoPorUsuarioAtivo` ou pela flag
+individual `forcarLoginUnico` do usuário. Sem nenhuma delas, as instalações são
+apenas observadas; quando a regra se aplica, o login mais recente encerra o
+anterior. A especificação completa está em
+[`docs/SESSAO_UNICA_DISPOSITIVO.md`](../docs/SESSAO_UNICA_DISPOSITIVO.md).
 
 ### Senha temporária no primeiro acesso
 
@@ -216,13 +220,13 @@ da resposta antes de atualizar a navegação. Durante o login, o JWT é enviado
 explicitamente porque a sessão ainda não foi publicada no contexto global.
 
 Ao sair ou entrar com outro usuário, os providers que mantêm dados de filiais,
-pontos, chamados e histórico são recriados com uma chave de sessão. Isso evita
+pontos e histórico são recriados com uma chave de sessão. Isso evita
 que dados mantidos em memória por uma conta apareçam para a conta seguinte.
 O provider de execução de rota permanece acima desse limite para finalizar ou
 sincronizar com segurança uma execução pertencente à sessão anterior.
 
 As rotas atualmente aceitas no Strapi são: `Home`, `MapaLojas`, `Historico`,
-`Pontos`, `Patrimonio`, `Chamados`, `Contatos` e `Admin`.
+`Pontos`, `Patrimonio`, `Contatos` e `Admin`.
 
 Para abrir o registro de patrimônio, o menu deve usar `Patrimonio` no campo
 `rota`. O texto exibido ao usuário é definido separadamente no campo `titulo`.
@@ -246,20 +250,29 @@ dispensar o aviso.
 5. Somente depois dessa confirmação o aplicativo cria a execução local,
    inicia o GPS e abre o navegador externo.
 6. Os pontos ficam no SQLite e são sincronizados em lotes idempotentes.
-7. Cada destino exige três leituras consecutivas próximas para ser confirmado.
+7. Cada destino é confirmado pela primeira leitura GPS utilizável dentro do
+   raio e da precisão definidos; pontos imprecisos não contam como chegada.
 8. A rota é concluída automaticamente quando todos os destinos são
    confirmados.
 9. Se apenas parte for realizada, os destinos visitados permanecem registrados
    como execução parcial.
 10. O usuário só precisa interromper manualmente quando abandonar a rota.
 
+Pelo microfone ao lado da busca ou pela assistente global, o usuário também
+pode dizer “trace uma rota para 25, 35 e 48”. Nesse fluxo, a lista pronunciada
+substitui a seleção anterior, a estimativa é calculada e informada por texto/voz
+sem abrir o mapa de prévia, e o navegador solicitado ou mais usado é aberto.
+Na primeira vez o usuário escolhe. Com várias paradas, o app usa Google Maps
+para preservar a ordem; uma rota ativa sempre exige confirmação antes da troca.
+
 Se o Strapi ou a estimativa estiver indisponível, a última configuração válida
 do monitoramento é recuperada do armazenamento local. Uma configuração ativa
 mantém a gravação do percurso e permite continuar sem a prévia; Maps ou Waze
 continuam abrindo normalmente.
 
-O cálculo da prévia só ocorre ao tocar em `Traçar rota`; pesquisar uma filial
-não consulta a Routes API. Se a prévia for fechada, ela permanece em memória e
+O cálculo da prévia só ocorre ao tocar em `Traçar rota` ou ao pedir
+explicitamente que a assistente trace uma rota; pesquisar uma filial não
+consulta a Routes API. Se a prévia for fechada, ela permanece em memória e
 é reaproveitada por até 10 minutos enquanto a lista, a ordem dos destinos e a
 origem permanecerem válidas. Antes de decidir entre cache e nova consulta, o
 aplicativo reutiliza uma leitura do aparelho somente quando ela tem até 30
@@ -296,6 +309,12 @@ interrompe a navegação nem elimina dados: a fila local permanece pendente até
 uma tentativa posterior. Antes de entregar a navegação externa, o início e o
 primeiro ponto recebem uma janela curta de sincronização; esse prazo nunca
 transforma a conexão com o servidor em requisito para começar a viagem.
+
+O aplicativo também envia, em caráter best-effort, o último estado técnico do
+rastreamento para `/execucoes-rotas/:codigoSessao/telemetria`. O payload não
+contém coordenadas nem conteúdo pessoal: informa somente o tipo do evento, o
+horário observado e a quantidade de pontos pendentes. Uma falha nesse envio
+nunca bloqueia o GPS, a fila de segmentos ou a finalização.
 
 ### Retenção do SQLite
 
@@ -375,14 +394,6 @@ O aplicativo espera os endpoints abaixo. Os nomes representam o contrato atual
 do código; mudanças no Strapi devem ser refletidas nos modelos da respectiva
 feature.
 
-### `sessoes`
-
-| Campo | Tipo recomendado | Uso |
-| --- | --- | --- |
-| `user` | Texto curto | Username autenticado |
-| `setor` | Texto curto | Setor do usuário |
-| `cidadeOrigem` | Texto curto | Cidade resolvida usando a mesma leitura atual de GPS do login |
-
 ### `historico-visitas`
 
 A tela e a assistente consultam `GET /api/historico-visitas/me`. O backend
@@ -432,16 +443,32 @@ a bolinha de sugestões. A permissão do microfone só é solicitada quando o
 usuário tenta falar.
 
 O campo `assistenteIaAtiva`, também Boolean obrigatório e padrão `false`,
-habilita somente o fallback online para frases que a árvore local não
-reconhecer. Ele não tem efeito com `assistenteVozAtivo = false`. A chave do
-provedor permanece exclusivamente no Strapi e todo comando sugerido pela IA é
-validado novamente pelo executor local antes de qualquer ação.
+permite o Gemini no planejador do protocolo server-driven. Ele não monta a
+interface por conta própria e não tem efeito no app com
+`assistenteVozAtivo = false`. A chave permanece exclusivamente no Strapi, que
+valida o plano contra ferramentas, ações, menus e políticas antes de executar
+uma consulta somente leitura.
 
 O campo `assistenteOrquestradorAtivo`, obrigatório e padrão `false`, habilita o
 protocolo V2 server-driven para consultas factuais. O Strapi consulta os dados,
 aplica o escopo e devolve texto e sugestões estruturadas; ações físicas como
 traçar/reordenar rotas e usar GPS continuam locais. Se a flag ou o endpoint
-falhar, o app retorna ao fluxo existente.
+falhar, o app retorna ao fluxo existente. Com `assistenteIaAtiva = false`, o
+pré-roteador determinístico e as ferramentas V2 continuam disponíveis; apenas
+o planejamento pelo Gemini é desativado.
+
+A base de conhecimento versionada, a memória curta autoritativa por
+usuário/sessão e as análises de monitoramento pertencem ao Strapi e reutilizam
+o contrato V2 existente. Textos, sinônimos, políticas e análises podem evoluir
+em rollout somente do backend, desde que a versão e os limites do contrato
+permaneçam compatíveis com o APK publicado.
+
+A memória V2 também mantém comparações, refinamentos e esclarecimentos pendentes.
+Se houver mais de um colaborador, filial ou contato, o app apresenta escolhas e
+aceita tanto o toque quanto respostas como “o segundo”. O Strapi retoma a ação
+original e revalida a entidade, o setor e os menus. O painel pode responder
+comparações de pessoas/períodos, diagnósticos e rankings por interrupção, tempo
+sem atualização, duração ou distância sem reutilizar filtros visuais da tela.
 
 O campo `assistenteSugestoesAtivas`, obrigatório e padrão `false`, controla a
 descoberta inicial em até dois dias distintos, a apresentação e até três dicas
@@ -454,9 +481,16 @@ para `ADMIN`; `true` inclui `GESTOR`, ainda restrito ao setor do JWT. O
 aplicativo não interpreta essa flag diretamente: a navegação reflete os menus
 já autorizados por `/menus/me`.
 
-No papel `Authenticated`, libere `Configuracao-app > find`. Se usar o fallback
-online, libere também `Assistente-ia > interpretar`. Para o protocolo V2,
-libere `Assistente-ia > conversar`. Para registrar métricas de
+O Boolean `mapaRotasEmAndamentoAtivo`, obrigatório e padrão `false`, controla
+somente a entrada **Rotas em andamento**. Quando ligado, o mapa usa a última
+coordenada real consolidada de cada execução aberta; a presença geral da
+sessão não vira marcador. O Boolean `loginUnicoPorUsuarioAtivo`, também padrão
+`false`, aplica sessão única a todos; `user.forcarLoginUnico=true` permite o
+rollout por conta.
+
+No papel `Authenticated`, libere `Configuracao-app > find`. Para o contrato
+legado, libere `Assistente-ia > interpretar`; para o protocolo V2, incluindo
+conhecimento e análises, libere `Assistente-ia > conversar`. Para registrar métricas de
 uso sem conteúdo da conversa, libere `Metrica-assistente > registrar`; o app não
 precisa de CRUD genérico dessa collection.
 
@@ -522,8 +556,7 @@ mesma atualização do usuário.
 Para a edição comum, habilite `Perfil > atualizarEmail` e
 `Perfil > alterarSenha`. O novo aplicativo não precisa de
 `Users-permissions User > update`, `Auth > changePassword` nem
-`Audit-log > create`. Mantenha essas permissões antigas apenas durante o
-rollout se ainda houver APK anterior em uso.
+`Audit-log > create`; essas permissões genéricas devem permanecer desativadas.
 
 O módulo `Admin` oferece `Monitoramento de rotas`, `Rotas em andamento` e
 `Trocar senha`. A opção do mapa aparece somente com
@@ -548,8 +581,6 @@ estiver ativo.
 - Usuário do Users & Permissions: campo opcional `emailSec` do tipo Email.
 - `informacoeslojas`: dados e coordenadas das filiais.
 - `menus`: título, rota, ícone, situação, ordem e relação com setores.
-- `/chamados`: chamados filtrados por responsável e setor; o schema não está
-  versionado no Strapi deste repositório e depende do ambiente legado.
 - `contatos`: `departamento`, `colaboradores`, `ramal`, `ddr` e `email`.
 - `sugestoes`: `user`, `setor`, `email`, `tipo`, `tela`, `sugestao` e
   `situation`.
@@ -677,4 +708,4 @@ Próximos passos recomendados:
 
 - testes de integração dos hooks do Strapi;
 - lint e formatação automatizados no CI;
-- migração da API de produção para HTTPS.
+- monitoramento automatizado dos endpoints HTTPS e das filas de sincronização.

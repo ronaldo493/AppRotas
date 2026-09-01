@@ -5,12 +5,10 @@ import type {StrapiSingleResponse} from '../../../core/api/strapiTypes';
 
 interface ConfiguracaoApp {
   assistenteVozAtivo?: boolean | null;
-  assistenteIaAtiva?: boolean | null;
   assistenteOrquestradorAtivo?: boolean | null;
   assistenteSugestoesAtivas?: boolean | null;
   attributes?: {
     assistenteVozAtivo?: boolean | null;
-    assistenteIaAtiva?: boolean | null;
     assistenteOrquestradorAtivo?: boolean | null;
   assistenteSugestoesAtivas?: boolean | null;
   };
@@ -18,7 +16,6 @@ interface ConfiguracaoApp {
 
 export interface DisponibilidadeAssistente {
   habilitado: boolean;
-  iaHabilitada: boolean;
   orquestradorHabilitado: boolean;
   sugestoesHabilitadas: boolean;
   atualizadoEm: number;
@@ -28,7 +25,6 @@ export interface DisponibilidadeAssistente {
 interface ConfiguracaoPersistida {
   serverKey: string;
   habilitado: boolean;
-  iaHabilitada: boolean;
   orquestradorHabilitado: boolean;
   sugestoesHabilitadas: boolean;
   atualizadoEm: number;
@@ -47,11 +43,10 @@ const getServerKey = (client: AxiosInstance): string =>
 
 const readFlags = (
   configuration: ConfiguracaoApp | null,
-): Pick<DisponibilidadeAssistente, 'habilitado' | 'iaHabilitada' | 'orquestradorHabilitado' | 'sugestoesHabilitadas'> => {
+): Pick<DisponibilidadeAssistente, 'habilitado' | 'orquestradorHabilitado' | 'sugestoesHabilitadas'> => {
   const data = configuration?.attributes ?? configuration;
   return {
     habilitado: data?.assistenteVozAtivo === true,
-    iaHabilitada: data?.assistenteIaAtiva === true,
     orquestradorHabilitado: data?.assistenteOrquestradorAtivo === true,
     sugestoesHabilitadas: data?.assistenteSugestoesAtivas === true,
   };
@@ -77,8 +72,6 @@ const readStored = async (
 
     return {
       habilitado: stored.habilitado,
-      // Caches criados antes do fallback online permanecem locais por padrão.
-      iaHabilitada: stored.iaHabilitada === true,
       orquestradorHabilitado: stored.orquestradorHabilitado === true,
       sugestoesHabilitadas: stored.sugestoesHabilitadas === true,
       atualizadoEm: stored.atualizadoEm,
@@ -99,7 +92,6 @@ const persist = async (
       JSON.stringify({
         serverKey,
         habilitado: result.habilitado,
-        iaHabilitada: result.iaHabilitada,
         orquestradorHabilitado: result.orquestradorHabilitado,
         sugestoesHabilitadas: result.sugestoesHabilitadas,
         atualizadoEm: result.atualizadoEm,
@@ -157,7 +149,6 @@ export async function obterDisponibilidadeAssistente(
       if (status !== undefined && status >= 400 && status < 500) {
         const unavailable: DisponibilidadeAssistente = {
           habilitado: false,
-          iaHabilitada: false,
           orquestradorHabilitado: false,
           sugestoesHabilitadas: false,
           atualizadoEm: Date.now(),
@@ -180,7 +171,6 @@ export async function obterDisponibilidadeAssistente(
 
       return {
         habilitado: false,
-        iaHabilitada: false,
         orquestradorHabilitado: false,
         sugestoesHabilitadas: false,
         atualizadoEm: Date.now(),

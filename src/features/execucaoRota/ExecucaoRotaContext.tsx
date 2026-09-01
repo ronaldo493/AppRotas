@@ -364,7 +364,12 @@ export function ExecucaoRotaProvider({
    */
   const verificarLocalizacao = useCallback(
     async (): Promise<void> => {
-      if (checkingLocationRef.current) return;
+      if (
+        checkingLocationRef.current ||
+        finalizingRef.current
+      ) {
+        return;
+      }
 
       checkingLocationRef.current = true;
       setVerificandoLocalizacao(true);
@@ -430,6 +435,23 @@ export function ExecucaoRotaProvider({
         setIndisponibilidadeLocalizacao(null);
 
         try {
+          /*
+           * A rota pode ter sido encerrada enquanto as permissões eram
+           * consultadas. A segunda leitura impede religar o serviço após a
+           * finalização e mantém a fila nativa coerente com o SQLite.
+           */
+          if (finalizingRef.current) return;
+
+          const activeBeforeStart =
+            await obterExecucaoRotaAtiva();
+
+          if (
+            activeBeforeStart?.codigoSessao !==
+            active.codigoSessao
+          ) {
+            return;
+          }
+
           await iniciarRastreamentoLocalizacao();
           void registrarTelemetriaRota(
             active.codigoSessao,
@@ -671,17 +693,19 @@ export function ExecucaoRotaProvider({
         await salvarExecucaoRota(execution);
 
         try {
-          if (initialPoint) {
-            await registrarPontosExecucaoRota([
+          const initialRegistration = initialPoint
+            ? await registrarPontosExecucaoRota([
               initialPoint,
-            ]);
-          }
+            ])
+            : null;
 
-          await iniciarRastreamentoLocalizacao();
-          void registrarTelemetriaRota(
-            execution.codigoSessao,
-            'rastreamento_confirmado',
-          );
+          if (!initialRegistration?.concluidaAutomaticamente) {
+            await iniciarRastreamentoLocalizacao();
+            void registrarTelemetriaRota(
+              execution.codigoSessao,
+              'rastreamento_confirmado',
+            );
+          }
         } catch (trackingError: unknown) {
           void registrarTelemetriaRota(
             execution.codigoSessao,
@@ -697,13 +721,19 @@ export function ExecucaoRotaProvider({
           return {
             status: 'erro',
             mensagem:
-              trackingError instanceof Error
-                ? trackingError.message
-                : 'Não foi possível iniciar o registro do percurso.',
+              'O celular não conseguiu ativar o registro do percurso. Aguarde alguns segundos e tente novamente. Se continuar, verifique se a localização está ativada.',
           };
         }
 
-        setExecucaoAtiva(execution);
+        const executionAfterStart =
+          (await obterExecucaoRota(execution.codigoSessao)) ??
+          execution;
+        setExecucaoAtiva(
+          executionAfterStart.status ===
+            STATUS_EXECUCAO_ROTA.EM_ANDAMENTO
+            ? executionAfterStart
+            : null,
+        );
 
         await waitForInitialSynchronization(
           synchronizeOwner(owner),
@@ -712,7 +742,7 @@ export function ExecucaoRotaProvider({
 
         return {
           status: 'iniciada',
-          execucao: execution,
+          execucao: executionAfterStart,
         };
       } catch (error: unknown) {
         const message =

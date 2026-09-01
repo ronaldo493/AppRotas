@@ -8,6 +8,10 @@ import {
 import {isTransientSqliteLock, runRouteDatabaseWrite} from '../src/features/execucaoRota/services/execucaoRotaDatabaseWriteQueue';
 import {definirFluxoMonitoramentoRota} from '../src/features/execucaoRota/useCases/definirFluxoMonitoramentoRota';
 import {canSynchronizeRouteInBackground} from '../src/features/execucaoRota/domain/backgroundRouteSyncPolicy';
+import {
+  criarCoordenadorServicoRastreamento,
+  iniciarServicoRastreamentoComRetentativa,
+} from '../src/features/execucaoRota/useCases/coordenarServicoRastreamento';
 
 test('mantém o monitoramento conhecido quando o Strapi fica offline', () => {
   assert.deepEqual(
@@ -172,4 +176,294 @@ test('uma falha na preparação não impede a remoção da sessão', async () =>
     'failed',
   );
   unregister();
+});
+
+test('repete a inicialização do GPS após uma falha transitória', async () => {
+  let ativo = false;
+  let tentativas = 0;
+  const esperas: number[] = [];
+
+  await iniciarServicoRastreamentoComRetentativa(
+    {
+      estaAtivo: async () => ativo,
+      iniciar: async () => {
+        tentativas += 1;
+
+        if (tentativas === 1) {
+          throw new Error('serviço anterior ainda encerrando');
+        }
+
+        ativo = true;
+      },
+      parar: async () => undefined,
+    },
+    {
+      atrasosRetentativaMs: [10, 20],
+      intervaloAposParadaMs: 30,
+    },
+    {
+      agora: () => 0,
+      aguardar: async tempoMs => {
+        esperas.push(tempoMs);
+      },
+    },
+  );
+
+  assert.equal(tentativas, 2);
+  assert.deepEqual(esperas, [10]);
+});
+
+test('aceita o serviço quando o Android o ativou apesar do erro retornado', async () => {
+  let ativo = false;
+  let tentativas = 0;
+  const esperas: number[] = [];
+
+  await iniciarServicoRastreamentoComRetentativa(
+    {
+      estaAtivo: async () => ativo,
+      iniciar: async () => {
+        tentativas += 1;
+        ativo = true;
+        throw new Error('resposta nativa rejeitada');
+      },
+      parar: async () => undefined,
+    },
+    {
+      atrasosRetentativaMs: [10, 20],
+      intervaloAposParadaMs: 30,
+    },
+    {
+      agora: () => 0,
+      aguardar: async tempoMs => {
+        esperas.push(tempoMs);
+      },
+    },
+  );
+
+  assert.equal(tentativas, 1);
+  assert.deepEqual(esperas, []);
+});
+
+test('mantém o erro original depois de esgotar as tentativas do GPS', async () => {
+  let tentativas = 0;
+  const esperas: number[] = [];
+
+  await assert.rejects(
+    iniciarServicoRastreamentoComRetentativa(
+      {
+        estaAtivo: async () => false,
+        iniciar: async () => {
+          tentativas += 1;
+          throw new Error('GPS indisponível');
+        },
+        parar: async () => undefined,
+      },
+      {
+        atrasosRetentativaMs: [10, 20],
+        intervaloAposParadaMs: 30,
+      },
+      {
+        agora: () => 0,
+        aguardar: async tempoMs => {
+          esperas.push(tempoMs);
+        },
+      },
+    ),
+    /GPS indisponível/,
+  );
+
+  assert.equal(tentativas, 3);
+  assert.deepEqual(esperas, [10, 20]);
+});
+
+test('a configuração de produção executa três tentativas com espera progressiva', async () => {
+  let tentativas = 0;
+  const esperas: number[] = [];
+
+  await assert.rejects(
+    iniciarServicoRastreamentoComRetentativa(
+      {
+        estaAtivo: async () => false,
+        iniciar: async () => {
+          tentativas += 1;
+          throw new Error('serviço indisponível');
+        },
+        parar: async () => undefined,
+      },
+      undefined,
+      {
+        agora: () => 0,
+        aguardar: async tempoMs => {
+          esperas.push(tempoMs);
+        },
+      },
+    ),
+    /serviço indisponível/,
+  );
+
+  assert.equal(tentativas, 3);
+  assert.deepEqual(esperas, [750, 1_500]);
+});
+
+test('serializa parada e novo início respeitando o intervalo de segurança', async () => {
+  let ativo = true;
+  let agora = 1_000;
+  let inicios = 0;
+  const eventos: string[] = [];
+  const esperas: number[] = [];
+  const coordenador = criarCoordenadorServicoRastreamento(
+    {
+      estaAtivo: async () => ativo,
+      iniciar: async () => {
+        eventos.push('iniciar');
+        inicios += 1;
+        ativo = true;
+      },
+      parar: async () => {
+        eventos.push('parar');
+        ativo = false;
+      },
+    },
+    {
+      atrasosRetentativaMs: [10, 20],
+      intervaloAposParadaMs: 1_200,
+    },
+    {
+      agora: () => agora,
+      aguardar: async tempoMs => {
+        esperas.push(tempoMs);
+        agora += tempoMs;
+      },
+    },
+  );
+
+  await Promise.all([
+    coordenador.parar(),
+    coordenador.iniciar(),
+    coordenador.iniciar(),
+  ]);
+
+  assert.deepEqual(eventos, ['parar', 'iniciar']);
+  assert.equal(inicios, 1);
+  assert.deepEqual(esperas, [1_200]);
+});
+
+test('duas inicializações simultâneas acionam o serviço nativo uma única vez', async () => {
+  let ativo = false;
+  let inicios = 0;
+  let liberarInicio: (() => void) | null = null;
+  let confirmarEntrada: (() => void) | null = null;
+  const entradaNoServico = new Promise<void>(resolve => {
+    confirmarEntrada = resolve;
+  });
+  const coordenador = criarCoordenadorServicoRastreamento(
+    {
+      estaAtivo: async () => ativo,
+      iniciar: async () => {
+        inicios += 1;
+        confirmarEntrada?.();
+
+        await new Promise<void>(resolve => {
+          liberarInicio = resolve;
+        });
+        ativo = true;
+      },
+      parar: async () => {
+        ativo = false;
+      },
+    },
+    {
+      atrasosRetentativaMs: [10, 20],
+      intervaloAposParadaMs: 30,
+    },
+    {
+      agora: () => 0,
+      aguardar: async () => undefined,
+    },
+  );
+
+  const primeiroInicio = coordenador.iniciar();
+  await entradaNoServico;
+  const segundoInicio = coordenador.iniciar();
+  const concluirInicio = liberarInicio as (() => void) | null;
+
+  assert.ok(concluirInicio);
+  concluirInicio();
+  await Promise.all([primeiroInicio, segundoInicio]);
+
+  assert.equal(inicios, 1);
+});
+
+test('uma inicialização rejeitada não bloqueia operações posteriores', async () => {
+  let ativo = false;
+  let deveFalhar = true;
+  let inicios = 0;
+  const coordenador = criarCoordenadorServicoRastreamento(
+    {
+      estaAtivo: async () => ativo,
+      iniciar: async () => {
+        inicios += 1;
+
+        if (deveFalhar) {
+          throw new Error('falha nativa permanente');
+        }
+
+        ativo = true;
+      },
+      parar: async () => {
+        ativo = false;
+      },
+    },
+    {
+      atrasosRetentativaMs: [],
+      intervaloAposParadaMs: 30,
+    },
+    {
+      agora: () => 0,
+      aguardar: async () => undefined,
+    },
+  );
+
+  await assert.rejects(
+    coordenador.iniciar(),
+    /falha nativa permanente/,
+  );
+
+  deveFalhar = false;
+  await coordenador.iniciar();
+
+  assert.equal(ativo, true);
+  assert.equal(inicios, 2);
+});
+
+test('parada sem serviço ativo não impõe espera ao próximo início', async () => {
+  let ativo = false;
+  const esperas: number[] = [];
+  const coordenador = criarCoordenadorServicoRastreamento(
+    {
+      estaAtivo: async () => ativo,
+      iniciar: async () => {
+        ativo = true;
+      },
+      parar: async () => {
+        ativo = false;
+      },
+    },
+    {
+      atrasosRetentativaMs: [10, 20],
+      intervaloAposParadaMs: 1_200,
+    },
+    {
+      agora: () => 1_000,
+      aguardar: async tempoMs => {
+        esperas.push(tempoMs);
+      },
+    },
+  );
+
+  await coordenador.parar();
+  await coordenador.iniciar();
+
+  assert.deepEqual(esperas, []);
+  assert.equal(ativo, true);
 });

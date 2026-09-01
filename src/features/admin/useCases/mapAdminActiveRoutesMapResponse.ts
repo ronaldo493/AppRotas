@@ -37,17 +37,15 @@ const obterEstado = (
   latitude: number | null,
   longitude: number | null,
 ): EstadoAtualizacaoRotaAtiva => {
-  const value = asString(raw.estado ?? raw.statusAtualizacao).toLowerCase();
+  const value = asString(raw.estado).toLowerCase();
   if (
     value === 'aguardando_primeiro_lote' ||
     value === 'aguardando_dados' ||
     latitude === null || longitude === null
   ) return 'aguardando_primeiro_lote';
   if (value === 'atual') return 'atual';
-  if (value === 'atrasada' || value === 'recente') return 'atrasada';
-  if (value === 'sem_atualizacao' || value === 'desatualizada') {
-    return 'sem_atualizacao';
-  }
+  if (value === 'atrasada') return 'atrasada';
+  if (value === 'sem_atualizacao') return 'sem_atualizacao';
 
   const idade = asNullableNumber(raw.idadeSegundos);
   if (idade !== null && idade <= 120) return 'atual';
@@ -57,13 +55,11 @@ const obterEstado = (
 
 const mapearRota = (value: unknown): AdminActiveRouteLocation | null => {
   const raw = asObject(value);
-  const codigoSessao = asString(
-    raw.codigoSessao ?? raw.codigo_execucao ?? raw.codigo,
-  ).trim();
+  const codigoSessao = asString(raw.codigoSessao).trim();
   if (!codigoSessao) return null;
 
-  const latitude = asNullableNumber(raw.latitude ?? raw.ultimaLatitude);
-  const longitude = asNullableNumber(raw.longitude ?? raw.ultimaLongitude);
+  const latitude = asNullableNumber(raw.latitude);
+  const longitude = asNullableNumber(raw.longitude);
   const estado = obterEstado(raw, latitude, longitude);
   const aguardando = estado === 'aguardando_primeiro_lote';
 
@@ -72,29 +68,31 @@ const mapearRota = (value: unknown): AdminActiveRouteLocation | null => {
     usuarioId: typeof raw.usuarioId === 'string' || typeof raw.usuarioId === 'number'
       ? raw.usuarioId
       : null,
-    username: asString(raw.username ?? raw.colaborador, 'Colaborador não informado'),
+    username: asString(raw.username, 'Colaborador não informado'),
     setor: asString(raw.setor),
     iniciadaEm: asString(raw.iniciadaEm),
     latitude: aguardando ? null : latitude,
     longitude: aguardando ? null : longitude,
     precisaoMetros: aguardando
       ? null
-      : asNullableNumber(raw.precisaoMetros ?? raw.ultimaPrecisaoMetros),
+      : asNullableNumber(raw.precisaoMetros),
     capturadaEm: aguardando
       ? null
-      : asNullableString(raw.capturadaEm ?? raw.ultimaLocalizacaoEm),
+      : asNullableString(raw.capturadaEm),
     recebidaEm: aguardando
       ? null
-      : asNullableString(raw.recebidaEm ?? raw.ultimaSincronizacaoEm),
+      : asNullableString(raw.recebidaEm),
     idadeSegundos: aguardando ? null : asNullableNumber(raw.idadeSegundos),
     estado,
     quantidadePontos: Math.max(0, asNumber(raw.quantidadePontos)),
-    quantidadeDestinosPlanejados: Math.max(0, asNumber(
-      raw.quantidadeDestinosPlanejados ?? raw.totalDestinos,
-    )),
-    quantidadeDestinosVisitados: Math.max(0, asNumber(
-      raw.quantidadeDestinosVisitados ?? raw.destinosVisitados,
-    )),
+    quantidadeDestinosPlanejados: Math.max(
+      0,
+      asNumber(raw.quantidadeDestinosPlanejados),
+    ),
+    quantidadeDestinosVisitados: Math.max(
+      0,
+      asNumber(raw.quantidadeDestinosVisitados),
+    ),
   };
 };
 
@@ -115,38 +113,32 @@ const calcularTotais = (
 
   return {
     rotasEmAndamento: asNumber(
-      raw.rotasEmAndamento ?? raw.totalEmAndamento ?? raw.totalRotas,
+      raw.rotasEmAndamento,
       calculados.rotasEmAndamento,
     ),
     comLocalizacao: asNumber(
-      raw.comLocalizacao ?? raw.totalComPosicao,
+      raw.comLocalizacao,
       calculados.comLocalizacao,
     ),
     aguardandoPrimeiroLote: asNumber(
-      raw.aguardandoPrimeiroLote ?? raw.aguardandoDados ?? raw.totalAguardando,
+      raw.aguardandoPrimeiroLote,
       calculados.aguardandoPrimeiroLote,
     ),
     atual: asNumber(raw.atual, calculados.atual),
-    atrasada: asNumber(raw.atrasada ?? raw.recente, calculados.atrasada),
+    atrasada: asNumber(raw.atrasada, calculados.atrasada),
     semAtualizacao: asNumber(
-      raw.semAtualizacao ?? raw.desatualizada,
+      raw.semAtualizacao,
       calculados.semAtualizacao,
     ),
   };
 };
 
-/** Normaliza o contrato novo e mantém leitura transitória do envelope legado. */
+/** Valida e normaliza o contrato canônico do mapa de rotas ativas. */
 export function mapearRespostaMapaRotasAtivas(
   value: unknown,
 ): AdminActiveRoutesMapData {
   const raw = asObject(value);
-  const rawRoutes = Array.isArray(raw.rotas)
-    ? raw.rotas
-    : Array.isArray(raw.execucoes)
-      ? raw.execucoes
-      : Array.isArray(raw.colaboradores)
-        ? raw.colaboradores
-        : [];
+  const rawRoutes = Array.isArray(raw.rotas) ? raw.rotas : [];
   const rotas = rawRoutes
     .map(mapearRota)
     .filter((item): item is AdminActiveRouteLocation => item !== null);

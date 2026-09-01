@@ -4,7 +4,7 @@ import {Button, TextInput} from 'react-native-paper';
 
 import {useAuthContext} from '../../core/auth/AuthContext';
 import {useAppTheme} from '../../core/theme/appTheme';
-import AlterarSenhaSheet from './components/AlterarSenhaSheet';
+import AlterarSenhaSheet from '../../shared/components/AlterarSenhaSheet';
 import useAtualizarCadastro from './hooks/useAtualizarCadastro';
 import ProfileStyles from './profileScreen.styles';
 

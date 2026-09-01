@@ -11,7 +11,6 @@ export const MENU_ROUTE_NAMES = [
   'Historico',
   'Pontos',
   'Patrimonio',
-  'Chamados',
   'Contatos',
   'Admin',
 ] as const;

@@ -4,18 +4,13 @@ import Toast from 'react-native-toast-message';
 import {useAuthContext} from '../../../core/auth/AuthContext';
 import {useHistoricoContext} from '../HistoricoContext';
 import useStrapiClient from '../../../core/api/strapiClient';
-import type {Filial} from '../../filiais/models/Filial';
 import {
-  TIPO_HISTORICO,
   type FiltroHistoricoRota,
   type HistoricoVisita,
-  type NovoHistoricoRota,
-  type TipoHistorico,
 } from '../models/Historico';
 import type {
   StrapiListResponse,
   StrapiRequestError,
-  StrapiSingleResponse,
 } from '../../../core/api/strapiTypes';
 import usePagination from '../../../shared/hooks/usePagination';
 
@@ -169,110 +164,6 @@ const useHistoricoRotas = (
     ],
   );
 
-  const postHistoricoRota = useCallback(
-    async (
-      routes: Filial[],
-      datahora = new Date().toISOString(),
-      showErrorToast = true,
-      cidadeOrigem: string | null,
-      tipoHistorico: TipoHistorico =
-        TIPO_HISTORICO.LOJA,
-    ): Promise<boolean> => {
-      if (!user) {
-        const message = 'Usuário não identificado. Faça login novamente.';
-
-        setError(message);
-
-        if (showErrorToast) {
-          Toast.show({
-            type: 'error',
-            text1: 'Usuário não identificado',
-            text2: message,
-          });
-        }
-
-        return false;
-      }
-
-      if (routes.length === 0) {
-        const message ='Nenhuma filial foi adicionada à rota.';
-
-        setError(message);
-
-        if (showErrorToast) {
-          Toast.show({
-            type: 'error',
-            text1: 'Rota vazia',
-            text2: message,
-          });
-        }
-
-        return false;
-      }
-
-      setLoading(true);
-      setError(null);
-
-      const novoHistorico: NovoHistoricoRota = {
-        datahora,
-        username: user.username ?? 'Não informado',
-        setor: user.setor ?? 'Não informado',
-        cidadeOrigem: cidadeOrigem ?? 'Não informado',
-        tipoHistorico,
-        rotas: routes.map((route, index) => ({
-          codigofilial: route.codigofilial,
-          nomefilial: route.nomefilial,
-          nomecidade: route.nomecidade,
-          ordem: index + 1,
-        })),
-      };
-
-      try {
-        const response = await conexao.post<
-          StrapiSingleResponse<HistoricoVisita>
-        >('/historico-visitas', {
-          data: novoHistorico,
-        });
-        const historicoSalvo = response.data.data;
-
-        setHistoricosRotas(currentHistoricos =>
-          [historicoSalvo, ...currentHistoricos].sort(
-            (a, b) =>
-              new Date(b.datahora).getTime() -
-              new Date(a.datahora).getTime(),
-          ),
-        );
-
-        return true;
-      } catch (err: unknown) {
-        const strapiError = err as StrapiRequestError;
-
-        const errorMessage = getErrorMessage(err);
-
-        setError(errorMessage);
-
-        if (showErrorToast) {
-          Toast.show({
-            type: 'error',
-            text1:
-              strapiError.response?.status === 403
-                ? 'Acesso negado'
-                : 'Erro ao salvar',
-            text2:
-              strapiError.response?.status === 403
-                ? 'Você não possui permissão para salvar o histórico.'
-                : errorMessage,
-          });
-        }
-
-        return false;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [conexao, setHistoricosRotas, user],
-  );
-
   const aplicarFiltroData = (dataInicial?: Date, dataFinal?: Date): void => {
     if (
       dataInicial &&
@@ -332,7 +223,6 @@ const useHistoricoRotas = (
     limparFiltroData,
     resetPagination,
     getHistoricoRotas,
-    postHistoricoRota,
   };
 };
 

@@ -1,9 +1,17 @@
 import React, {useEffect, useState} from 'react';
-import {KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View} from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import {Button, TextInput} from 'react-native-paper';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {useAppTheme} from '../../../core/theme/appTheme';
+import {useAppTheme} from '../../core/theme/appTheme';
 import styles from './alterarSenhaSheet.styles';
 
 export interface SenhaInput {
@@ -23,6 +31,7 @@ interface AlterarSenhaSheetProps {
   onSubmit: (input: SenhaInput) => Promise<boolean>;
 }
 
+/** Formulário reutilizável para alteração de senha em fluxo livre ou obrigatório. */
 export default function AlterarSenhaSheet({
   visible,
   loading,
@@ -42,7 +51,6 @@ export default function AlterarSenhaSheet({
 
   useEffect(() => {
     if (visible) return;
-
     setCurrentPassword('');
     setNewPassword('');
     setPasswordConfirmation('');
@@ -59,7 +67,6 @@ export default function AlterarSenhaSheet({
       newPassword,
       passwordConfirmation,
     });
-
     if (updated && dismissible) onDismiss();
   };
 
@@ -88,10 +95,13 @@ export default function AlterarSenhaSheet({
           onPress={handleDismiss}
         >
           <Pressable
-            style={[styles.sheet, {
-              backgroundColor: theme.colors.surface,
-              paddingBottom: Math.max(insets.bottom, 18),
-            }]}
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: theme.colors.surface,
+                paddingBottom: Math.max(insets.bottom, 18),
+              },
+            ]}
             onPress={event => event.stopPropagation()}
           >
             <ScrollView
@@ -141,7 +151,13 @@ export default function AlterarSenhaSheet({
 
               <View style={styles.actions}>
                 {dismissible ? (
-                  <Button disabled={loading} textColor={theme.colors.onSurfaceVariant} onPress={handleDismiss}>Cancelar</Button>
+                  <Button
+                    disabled={loading}
+                    textColor={theme.colors.onSurfaceVariant}
+                    onPress={handleDismiss}
+                  >
+                    Cancelar
+                  </Button>
                 ) : null}
                 <Button
                   mode="contained"

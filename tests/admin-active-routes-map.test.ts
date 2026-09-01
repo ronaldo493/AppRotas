@@ -22,8 +22,8 @@ test('normaliza decimais e dados operacionais das rotas ativas', () => {
       idadeSegundos: '60',
       estado: 'atual',
       quantidadePontos: '12',
-      totalDestinos: 3,
-      destinosVisitados: 1,
+      quantidadeDestinosPlanejados: 3,
+      quantidadeDestinosVisitados: 1,
     }],
   });
 

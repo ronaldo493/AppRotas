@@ -24,6 +24,7 @@ import useFloatingActionPosition from '../../../shared/hooks/useFloatingActionPo
 import SugestaoFab from '../../sugestoes/components/SugestaoFab';
 import useAssistenteGlobal from '../hooks/useAssistenteGlobal';
 import type {ComandoAssistente} from '../models/ComandoAssistente';
+import {observarCapturaVozAssistente} from '../services/assistenteVoiceGateway';
 import styles from './assistenteGlobal.styles';
 
 const ASSISTENTE_POSITION_KEY = '@drogal:assistente-fab-position';
@@ -200,13 +201,11 @@ const SugestaoDinamicaButton = memo(function SugestaoDinamicaButton({
  * cuida apenas da experiência visual e de acessibilidade.
  */
 interface AssistenteGlobalProps {
-  iaHabilitada: boolean;
   orquestradorHabilitado: boolean;
   sugestoesHabilitadas: boolean;
 }
 
 export default function AssistenteGlobal({
-  iaHabilitada,
   orquestradorHabilitado,
   sugestoesHabilitadas,
 }: AssistenteGlobalProps): React.JSX.Element {
@@ -215,7 +214,6 @@ export default function AssistenteGlobal({
   const [tecladoVisivel, setTecladoVisivel] = useState(false);
   const [textoDigitado, setTextoDigitado] = useState('');
   const assistente = useAssistenteGlobal({
-    iaHabilitada,
     orquestradorHabilitado,
   });
   const {panHandlers, transform} = useFloatingActionPosition(
@@ -256,6 +254,14 @@ export default function AssistenteGlobal({
     };
   }, []);
 
+  useEffect(
+    () => observarCapturaVozAssistente(() => {
+      adocao.registrarAbertura();
+      void assistente.ouvirSemAbrir();
+    }),
+    [adocao.registrarAbertura, assistente.ouvirSemAbrir],
+  );
+
   const status = assistente.ouvindo
     ? 'Ouvindo você…'
     : assistente.processando
@@ -266,6 +272,28 @@ export default function AssistenteGlobal({
 
   return (
     <>
+      {assistente.capturaCompacta &&
+      (assistente.ativo || assistente.processando) ? (
+        <View
+          pointerEvents="none"
+          accessibilityLiveRegion="polite"
+          style={[
+            styles.compactListening,
+            {
+              bottom: Math.max(insets.bottom, 12) + 84,
+              backgroundColor: colors.surface,
+              borderColor: colors.outline,
+              shadowColor: colors.shadow,
+            },
+          ]}
+        >
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.compactListeningText, {color: colors.onSurface}]}>
+            {assistente.ouvindo ? 'Escutando…' : 'Entendendo…'}
+          </Text>
+        </View>
+      ) : null}
+
       {!assistente.visivel && !tecladoVisivel ? (
         <Animated.View
           {...panHandlers}

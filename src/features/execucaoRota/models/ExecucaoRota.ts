@@ -64,6 +64,7 @@ export interface VisitaDestinoRota {
   latitudeConfirmacao: number;
   longitudeConfirmacao: number;
   distanciaConfirmacaoMetros: number;
+  tipoEvidencia?: 'proximidade' | 'permanencia';
 }
 
 export interface ResumoExecucaoRota {

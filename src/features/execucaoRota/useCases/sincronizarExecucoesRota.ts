@@ -1,4 +1,5 @@
 import {
+  MOTIVO_FINALIZACAO_ROTA,
   STATUS_EXECUCAO_ROTA,
   type ExecucaoRota,
 } from '../models/ExecucaoRota';
@@ -6,6 +7,7 @@ import {appLogger} from '../../../shared/logging/appLogger';
 import type {ExecucaoRotaApi} from '../services/execucaoRotaApi';
 import {
   atualizarPlanejamentoExecucaoRota,
+  finalizarExecucaoRotaLocal,
   limparDadosSincronizadosExecucaoRota,
   listarExecucoesPendentes,
   listarOcorrenciasLocalizacao,
@@ -52,6 +54,7 @@ const synchronizeExecution = async (
   }
 
   let synchronizedBatches = 0;
+  let conclusaoConfirmadaPeloServidor: string | null = null;
 
   while (true) {
     const pendingPoints =
@@ -74,7 +77,7 @@ const synchronizeExecution = async (
       lastPoint.sequencia,
     ].join(':');
 
-    await api.enviarSegmento(
+    const resultadoEnvio = await api.enviarSegmento(
       execution.codigoSessao,
       {
         codigoLote: batchCode,
@@ -91,6 +94,46 @@ const synchronizeExecution = async (
     );
 
     synchronizedBatches += 1;
+
+    if (resultadoEnvio.finalizadaAutomaticamente === true) {
+      conclusaoConfirmadaPeloServidor =
+        resultadoEnvio.finalizadaEm ??
+        lastPoint.registradoEm;
+    }
+  }
+
+  if (
+    conclusaoConfirmadaPeloServidor &&
+    execution.status === STATUS_EXECUCAO_ROTA.EM_ANDAMENTO
+  ) {
+    const [allPoints, locationEvents] = await Promise.all([
+      listarPontosExecucaoRota(execution.codigoSessao),
+      listarOcorrenciasLocalizacao(execution.codigoSessao),
+    ]);
+    const summary = calcularMetricasExecucaoRota({
+      pontos: allPoints,
+      destinos: execution.destinos,
+      iniciadaEm: execution.iniciadaEm,
+      finalizadaEm: conclusaoConfirmadaPeloServidor,
+      trajetoPlanejado: execution.trajetoPlanejado,
+      ocorrenciasLocalizacao: locationEvents,
+    });
+
+    await finalizarExecucaoRotaLocal(
+      execution.codigoSessao,
+      STATUS_EXECUCAO_ROTA.CONCLUIDA,
+      MOTIVO_FINALIZACAO_ROTA.CONCLUIDA_AUTOMATICAMENTE,
+      conclusaoConfirmadaPeloServidor,
+      summary,
+    );
+    await marcarFinalizacaoSincronizada(
+      execution.codigoSessao,
+    );
+
+    return {
+      finalizada: true,
+      lotes: synchronizedBatches,
+    };
   }
 
   if (

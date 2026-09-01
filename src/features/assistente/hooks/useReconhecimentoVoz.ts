@@ -118,7 +118,6 @@ const CONTEXTOS_ASSISTENTE = [
   'visitas de ontem',
   'visitas desta semana',
   'última visita',
-  'meus chamados',
   'buscar contato',
   'consultar ramal',
   'contato do departamento',

@@ -8,7 +8,7 @@ import {
 import {Button} from 'react-native-paper';
 
 import {useAppTheme} from '../../../theme/appTheme';
-import AlterarSenhaSheet from '../../../../features/configuracoes/components/AlterarSenhaSheet';
+import AlterarSenhaSheet from '../../../../shared/components/AlterarSenhaSheet';
 import useForcedPasswordChange from '../hooks/useForcedPasswordChange';
 import styles from './forcedPasswordChangeGate.styles';
 

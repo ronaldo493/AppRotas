@@ -2,7 +2,6 @@ import type {ComponentType} from 'react';
 
 import type {MenuItem} from '../../core/menu/Menu';
 import AdminScreen from '../../features/admin/AdminScreen';
-import ChamadosScreen from '../../features/chamados/ChamadosScreen';
 import ContatosScreen from '../../features/contatos/screens/ContatosScreen';
 import MapaFiliaisScreen from '../../features/filiais/screens/MapaFiliaisScreen';
 import HistoricoScreen from '../../features/historico/screens/HistoricoScreen';
@@ -29,7 +28,6 @@ export const menuScreenRegistry = {
   Historico: HistoricoScreen,
   Pontos: PontosScreen,
   Patrimonio: PatrimonioEntryScreen,
-  Chamados: ChamadosScreen,
   Contatos: ContatosScreen,
   Admin: AdminScreen,
 } satisfies Record<MenuRouteName, ComponentType<object>>;

@@ -74,8 +74,13 @@ export default function useAssistenteAdocao({
       acao,
       tempoRespostaMs: 0,
       versaoApp: Constants.expoConfig?.version,
-    });
-  }, [client]);
+      etapa: 'CLIENTE_ADOCAO',
+      canalEntrada:
+        /clicada|exemplo/.test(acao) ? 'SUGESTAO' : 'SISTEMA',
+      resultadoTecnico: 'SUCESSO',
+      resultadoNegocio: 'NAO_APLICAVEL',
+    }, userKey);
+  }, [client, userKey]);
 
   const persistir = useCallback(async (
     proximo: EstadoAdocaoAssistente,

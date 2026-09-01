@@ -4,13 +4,11 @@ import React, {
 
 import {useAuthContext} from '../../core/auth/AuthContext';
 import {getAuthUserKey} from '../../core/auth/getAuthUserKey';
-import {ChamadosProvider} from '../../features/chamados/ChamadosContext';
 import {FiliaisProvider} from '../../features/filiais/FiliaisContext';
 import {HistoricoProvider} from '../../features/historico/HistoricoContext';
 import {PontosProvider} from '../../features/pontos/PontosContext';
 import {RotasProvider} from '../../features/rotas/RotasContext';
 import {ExecucaoRotaProvider} from '../../features/execucaoRota/ExecucaoRotaContext';
-import HistoricoOfflineSynchronizer from '../../features/historico/components/HistoricoOfflineSynchronizer';
 
 /**
  * Estados de tela que não podem sobreviver à troca de identidade. A `key`
@@ -23,12 +21,9 @@ function SessionDataProviders({
     <FiliaisProvider>
       <RotasProvider>
         <PontosProvider>
-          <ChamadosProvider>
-            <HistoricoProvider>
-              <HistoricoOfflineSynchronizer />
-              {children}
-            </HistoricoProvider>
-          </ChamadosProvider>
+          <HistoricoProvider>
+            {children}
+          </HistoricoProvider>
         </PontosProvider>
       </RotasProvider>
     </FiliaisProvider>

@@ -33,7 +33,7 @@ interface UseRoutePreviewReturn {
     origin: LatLng,
     routes: readonly Filial[],
     originSnapshot?: CapturedLocation | null,
-  ) => Promise<boolean>;
+  ) => Promise<RoutePreview | null>;
   resetPreview: () => void;
 }
 
@@ -92,7 +92,7 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
       origin: LatLng,
       routes: readonly Filial[],
       originSnapshot?: CapturedLocation | null,
-    ): Promise<boolean> => {
+    ): Promise<RoutePreview | null> => {
       const requestId = ++requestIdRef.current;
       const cacheKey =
         createRoutePreviewCacheKey(routes);
@@ -141,7 +141,7 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
         }
 
         if (requestId !== requestIdRef.current) {
-          return false;
+          return null;
         }
 
         setPreviewOrigin(effectiveOrigin);
@@ -156,7 +156,7 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
           )
         ) {
           setPreview(cachedPreview.data);
-          return true;
+          return cachedPreview.data;
         }
 
         requestKey = createRoutePreviewRequestKey(
@@ -189,7 +189,7 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
         );
 
         if (requestId !== requestIdRef.current) {
-          return false;
+          return null;
         }
 
         cacheRef.current = {
@@ -199,14 +199,14 @@ export default function useRoutePreview(): UseRoutePreviewReturn {
           data: result,
         };
         setPreview(result);
-        return true;
+        return result;
       } catch (requestError: unknown) {
         if (requestId !== requestIdRef.current) {
-          return false;
+          return null;
         }
 
         setError(getErrorMessage(requestError));
-        return false;
+        return null;
       } finally {
         if (
           requestKey &&

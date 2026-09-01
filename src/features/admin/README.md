@@ -8,7 +8,7 @@ A feature não acessa collections genéricas: o resumo de rotas passa por
 por `GET /api/painel-admin/usuarios` e redefinidos por
 `POST /api/painel-admin/usuarios/:usuarioId/redefinir-senha`.
 O mapa operacional de rotas ativas usa exclusivamente
-`GET /api/painel-admin/colaboradores/localizacoes`.
+`GET /api/painel-admin/rotas/em-andamento/localizacoes`.
 
 ## Acesso
 
@@ -81,26 +81,38 @@ andamento” não é apresentada como rastreamento saudável sem evidência rece
 
 O resultado da viagem é uma classificação separada do status técnico:
 
-- `Percurso confirmado`: ao menos três leituras, todos os destinos e rota
-  integral confirmados por GPS;
-- `Percurso parcial`: há trajeto e ao menos um destino, sem comprovação integral;
+- `Percurso confirmado`: todos os destinos foram alcançados e não há lacunas
+  relevantes no GPS;
+- `Destino alcançado com lacunas no GPS`: todos os destinos foram alcançados,
+  mas houve intervalos sem localização;
+- `Percurso parcial`: somente parte dos destinos planejados foi alcançada;
 - `Interrompida com trajeto` ou `sem trajeto`: considera a quantidade de
   leituras recebidas;
 - `Trajeto sem visita confirmada`: há deslocamento, mas nenhuma chegada GPS;
 - `Evidência insuficiente`: encerrada com uma ou nenhuma leitura;
 - `Não iniciada`: a navegação foi preparada e cancelada antes do percurso.
 
+O detalhe também sinaliza falha de inicialização, duração superior a seis
+horas, cidade de origem não identificada e registros antigos que chegaram a até
+120 metros do destino sem reconhecimento. As coordenadas continuam sendo a
+fonte de verdade quando a geocodificação da cidade falha.
+
 Os filtros usam essa leitura operacional. Quantidade de leituras e
 confiabilidade permanecem disponíveis no detalhe. A velocidade calculada é
 mantida no backend para auditoria, mas não é exibida no painel.
 
-Os campos operacionais são opcionais no contrato móvel. Durante uma publicação
-gradual, um backend anterior continua abrindo o painel com o comportamento
-legado; apenas não oferece as novas explicações.
+Os campos operacionais são normalizados na fronteira da API antes de chegar aos
+componentes. Valores ausentes não são inventados nem apresentados como
+evidência.
 
 Os totais são calculados na primeira página. Ao carregar mais percursos, o
 backend devolve somente a nova página e o aplicativo preserva o resumo já
 carregado, evitando repetir a agregação de milhares de registros.
+
+O total de históricos consolidados considera apenas registros monitorados com
+`codigoSessao` e situação integral ou parcial. Históricos legados continuam
+armazenados e consultáveis, mas não entram no indicador operacional para não
+misturar evidências produzidas por regras diferentes.
 
 ## Troca de senha
 
@@ -148,9 +160,16 @@ falha nessa consulta não impede a pesquisa digitada nem o monitoramento.
 yarn typecheck
 yarn test:admin
 ```
-# Diagnóstico operacional
+## Diagnóstico operacional
 
 O detalhe da execução apresenta, quando disponível, o último evento técnico do
 aparelho, horário observado, horário recebido e pontos aguardando envio. Essa
 informação complementa o painel; os segmentos GPS permanecem como evidência do
 trajeto realizado.
+
+Os eventos possíveis são: rastreamento iniciado/confirmado, localização
+recebida, GPS indisponível, permissão removida, serviço interrompido, retorno ao
+primeiro plano, sincronização pendente e lote enviado. O registro representa o
+último estado conhecido, não uma trilha completa de eventos. Se o processo for
+encerrado pelo sistema operacional antes de conseguir publicar o motivo, o
+painel só pode apontar falta de atualização até o próximo contato do aparelho.

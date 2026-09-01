@@ -9,7 +9,7 @@ export async function consultarMapaRotasAtivas(
   client: AxiosInstance,
 ): Promise<AdminActiveRoutesMapData> {
   const response = await client.get<StrapiSingleResponse<unknown>>(
-    '/painel-admin/colaboradores/localizacoes',
+    '/painel-admin/rotas/em-andamento/localizacoes',
     {
       timeout: 8_000,
       'axios-retry': {retries: 1},

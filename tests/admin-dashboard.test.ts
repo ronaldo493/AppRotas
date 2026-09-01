@@ -103,6 +103,10 @@ test('formata métricas e situações sem inventar valores ausentes', () => {
     formatarResultadoViagemAdmin('sem_evidencia_suficiente'),
     'Evidência insuficiente',
   );
+  assert.equal(
+    formatarResultadoViagemAdmin('percorrida_com_lacunas'),
+    'Destino alcançado com lacunas no GPS',
+  );
   assert.equal(formatarVelocidadeAdmin(42.36), '42,4 km/h');
   assert.equal(formatarTempoRelativoAdmin(125), 'há 2 min');
   assert.equal(formatarTempoRelativoAdmin(3_900), 'há 1h 5min');
@@ -113,6 +117,10 @@ test('formata métricas e situações sem inventar valores ausentes', () => {
   assert.match(
     formatarAlertaOperacionalAdmin('velocidade_incompativel'),
     /incompatível/,
+  );
+  assert.match(
+    formatarAlertaOperacionalAdmin('possivel_chegada_nao_reconhecida'),
+    /próximo ao destino/,
   );
   assert.equal(
     formatarOrigemFinalizacaoAdmin('servidor_destino_confirmado'),

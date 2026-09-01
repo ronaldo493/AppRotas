@@ -9,7 +9,6 @@ import {
 
 interface UseDisponibilidadeAssistenteReturn {
   habilitado: boolean;
-  iaHabilitada: boolean;
   orquestradorHabilitado: boolean;
   sugestoesHabilitadas: boolean;
   carregando: boolean;
@@ -62,8 +61,6 @@ export default function useDisponibilidadeAssistente(): UseDisponibilidadeAssist
 
   return {
     habilitado: result?.habilitado === true,
-    iaHabilitada:
-      result?.habilitado === true && result?.iaHabilitada === true,
     orquestradorHabilitado:
       result?.habilitado === true && result?.orquestradorHabilitado === true,
     sugestoesHabilitadas:

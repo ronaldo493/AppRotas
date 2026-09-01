@@ -11,7 +11,7 @@ devem ser preservadas durante manutenção.
 - React Navigation: auth, stack, drawer e tabs;
 - React Native Paper: tema e componentes;
 - Axios com timeout padrão de 15 segundos e política global de retry;
-- AsyncStorage: sessão, preferências e fila legada;
+- AsyncStorage: sessão, preferências e caches de contingência;
 - Expo SQLite: execução de rota e pontos de GPS;
 - Expo Location/Task Manager: localização em primeiro e segundo plano;
 - React Native Maps e Supercluster: mapas e agrupamento;
@@ -41,6 +41,7 @@ src/
 │   ├── auth/          sessão, JWT e primeiro acesso
 │   ├── config/        ambiente
 │   ├── location/      localização compartilhada
+│   ├── metrics/       resumo diário de uso e contingência offline
 │   ├── menu/          tipos de menu
 │   └── theme/         tema claro/escuro
 ├── features/          módulos de negócio
@@ -66,18 +67,21 @@ deve renderizar Toast ou navegar. Use cases devem ser testáveis sem montar UI.
 AuthProvider
 └── ThemeProvider
     └── PaperProvider
-        └── ForcedPasswordChangeGate
-            └── ExecucaoRotaProvider
-                └── SessionDataProviders (key por usuário)
-                    ├── FiliaisProvider
-                    ├── PontosProvider
-                    ├── ChamadosProvider
-                    └── HistoricoProvider
-                        ├── HistoricoOfflineSynchronizer
-                        ├── LocationProvider
-                        ├── AppVersionChecker
-                        ├── AppNavigation
-                        └── LocalizacaoRotaGuard
+        ├── DeviceSessionMonitor
+        ├── DeviceLocationPresenceMonitor
+        ├── AppUsageMonitor
+        ├── ForcedPasswordChangeGate
+        │   └── ExecucaoRotaProvider
+        │       └── SessionDataProviders (key por usuário)
+        │           └── FiliaisProvider
+        │               └── RotasProvider
+        │                   └── PontosProvider
+        │                       └── HistoricoProvider
+        │                           └── LocationProvider
+        │                               ├── AppVersionChecker
+        │                               ├── AppNavigation
+        │                               └── LocalizacaoRotaGuard
+        └── AppToast
 ```
 
 Decisões importantes:
@@ -90,7 +94,12 @@ Decisões importantes:
   de identidade;
 - `ExecucaoRotaProvider` fica acima desse limite para preservar e finalizar com
   segurança a execução do proprietário anterior;
+- `DeviceSessionMonitor` e `DeviceLocationPresenceMonitor` observam o ciclo de
+  vida sem bloquear a restauração offline; presença é diagnóstico de sessão e
+  não é usada como marcador fora de uma rota;
 - Patrimônio não tem provider global: seu estado é local ao fluxo e ao arquivo.
+- `AppUsageMonitor` consolida aberturas e tempo em primeiro plano por dia,
+  mantém até 14 dias locais quando offline e não coleta tela, fala ou localização.
 
 ## 4. Navegação
 
@@ -103,7 +112,7 @@ componente. O registro é a lista de compatibilidade desta versão:
 
 ```text
 Home, MapaLojas, Historico, Pontos,
-Patrimonio, Chamados, Contatos, Admin
+Patrimonio, Contatos, Admin
 ```
 
 `resolveMenuNavigation` filtra inativos, ordena, descarta rota desconhecida e
@@ -152,13 +161,12 @@ responsabilidade do backend. Token inválido/expirado remove a sessão. O app
 agenda logout para o `exp` e revalida ao voltar ao foreground.
 
 No login, o JWT ainda não foi publicado no contexto. Por isso `useAuth` o envia
-explicitamente ao registrar `/sessoes-dispositivo`, buscar `/menus/me` e
-registrar a telemetria em `/sessoes`. O `DeviceSessionMonitor` valida a sessão
+explicitamente ao registrar `/sessoes-dispositivo` e buscar `/menus/me`. O
+`DeviceSessionMonitor` valida a sessão
 no foreground e periodicamente sem bloquear a restauração offline. Respostas de
 revogação passam pelo coordenador de encerramento para preservar a fila de rota.
 
-O POST de telemetria também envia `X-App-Session-Id`, mas continua sendo
-best-effort e não participa da autorização. Reautenticação na mesma instalação
+Reautenticação na mesma instalação
 renova a sessão; somente outra instalação é descrita como “outro aparelho”.
 Expiração, encerramento administrativo e sessão inválida possuem mensagens
 próprias.
@@ -197,7 +205,7 @@ usam diretamente `currentCity`, pois esse estado visual pode representar uma
 leitura anterior. O serviço `locationSnapshotService` captura uma posição e
 resolve a cidade usando exatamente aquelas coordenadas.
 
-Para resolver cidade no login:
+Para resolver uma cidade associada a uma coordenada:
 
 1. tenta última posição conhecida com no máximo 60 segundos e 250 metros de
    precisão;
@@ -205,10 +213,10 @@ Para resolver cidade no login:
 3. faz geocodificação reversa;
 4. armazena cache por coordenada arredondada a três casas.
 
-Na sessão e no início de uma execução, cidade e coordenadas formam um snapshot
-único. Falha ou tempo limite da geocodificação grava cidade nula, mas não
-invalida o GPS, não impede o login e não interrompe a rota. As telas de Rotas,
-Pontos e Chamados não podem fornecer manualmente `cidadeOrigem` ao caso de uso.
+No início de uma execução, cidade e coordenadas formam um snapshot único. Falha
+ou tempo limite da geocodificação grava cidade nula, mas não invalida o GPS,
+não impede o login e não interrompe a rota. As telas de Rotas e Pontos não podem
+fornecer manualmente `cidadeOrigem` ao caso de uso.
 
 Negar localização não impede o login. Já uma rota monitorada exige permissão em
 uso, permissão de segundo plano e serviço do aparelho habilitado. Mensagens de
@@ -225,6 +233,8 @@ Mantém lista ordenável de destinos, pesquisa de filial e prévia. Responsabili
 - permitir reordenar antes da consulta;
 - consultar configuração do monitoramento;
 - chamar a prévia apenas em **Traçar rota**;
+- permitir que a assistente calcule a mesma prévia sem abrir o mapa e prossiga
+  para o navegador solicitado/preferido;
 - abrir Google Maps/Waze diretamente se a chave estiver desativada;
 - delegar início e rastreamento a `execucaoRota`.
 
@@ -251,6 +261,13 @@ O fallback garante a seleção e ordenação dos destinos. A prévia com distân
 tempo continua dependendo da Routes API; quando indisponível, o fluxo existente
 permite continuar sem prévia. A navegação final depende dos recursos offline do
 Google Maps/Waze instalados no aparelho.
+
+O comando assistido usa exatamente os códigos pronunciados e não mistura
+paradas antigas. A preferência de navegador é local, isolada por usuário e só
+é atualizada depois que a abertura foi concluída. Sem histórico, a escolha
+continua explícita. Mais de um destino força Google Maps para não descartar
+paradas intermediárias. Viagem ativa continua passando pelo fluxo seguro de
+interrupção antes da substituição.
 
 ### 9.2 `execucaoRota`
 
@@ -287,6 +304,14 @@ sincronização sem depender de componentes React. Portanto, abrir Maps ou Waze
 não interrompe o envio ao Strapi. Se a rede falhar, o ponto continua pendente e
 será reenviado pela próxima entrega, ao voltar ao aplicativo ou pelo ciclo de
 sincronização em primeiro plano.
+
+O app publica um estado técnico mínimo em
+`POST /execucoes-rotas/:codigoSessao/telemetria`. Os eventos distinguem início e
+confirmação do serviço, localização recebida, GPS indisponível, permissão
+removida, serviço interrompido, retorno ao foreground, sincronização pendente e
+lote enviado. O envio contém horário e quantidade de pontos pendentes, não
+coordenadas. É best-effort: falhar nessa chamada não altera a integridade do
+SQLite, dos segmentos ou da finalização.
 
 Sincronização:
 
@@ -327,7 +352,8 @@ O status persistido e o resultado comprovado são conceitos diferentes. O
 backend classifica os registros em confirmado, parcial, interrompido com/sem
 trajeto, trajeto sem visita, evidência insuficiente e não iniciado. Os filtros
 usam essa classificação; detalhes mostram leituras, confiança, sincronização e
-velocidade média em movimento sem esconder valores GPS incompatíveis.
+o último estado técnico do rastreamento. A velocidade derivada permanece no
+backend para auditoria de anomalias, mas não é exibida na interface.
 
 A gestão de senha usa `GET /painel-admin/usuarios` e
 `POST /painel-admin/usuarios/:usuarioId/redefinir-senha`. O app não envia setor, cargo
@@ -338,15 +364,8 @@ primeiro acesso, marca `deveAlterarSenha=true` e audita ator e usuário afetado.
 
 Consulta o histórico definitivo em páginas. O backend deve filtrar/expor apenas
 o escopo apropriado ao usuário conforme permissões do ambiente.
-
-O módulo também conserva a fila legada AsyncStorage:
-
-- chave antiga: `@drogal:pending-route-history`;
-- chave por usuário: `@drogal:pending-route-history:v2:<owner>`.
-
-Operações por chave são serializadas. A migração grava a fila nova antes de
-remover a antiga. Nunca envie um item cujo proprietário não corresponda à
-sessão.
+Novos históricos são produzidos somente pela consolidação idempotente da
+execução monitorada no backend; o aplicativo não envia histórico diretamente.
 
 ### 9.5 `filiais`
 
@@ -382,13 +401,7 @@ Carrega páginas de 100, remove duplicidade por identidade dos campos, ordena e
 filtra em memória. A tela usa FlatList e componentes memoizados para reduzir o
 custo de listas grandes.
 
-### 9.8 `chamados`
-
-Carrega `/chamados` com filtros de responsável/setor. Mantém contexto por
-sessão. O modelo do backend não está versionado neste repositório Strapi; trate
-como contrato externo ao alterar campos.
-
-### 9.9 `configuracoes`
+### 9.8 `configuracoes`
 
 Perfil atualiza apenas `emailSec` e senha. Cargo e e-mail corporativo principal
 permanecem somente leitura. As alterações usam `/perfil/email` e
@@ -397,26 +410,26 @@ o app não recebe permissão genérica para editar usuários ou criar auditoria.
 Cargo e e-mail corporativo principal não são editados pela tela, e a auditoria
 nunca recebe valores sensíveis.
 
-### 9.10 `atualizacao`
+### 9.9 `atualizacao`
 
 Consulta `update-app` ao montar, inclusive deslogado. Com versão remota superior,
 exibe modal não dispensável. O campo remoto `required` não participa da decisão
 atual.
 
-### 9.11 `sugestoes`
+### 9.10 `sugestoes`
 
 Envia uma sugestão e persiste apenas a posição do FAB em
 `@drogal:sugestao-fab-position`. Erro de envio mantém o formulário para nova
 tentativa.
 
-### 9.12 `patrimonio`
+### 9.11 `patrimonio`
 
 Fluxo local descrito em `src/features/patrimonio/README.md`. O formulário
 registra ambientes e equipamentos, persiste `patrimonio.json` com debounce de
 300 ms e compartilha por WhatsApp. Não depende do Strapi e não entra em
 `AppDataProviders`.
 
-### 9.13 `assistente`
+### 9.12 `assistente`
 
 Módulo opcional controlado por `configuracao-app.assistenteVozAtivo`. O
 componente `GlobalSupportAction` é o único ponto de composição: monta a
@@ -431,11 +444,14 @@ encapsulados na feature. A permissão do microfone é solicitada somente ao toca
 no controle de voz. Rotas e pontos são delegados aos contratos públicos dos
 respectivos domínios e percorrem os mesmos handlers das telas.
 
-O coordenador distribui filiais, pontos/GPS, contatos, histórico e chamados
-para hooks em `features/assistente/handlers`. Nenhuma tela importa a feature.
-Quando `assistenteIaAtiva` está ligada, apenas frases não reconhecidas usam
-`assistenteIaApi`; a resposta canônica retorna à árvore local e não possui
-autoridade para navegar ou consultar dados diretamente.
+O coordenador distribui filiais, pontos/GPS, contatos e histórico
+para hooks em `features/assistente/handlers`. A tela de Rotas conhece somente o
+adaptador opcional `integrations/rotas/RouteAssistantMic`, que publica um evento
+no gateway; ela não conhece reconhecimento, conversa ou orquestrador.
+O fluxo híbrido diferencia ações físicas de perguntas factuais: uma pergunta
+factual reconhecida tenta primeiro o V2; os demais comandos tentam primeiro a
+árvore local. Se ainda não houver resposta, o coordenador tenta o V2 quando ele
+ainda não foi consultado.
 
 Com `assistenteOrquestradorAtivo`, perguntas factuais usam o protocolo V2 em
 `assistenteOrquestradorApi`. O backend planeja uma ferramenta fechada, reaplica
@@ -444,10 +460,37 @@ sugestões; comandos físicos permanecem nos handlers locais. Essa integração
 continua restrita a `GlobalSupportAction`/`AssistenteFeature`, portanto nenhuma
 tela conhece o módulo e sua remoção não altera os domínios.
 
-`metricaAssistenteApi` é uma saída secundária best effort. O coordenador envia
-uma única métrica ao término da interação, distinguindo árvore local, backend,
-Gemini e atalho. O payload não contém fala, resposta ou parâmetros, e uma falha nessa
-saída nunca interfere na execução do comando.
+No protocolo server-driven, o Gemini pode apenas sugerir um plano; o Strapi
+valida e decide a ferramenta. A flag `assistenteIaAtiva` libera o planejador,
+mas o pré-roteador determinístico e as ferramentas continuam funcionando sem
+ela.
+
+O V2 também concentra no backend a memória autoritativa por usuário e sessão,
+a base de conhecimento versionada e as análises administrativas. Cada pergunta
+revalida menus, cargo, setor e entidades. A tela atual serve apenas para
+desambiguar perguntas genéricas e não limita a consulta aos filtros visuais.
+
+Uma ambiguidade não é tratada como erro nem resolvida pelo primeiro resultado.
+O contrato guarda temporariamente a ferramenta, a ação, o parâmetro, os filtros
+e opções sanitizadas. O app apresenta essas opções como sugestões e força a
+continuação seguinte pelo orquestrador. A seleção é novamente resolvida dentro
+do setor e das permissões atuais. A memória validada enviada pelo cliente também
+permite continuidade após reinício do processo Strapi, sem transportar
+autorização.
+
+O monitoramento server-driven fornece comparações entre colaboradores e períodos,
+diagnósticos e rankings operacionais. O React Native não recalcula métricas nem
+herda os filtros visuais do painel: ele apenas valida e apresenta a resposta do
+read model autorizado.
+Essas capacidades podem evoluir sem APK enquanto o contrato V2 continuar
+compatível.
+
+`metricaAssistenteApi` é uma saída secundária resiliente. O cliente correlaciona
+adoção, entrada e resposta por `codigoInteracao`; o backend grava a execução do
+orquestrador como fonte de verdade, distinguindo árvore local, pré-roteador,
+Gemini e ferramenta. A fila local de até 100 eventos, isolada por usuário e com
+retenção de sete dias, cobre falhas de rede sem bloquear a conversa. O payload
+não contém fala, resposta ou parâmetros.
 
 O procedimento de remoção está em
 [`src/features/assistente/README.md`](../src/features/assistente/README.md).
@@ -497,14 +540,14 @@ nativos. Antes de produção, teste em development build/APK físico.
 
 ```bash
 yarn typecheck
-yarn test:patrimonio
-yarn test:route-execution
-yarn test:route-preview
-yarn test:resilience
-yarn test:auth
-yarn test:device-session
 yarn test:all
 ```
+
+Os scripts seletivos, como `yarn test:route-execution`,
+`yarn test:route-preview`, `yarn test:device-session` e
+`yarn test:patrimonio`, continuam úteis durante o desenvolvimento. A liberação
+deve executar a suíte completa declarada no `package.json`, sem depender de uma
+contagem fixa de casos.
 
 Cobertura de domínio inclui patrimônio, preparação/consolidação local da rota,
 prévia/cache, resiliência de banco/sincronização e primeiro acesso. Testes de

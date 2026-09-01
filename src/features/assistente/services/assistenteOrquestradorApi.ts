@@ -9,6 +9,8 @@ import {
 import {validarRespostaAssistenteOrquestrador} from '../useCases/validarRespostaAssistenteOrquestrador';
 
 interface ConversarComOrquestradorParams {
+  codigoInteracao?: string;
+  canalEntrada?: 'VOZ' | 'TEXTO' | 'ATALHO';
   transcricoes: readonly string[];
   telaAtual?: string;
   memoria: MemoriaAssistenteOrquestrador;
@@ -23,7 +25,7 @@ const CACHE_TTL_MS = 20_000;
 const requests = new Map<string, Promise<RespostaAssistenteOrquestrador | null>>();
 const cache = new Map<string, {expiraEm: number; resposta: RespostaAssistenteOrquestrador}>();
 
-/** Porta única do protocolo V2; falhas devolvem null para ativar o fluxo legado. */
+/** Porta única do protocolo V2; falhas devolvem null para ativar a árvore local. */
 export const conversarComAssistenteOrquestrador = async (
   client: AxiosInstance,
   params: ConversarComOrquestradorParams,
@@ -52,6 +54,12 @@ export const conversarComAssistenteOrquestrador = async (
         '/assistente-ia/conversar',
         {
           protocolo: ASSISTENTE_PROTOCOL_VERSION,
+          ...(params.codigoInteracao
+            ? {codigoInteracao: params.codigoInteracao}
+            : {}),
+          ...(params.canalEntrada
+            ? {canalEntrada: params.canalEntrada}
+            : {}),
           texto,
           transcricoes,
           ...(params.telaAtual ? {telaAtual: params.telaAtual} : {}),

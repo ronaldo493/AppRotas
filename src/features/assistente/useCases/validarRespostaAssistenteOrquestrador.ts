@@ -2,6 +2,7 @@ import {
   ASSISTENTE_PROTOCOL_VERSION,
   type BlocoAssistenteOrquestrador,
   type DominioAssistenteOrquestrador,
+  type EsclarecimentoPendenteAssistenteOrquestrador,
   type MemoriaAssistenteOrquestrador,
   type RespostaAssistenteOrquestrador,
 } from '../models/AssistenteOrquestrador';
@@ -17,6 +18,12 @@ const RESULTADOS = [
   'percorrida_parcial', 'interrompida', 'evidencia_insuficiente',
   'nao_iniciada',
 ] as const;
+const RESULTADOS_NEGOCIO = [
+  'ENCONTRADO',
+  'SEM_RESULTADO',
+  'AMBIGUO',
+  'NAO_COMPREENDIDO',
+] as const;
 
 const textoSeguro = (valor: unknown, limite: number): string =>
   typeof valor === 'string'
@@ -26,10 +33,68 @@ const textoSeguro = (valor: unknown, limite: number): string =>
 const pertence = <T extends string>(valor: unknown, lista: readonly T[]): valor is T =>
   typeof valor === 'string' && lista.includes(valor as T);
 
+const validarEsclarecimentoPendente = (
+  valor: unknown,
+): EsclarecimentoPendenteAssistenteOrquestrador | undefined => {
+  if (!valor || typeof valor !== 'object' || Array.isArray(valor)) return undefined;
+  const item = valor as Record<string, unknown>;
+  if (
+    !pertence(item.ferramenta, DOMINIOS.filter(dominio => dominio !== 'sistema')) ||
+    !pertence(item.parametro, ['termo', 'termoComparacao'] as const)
+  ) return undefined;
+  const acao = textoSeguro(item.acao, 50);
+  if (!acao) return undefined;
+  const parametrosRecebidos = item.parametros &&
+    typeof item.parametros === 'object' &&
+    !Array.isArray(item.parametros)
+    ? item.parametros as Record<string, unknown>
+    : {};
+  const opcoes = Array.isArray(item.opcoes)
+    ? item.opcoes.slice(0, 8).flatMap(opcao => {
+        if (!opcao || typeof opcao !== 'object' || Array.isArray(opcao)) return [];
+        const registro = opcao as Record<string, unknown>;
+        const valorOpcao = textoSeguro(registro.valor, 100);
+        const rotulo = textoSeguro(registro.rotulo, 140);
+        return valorOpcao && rotulo ? [{valor: valorOpcao, rotulo}] : [];
+      })
+    : [];
+  if (opcoes.length < 2) return undefined;
+  const quantidade = Number(parametrosRecebidos.quantidade);
+  return {
+    ferramenta: item.ferramenta as EsclarecimentoPendenteAssistenteOrquestrador['ferramenta'],
+    acao,
+    parametro: item.parametro,
+    parametros: {
+      ...(textoSeguro(parametrosRecebidos.termo, 100)
+        ? {termo: textoSeguro(parametrosRecebidos.termo, 100)}
+        : {}),
+      ...(textoSeguro(parametrosRecebidos.termoComparacao, 100)
+        ? {termoComparacao: textoSeguro(parametrosRecebidos.termoComparacao, 100)}
+        : {}),
+      ...(textoSeguro(parametrosRecebidos.campo, 40)
+        ? {campo: textoSeguro(parametrosRecebidos.campo, 40)}
+        : {}),
+      ...(pertence(parametrosRecebidos.periodo, PERIODOS)
+        ? {periodo: parametrosRecebidos.periodo}
+        : {}),
+      ...(pertence(parametrosRecebidos.resultado, RESULTADOS)
+        ? {resultado: parametrosRecebidos.resultado}
+        : {}),
+      ...(Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= 10
+        ? {quantidade}
+        : {}),
+    },
+    opcoes,
+  };
+};
+
 const validarMemoria = (valor: unknown): MemoriaAssistenteOrquestrador => {
   const item = valor && typeof valor === 'object' && !Array.isArray(valor)
     ? valor as Record<string, unknown>
     : {};
+  const esclarecimentoPendente = validarEsclarecimentoPendente(
+    item.esclarecimentoPendente,
+  );
   return {
     ...(pertence(item.ultimoDominio, DOMINIOS.filter(dominio => dominio !== 'sistema'))
       ? {ultimoDominio: item.ultimoDominio as MemoriaAssistenteOrquestrador['ultimoDominio']}
@@ -41,8 +106,16 @@ const validarMemoria = (valor: unknown): MemoriaAssistenteOrquestrador => {
     ...(Number.isInteger(Number(item.ultimoColaboradorId)) && Number(item.ultimoColaboradorId) > 0
       ? {ultimoColaboradorId: Number(item.ultimoColaboradorId)}
       : {}),
+    ...(textoSeguro(item.ultimoColaboradorComparacao, 100)
+      ? {ultimoColaboradorComparacao: textoSeguro(item.ultimoColaboradorComparacao, 100)}
+      : {}),
+    ...(Number.isInteger(Number(item.ultimoColaboradorComparacaoId)) &&
+      Number(item.ultimoColaboradorComparacaoId) > 0
+      ? {ultimoColaboradorComparacaoId: Number(item.ultimoColaboradorComparacaoId)}
+      : {}),
     ...(pertence(item.ultimoPeriodo, PERIODOS) ? {ultimoPeriodo: item.ultimoPeriodo} : {}),
     ...(pertence(item.ultimoResultadoRota, RESULTADOS) ? {ultimoResultadoRota: item.ultimoResultadoRota} : {}),
+    ...(esclarecimentoPendente ? {esclarecimentoPendente} : {}),
   };
 };
 
@@ -103,5 +176,12 @@ export const validarRespostaAssistenteOrquestrador = (
     memoria: validarMemoria(item.memoria),
     precisaEsclarecimento: item.precisaEsclarecimento,
     esclarecimento: esclarecimento || null,
+    resultadoNegocio: pertence(item.resultadoNegocio, RESULTADOS_NEGOCIO)
+      ? item.resultadoNegocio
+      : item.precisaEsclarecimento
+        ? 'AMBIGUO'
+        : item.processado
+          ? 'ENCONTRADO'
+          : 'NAO_COMPREENDIDO',
   };
 };

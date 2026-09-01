@@ -91,7 +91,6 @@ const TOPICOS_AJUDA: ReadonlyArray<{
   {topico: 'pontos', termos: /\b(ponto|pontos|restaurante|posto|combustivel)\b/},
   {topico: 'contatos', termos: /\b(contato|contatos|ramal|ddr)\b/},
   {topico: 'historico', termos: /\b(historico|visitas realizadas)\b/},
-  {topico: 'chamados', termos: /\b(chamado|chamados)\b/},
   {topico: 'preventiva', termos: /\b(preventiva|patrimonio|equipamento)\b/},
   {topico: 'perfil', termos: /\b(perfil|cadastro|email|senha)\b/},
 ];
@@ -347,7 +346,7 @@ const interpretarMapa = ({
   if (
     estaNoMapa &&
     !mencionaFilial &&
-    /\b(ponto|restaurante|posto|contato|historico|chamado|perfil|patrimonio)\b/.test(
+    /\b(ponto|restaurante|posto|contato|historico|perfil|patrimonio)\b/.test(
       texto,
     )
   ) {
@@ -470,7 +469,7 @@ const interpretarPontos = ({
   if (
     estaEmPontos &&
     !mencionaPonto &&
-    /\b(contato|historico|mapa|filial|loja|chamado|perfil|patrimonio)\b/.test(
+    /\b(contato|historico|mapa|filial|loja|perfil|patrimonio)\b/.test(
       texto,
     )
   ) {
@@ -585,7 +584,7 @@ const interpretarContatos = ({
   if (
     conversa.telaAtual === 'Contatos' &&
     !mencionaContato &&
-    /\b(historico|mapa|filial|loja|ponto|restaurante|posto|chamado|perfil|patrimonio|rota|tracar|adicionar|remover)\b/.test(
+    /\b(historico|mapa|filial|loja|ponto|restaurante|posto|perfil|patrimonio|rota|tracar|adicionar|remover)\b/.test(
       texto,
     )
   ) {
@@ -666,13 +665,6 @@ const interpretarHistorico = ({
     tipo,
   };
 };
-
-const interpretarChamados = ({
-  texto,
-}: ContextoInterpretacao): ComandoAssistente | null =>
-  /\b(quantos|resumo|resumir|consultar)\b.*\b(chamado|chamados)\b/.test(texto)
-    ? {dominio: 'chamados', acao: 'resumir'}
-    : null;
 
 const interpretarPreferencias = ({
   texto,
@@ -756,7 +748,6 @@ const DESTINOS: ReadonlyArray<{
   {destino: 'historico', termos: /\b(historico|historicos)\b/},
   {destino: 'pontos', termos: /\b(pontos de interesse|pontos|restaurantes|postos)\b/},
   {destino: 'preventiva', termos: /\b(preventiva|patrimonio|registro de patrimonio)\b/},
-  {destino: 'chamados', termos: /\b(chamado|chamados)\b/},
   {destino: 'contatos', termos: /\b(contato|contatos|ramais)\b/},
   {destino: 'admin', termos: /\b(admin|administracao|area administrativa)\b/},
   {destino: 'perfil', termos: /\b(perfil|meu cadastro|minha conta)\b/},
@@ -800,7 +791,6 @@ const ARVORE_INTENCOES: NoIntencao = {
         {id: 'analise-contatos', interpretar: interpretarAnaliseContatos},
         {id: 'contatos', interpretar: interpretarContatos},
         {id: 'historico', interpretar: interpretarHistorico},
-        {id: 'chamados', interpretar: interpretarChamados},
       ],
     },
     {id: 'aplicativo', interpretar: interpretarAplicativo},
@@ -845,8 +835,7 @@ const pontuarComando = (comando: ComandoAssistente): number => {
   if (comando.dominio === 'mapa') return 138;
   if (
     comando.dominio === 'contatos' ||
-    comando.dominio === 'historico' ||
-    comando.dominio === 'chamados'
+    comando.dominio === 'historico'
   ) {
     return 130;
   }

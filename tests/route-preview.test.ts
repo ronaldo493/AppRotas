@@ -14,6 +14,7 @@ import {
   origemPreviaRotaEstaAtualizada,
   ROUTE_PREVIEW_LOCATION_MAX_AGE_MS,
 } from '../src/features/rotas/useCases/validarOrigemPreviaRota';
+import {formatarEstimativaRotaAssistente} from '../src/features/rotas/useCases/formatarEstimativaRotaAssistente';
 
 test('decodifica a polyline retornada pela Routes API', () => {
   const coordinates = decodeGooglePolyline(
@@ -230,5 +231,33 @@ test('reutiliza somente uma origem recente e precisa na prévia', () => {
       now,
     ),
     false,
+  );
+});
+
+test('fala duração de rota com horas e minutos por extenso', () => {
+  const descricao = formatarEstimativaRotaAssistente({
+    durationSeconds: (2 * 60 + 28) * 60,
+    distanceMeters: 154_000,
+  });
+
+  assert.equal(
+    descricao.visual,
+    'O trajeto estimado tem 154 km e leva cerca de 2 h 28 min.',
+  );
+  assert.equal(
+    descricao.falada,
+    'O trajeto estimado tem 154 quilômetros e leva cerca de 2 horas e 28 minutos.',
+  );
+});
+
+test('respeita singular e não anuncia zero minuto', () => {
+  const descricao = formatarEstimativaRotaAssistente({
+    durationSeconds: 60 * 60,
+    distanceMeters: 1_200,
+  });
+
+  assert.equal(
+    descricao.falada,
+    'O trajeto estimado tem 1,2 quilômetros e leva cerca de 1 hora.',
   );
 });

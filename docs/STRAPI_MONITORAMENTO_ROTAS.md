@@ -1,12 +1,12 @@
 # Contrato do Strapi para monitoramento de rotas
 
-Este documento descreve o contrato esperado pelo aplicativo para registrar
-uma viagem real enquanto Google Maps ou Waze permanece aberto. A estrutura
-considera Strapi 5, sem Draft & Publish e sem internacionalização.
+Este documento descreve o contrato versionado entre aplicativo e backend para
+registrar uma viagem real enquanto Google Maps ou Waze permanece aberto. A
+estrutura considera Strapi 5, sem Draft & Publish e sem internacionalização.
 
 ## 1. Collection `execucao-rota`
 
-Crie uma Collection Type com:
+A Collection Type versionada possui:
 
 - Display name: `Execução de rota`
 - API ID singular: `execucao-rota`
@@ -17,6 +17,7 @@ Crie uma Collection Type com:
 | --- | --- | --- |
 | `codigoSessao` | Text (Short text) | obrigatório e único |
 | `usuario` | Relation | many-to-one com User (Users & Permissions), obrigatório |
+| `sessaoDispositivo` | Relation | many-to-one com `sessao-dispositivo`, opcional |
 | `username` | Text (Short text) | obrigatório; preenchido pelo backend |
 | `setor` | Text (Short text) | obrigatório; preenchido pelo backend |
 | `situacaoExecucao` | Enumeration | obrigatório; default `em_andamento` |
@@ -31,12 +32,11 @@ Crie uma Collection Type com:
 | `distanciaPlanejadaMetros` | Number (decimal) | opcional |
 | `duracaoPlanejadaSegundos` | Number (big integer) | opcional |
 | `distanciaPercorridaMetros` | Number (decimal) | opcional |
-
 | `duracaoTotalSegundos` | Number (big integer) | opcional |
 | `tempoMovimentoSegundos` | Number (big integer) | opcional |
 | `tempoParadoSegundos` | Number (big integer) | opcional |
 | `duracaoSemSinalSegundos` | Number (big integer) | opcional |
-| `quantidadeDesvios` | Number (integer) | opcional |
+| `quantidadeDesvios` | Number (big integer) | opcional |
 | `quantidadePontos` | Number (integer) | opcional |
 | `quantidadeDestinosPlanejados` | Number (integer) | opcional |
 | `quantidadeDestinosVisitados` | Number (integer) | opcional |
@@ -46,15 +46,20 @@ Crie uma Collection Type com:
 | `chegadaDestinoFinalEm` | Date (datetime) | opcional |
 | `conclusaoConfirmadaEm` | Date (datetime) | opcional |
 | `duracaoAteDestinoFinalSegundos` | Number (big integer) | opcional |
+| `menorDistanciaDestinoFinalMetros` | Number (decimal) | opcional; menor aproximação válida do destino final |
 | `destinosConfirmadosPorGps` | Boolean | obrigatório; default `false` |
 | `rotaConfirmadaPorGps` | Boolean | obrigatório; default `false` |
 | `teveInterrupcaoLocalizacao` | Boolean | obrigatório; default `false` |
-| `quantidadeInterrupcoesLocalizacao` | Number (integer) | obrigatório; default `0` |
+| `quantidadeInterrupcoesLocalizacao` | Number (integer) | opcional; default `0` |
 | `duracaoLocalizacaoIndisponivelSegundos` | Number (big integer) | opcional |
 | `ocorrenciasLocalizacao` | JSON | opcional |
 | `motivoFinalizacao` | Enumeration | opcional |
 | `ultimaLocalizacaoEm` | Date (datetime) | opcional |
 | `ultimaSincronizacaoEm` | Date (datetime) | opcional; recebimento mais recente no servidor |
+| `ultimoEventoRastreamento` | Enumeration | opcional; último estado técnico recebido |
+| `ultimoEventoRastreamentoEm` | Date (datetime) | opcional; horário observado no aparelho |
+| `telemetriaRecebidaEm` | Date (datetime) | opcional; horário de recebimento no servidor |
+| `pontosPendentesDispositivo` | Number (integer) | default `0` |
 | `atrasoUltimaSincronizacaoSegundos` | Number (big integer) | opcional |
 | `maiorAtrasoSincronizacaoSegundos` | Number (big integer) | opcional |
 | `origemFinalizacao` | Enumeration | opcional |
@@ -92,6 +97,7 @@ interrompida_usuario
 interrompida_logout
 interrompida_troca_dispositivo
 interrompida_erro
+falha_inicializacao
 interrompida_inatividade
 ```
 
@@ -134,7 +140,7 @@ Os valores aceitos para `tipo` dentro do JSON são `loja`, `restaurante` e
 
 ## 2. Collection `segmento-execucao-rota`
 
-Crie outra Collection Type:
+A Collection Type de segmentos possui:
 
 - Display name: `Segmento de execução de rota`
 - API ID singular: `segmento-execucao-rota`
@@ -277,6 +283,12 @@ const routes: Core.RouterConfig = {
     },
     {
       method: 'POST',
+      path: '/execucoes-rotas/:codigoSessao/telemetria',
+      handler:
+        'api::execucao-rota.execucao-rota.registrarTelemetria',
+    },
+    {
+      method: 'POST',
       path: '/execucoes-rotas/:codigoSessao/finalizar',
       handler:
         'api::execucao-rota.execucao-rota.finalizar',
@@ -287,7 +299,7 @@ const routes: Core.RouterConfig = {
 export default routes;
 ```
 
-Não configure `auth: false`. As três rotas precisam do JWT do aplicativo.
+Não configure `auth: false`. As quatro rotas precisam do JWT do aplicativo.
 
 ## 6. `POST /execucoes-rotas/iniciar`
 
@@ -419,6 +431,46 @@ Ao receber novos segmentos, o backend pode atualizar
 `detalhesDestinosVisitados` e as respectivas quantidades. Assim uma visita
 parcial já fica visível na execução, mesmo antes de seu encerramento.
 
+### 8.1 Telemetria operacional
+
+`POST /execucoes-rotas/:codigoSessao/telemetria`
+
+O endpoint registra somente o último estado técnico conhecido da execução. O
+aplicativo envia:
+
+```json
+{
+  "tipo": "sincronizacao_pendente",
+  "ocorridoEm": "2026-08-19T14:30:00.000Z",
+  "pontosPendentes": 42
+}
+```
+
+Valores permitidos em `tipo`:
+
+```text
+rastreamento_iniciado
+rastreamento_confirmado
+localizacao_recebida
+gps_indisponivel
+permissao_revogada
+servico_interrompido
+aplicativo_primeiro_plano
+sincronizacao_pendente
+lote_enviado
+```
+
+O backend valida o proprietário, o enum, a data e uma quantidade inteira entre
+0 e 100.000. Um evento cujo `ocorridoEm` seja anterior ao estado já armazenado
+é aceito sem substituir o mais novo. No aceite, atualiza
+`ultimoEventoRastreamento`, `ultimoEventoRastreamentoEm`,
+`telemetriaRecebidaEm` e `pontosPendentesDispositivo`.
+
+Esse POST é best-effort e não transporta coordenadas. Ele ajuda a diferenciar
+GPS indisponível, serviço interrompido e fila aguardando rede, mas não substitui
+os segmentos como evidência e não mantém uma linha histórica de cada evento.
+Falha de telemetria nunca deve impedir início, envio de lotes ou finalização.
+
 ## 9. Endpoint de finalização
 
 `POST /execucoes-rotas/:codigoSessao/finalizar`
@@ -433,8 +485,8 @@ relatório do gestor seja confiável, o backend deve:
 4. rejeitar saltos incompatíveis com velocidade de até 60 m/s mais a
    tolerância de precisão;
 5. recalcular distância, tempos, lacunas, chegadas e desvios;
-6. considerar chegada somente após três pontos válidos consecutivos próximos
-   ao destino, com pelo menos 15 segundos entre o primeiro e o terceiro;
+6. considerar chegada na primeira leitura válida dentro do raio do destino,
+   sem exigir que o colaborador permaneça parado no local;
 7. usar raio base de 120 metros, respeitando a precisão válida do GPS;
 8. concluir automaticamente quando todos os destinos forem confirmados;
 9. usar `concluida_parcial` quando uma execução encerrada possuir apenas parte
@@ -561,7 +613,8 @@ papel `Authenticated`.
 No Users & Permissions:
 
 - `Public`: nenhuma permissão das duas collections;
-- `Authenticated`: somente `iniciar`, `adicionarSegmento` e `finalizar`;
+- `Authenticated`: somente `iniciar`, `adicionarSegmento`,
+  `registrarTelemetria` e `finalizar`;
 - não liberar `create`, `update` ou `delete` genéricos para o aplicativo;
 - consultas do gestor devem usar endpoint e policy próprios;
 - o endpoint do gestor deve validar papel/setor.
@@ -579,7 +632,7 @@ mantidos por mais tempo.
 4. Configurar `GOOGLE_ROUTES_API_KEY`.
 5. Reiniciar o Strapi.
 6. Conferir com `yarn strapi routes:list`.
-7. Habilitar as três ações no papel `Authenticated`.
+7. Habilitar as quatro ações no papel `Authenticated`.
 8. Publicar o backend.
 9. Gerar uma nova build do aplicativo.
 

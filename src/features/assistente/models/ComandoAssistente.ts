@@ -7,7 +7,6 @@ export type DestinoAssistente =
   | 'historico'
   | 'pontos'
   | 'preventiva'
-  | 'chamados'
   | 'contatos'
   | 'admin'
   | 'perfil'
@@ -18,7 +17,6 @@ export type TopicoAjudaAssistente =
   | 'pontos'
   | 'contatos'
   | 'historico'
-  | 'chamados'
   | 'preventiva'
   | 'perfil';
 
@@ -119,7 +117,6 @@ export type ComandoAssistente =
       acao: 'consultar_ultimo';
       tipo?: TipoHistorico;
     }
-  | {dominio: 'chamados'; acao: 'resumir'}
   | {
       dominio: 'preferencias';
       acao: 'definir_tema';

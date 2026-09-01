@@ -22,6 +22,7 @@ const ROTULOS_MOTIVO: Record<string, string> = {
   interrompida_usuario: 'Interrompida pelo colaborador',
   interrompida_logout: 'Interrompida ao sair do aplicativo',
   interrompida_erro: 'Interrompida após uma falha',
+  falha_inicializacao: 'Falha ao iniciar o rastreamento',
   interrompida_inatividade: 'Encerrada por inatividade',
 };
 
@@ -60,11 +61,22 @@ const ROTULOS_ALERTA: Record<AlertaOperacionalRotaAdmin, string> = {
     'Parte do trajeto chegou ao servidor com atraso superior a 5 minutos.',
   localizacao_interrompida:
     'O aparelho registrou uma interrupção na coleta de localização.',
+  conclusao_com_lacunas_gps:
+    'O destino foi alcançado, mas existem intervalos sem localização no trajeto.',
+  falha_inicializacao:
+    'O rastreamento não conseguiu produzir leituras suficientes após a abertura da rota.',
+  duracao_incompativel:
+    'A duração registrada ultrapassa 6 horas e deve ser conferida antes de usar esta rota como referência.',
+  origem_nao_identificada:
+    'A cidade de origem não pôde ser identificada; as coordenadas permanecem como fonte de verdade.',
+  possivel_chegada_nao_reconhecida:
+    'O trajeto chegou próximo ao destino, mas a versão usada não reconheceu a chegada.',
 };
 
 const ROTULOS_RESULTADO_VIAGEM: Record<ResultadoViagemRotaAdmin, string> = {
   em_acompanhamento: 'Em acompanhamento',
   percorrida_confirmada: 'Percurso confirmado',
+  percorrida_com_lacunas: 'Destino alcançado com lacunas no GPS',
   percorrida_parcial: 'Percurso parcial',
   interrompida_com_trajeto: 'Interrompida com trajeto',
   interrompida_sem_trajeto: 'Interrompida sem trajeto suficiente',
@@ -208,6 +220,8 @@ export const descreverExecucaoRotaAdmin = (
       return 'A rota está aberta e continua recebendo informações de localização.';
     case 'percorrida_confirmada':
       return `O GPS registrou o trajeto e confirmou ${visitados} de ${planejados} destinos planejados.`;
+    case 'percorrida_com_lacunas':
+      return `O GPS confirmou ${visitados} de ${planejados} destinos, mas houve intervalos sem localização durante o percurso.`;
     case 'percorrida_parcial':
       return `O aparelho registrou deslocamento, mas confirmou somente ${visitados} de ${planejados} destinos.`;
     case 'interrompida_com_trajeto':

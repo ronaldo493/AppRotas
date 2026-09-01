@@ -139,11 +139,11 @@ test('calcula duração, movimento e destino visitado', () => {
   assert.equal(summary.rotaConfirmadaPorGps, true);
   assert.equal(
     summary.duracaoAteDestinoFinalSegundos,
-    200,
+    180,
   );
   assert.equal(
     summary.chegadaDestinoFinalEm,
-    points[5].registradoEm,
+    points[3].registradoEm,
   );
   assert.ok(summary.distanciaPercorridaMetros > 1_100);
   assert.ok(summary.trajetoReal);
@@ -221,7 +221,7 @@ test('ignora ponto impreciso e salto incompatível com veículo', () => {
   assert.equal(summary.distanciaPercorridaMetros, 0);
 });
 
-test('não confirma destino quando o veículo apenas passa próximo', () => {
+test('confirma chegada mesmo quando o veículo apenas passa pelo destino', () => {
   const destination = createDestination(
     25,
     0,
@@ -244,12 +244,46 @@ test('não confirma destino quando o veículo apenas passa próximo', () => {
 
   assert.equal(
     summary.quantidadeDestinosVisitados,
-    0,
+    1,
   );
   assert.equal(
     summary.destinosConfirmadosPorGps,
-    false,
+    true,
   );
+  assert.equal(
+    summary.detalhesDestinosVisitados[0].tipoEvidencia,
+    'proximidade',
+  );
+});
+
+test('não confirma passagem fora do raio e mantém a rota em andamento', () => {
+  const destination = createDestination(25, 0, 0.01, 1);
+  const progresso = processarProgressoVisitasDestinos(
+    [createPoint(1, 0, 0.0088, 0, {speed: 12})],
+    [destination],
+  );
+
+  assert.equal(progresso[0].visita, null);
+});
+
+test('uma leitura imprecisa não confirma chegada nem substitui evidência válida', () => {
+  const destination = createDestination(25, 0, 0.01, 1);
+  const imprecisa = processarProgressoVisitasDestinos(
+    [
+      createPoint(1, 0, 0.01, 0, {accuracy: 180}),
+    ],
+    [destination],
+  );
+  const precisa = processarProgressoVisitasDestinos(
+    [
+      createPoint(2, 0, 0.01, 10, {accuracy: 8}),
+    ],
+    [destination],
+    imprecisa,
+  );
+
+  assert.equal(imprecisa[0].visita, null);
+  assert.ok(precisa[0].visita);
 });
 
 test('preserva a visita parcial sem concluir todos os destinos', () => {
@@ -345,7 +379,7 @@ test('sinaliza interrupção mesmo com todos os destinos confirmados', () => {
   );
 });
 
-test('mantém confirmação incremental entre lotes do GPS', () => {
+test('mantém confirmação de proximidade entre lotes do GPS', () => {
   const destination = createDestination(
     25,
     0,
@@ -374,9 +408,9 @@ test('mantém confirmação incremental entre lotes do GPS', () => {
     progress,
   );
 
-  assert.equal(progress[0].pontosConsecutivos, 3);
+  assert.equal(progress[0].pontosConsecutivos, 1);
   assert.equal(
     progress[0].visita?.confirmadoEm,
-    points[2].registradoEm,
+    points[0].registradoEm,
   );
 });
